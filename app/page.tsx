@@ -8,10 +8,10 @@ export default function HomePage() {
       <Header area="landing" />
       <section className="hero">
         <div className="card">
-          <p className="badge">{APP_VERSION} · Live diary availability foundation</p>
+          <p className="badge">{APP_VERSION} · Netlify Database foundation</p>
           <h1 className="hero-title">Two synced booking apps from one domain.</h1>
           <p className="hero-copy">
-            The client app lets patients browse diary dates and book available times. The admin app lets dentist staff create, manage, cancel and complete bookings from the same diary source.
+            The client app lets patients browse diary dates and book available times. The admin app lets dentist staff create, manage, cancel and complete bookings from the same Netlify Database-backed diary source.
           </p>
           <div className="nav-pills">
             <Link className="button primary" href="/book">Open Client App</Link>

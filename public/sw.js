@@ -1,4 +1,4 @@
-const CACHE_NAME = 'zippyweb-booking-system-v0.002';
+const CACHE_NAME = 'zippyweb-booking-system-v0.003A';
 const CORE_ASSETS = ['/', '/book', '/admin', '/widget'];
 
 self.addEventListener('install', (event) => {

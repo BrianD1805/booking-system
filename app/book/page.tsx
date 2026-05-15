@@ -2,41 +2,49 @@
 
 import { FormEvent, useMemo, useState } from 'react';
 import { Header } from '@/components/Header';
-import { APP_VERSION, practiceSettings, procedures, procedureDuration } from '@/lib/mockData';
-import { createBooking, getAvailabilityForDate, getDateOffset, getDayLabel } from '@/lib/availability';
-import { useLiveBookings } from '@/lib/useLiveBookings';
+import { APP_VERSION, procedureDuration } from '@/lib/mockData';
+import { getAvailabilityForDate, getDateOffset, getDayLabel } from '@/lib/availability';
+import { useBookingDatabase } from '@/lib/useBookingDatabase';
 
 export default function BookPage() {
-  const { bookings, setBookings } = useLiveBookings();
   const [confirmedBookingId, setConfirmedBookingId] = useState<string | null>(null);
-  const [procedureId, setProcedureId] = useState(procedures[0]?.id ?? '');
+  const [procedureId, setProcedureId] = useState('checkup');
   const [selectedDate, setSelectedDate] = useState(getDateOffset(3));
   const [selectedTime, setSelectedTime] = useState('');
-  const selectedProcedure = useMemo(() => procedures.find((item) => item.id === procedureId), [procedureId]);
-  const slots = useMemo(() => getAvailabilityForDate(bookings, selectedDate, procedureId), [bookings, selectedDate, procedureId]);
+  const { bootstrap, bookings, loading, saving, error, createBooking, refresh } = useBookingDatabase(selectedDate);
+  const { practiceSettings, procedures, blockedDates, blockedTimes } = bootstrap;
+  const selectedProcedure = useMemo(() => procedures.find((item) => item.id === procedureId) ?? procedures[0], [procedureId, procedures]);
+  const activeProcedureId = selectedProcedure?.id ?? procedureId;
+  const slots = useMemo(
+    () => getAvailabilityForDate(bookings, selectedDate, activeProcedureId, { practiceSettings, procedures, blockedDates, blockedTimes }),
+    [bookings, selectedDate, activeProcedureId, practiceSettings, procedures, blockedDates, blockedTimes]
+  );
   const availableSlots = slots.filter((slot) => slot.available);
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
 
     if (!selectedTime) return;
 
-    const newBooking = createBooking({
-      patientName: String(form.get('patientName') ?? ''),
-      patientPhone: String(form.get('patientPhone') ?? ''),
-      patientEmail: String(form.get('patientEmail') ?? ''),
-      procedureId,
-      date: selectedDate,
-      time: selectedTime,
-      source: 'client',
-      notes: String(form.get('notes') ?? '')
-    });
+    try {
+      const newBooking = await createBooking({
+        patientName: String(form.get('patientName') ?? ''),
+        patientPhone: String(form.get('patientPhone') ?? ''),
+        patientEmail: String(form.get('patientEmail') ?? ''),
+        procedureId: activeProcedureId,
+        date: selectedDate,
+        time: selectedTime,
+        source: 'client',
+        notes: String(form.get('notes') ?? '')
+      });
 
-    setBookings((current) => [...current, newBooking]);
-    setConfirmedBookingId(newBooking.id);
-    setSelectedTime('');
-    event.currentTarget.reset();
+      setConfirmedBookingId(newBooking.id);
+      setSelectedTime('');
+      event.currentTarget.reset();
+    } catch {
+      // Error is surfaced by the hook in the page notice.
+    }
   }
 
   return (
@@ -47,11 +55,18 @@ export default function BookPage() {
           <p className="badge">Client booking app · {APP_VERSION}</p>
           <h1 className="hero-title">Book a live appointment.</h1>
           <p className="hero-copy">
-            Patients choose a procedure, browse the diary by date and book one of the available times. This is a live booking workflow, not an application form or request queue.
+            Patients choose a procedure, browse the diary by date and book one of the available times. This is a live booking workflow, connected through the shared Netlify Database.
           </p>
           <div className="notice">
-            Demo reminders: {practiceSettings.reminderOptions.join(', ')}. Push notifications first, SMS as fallback.
+            Database-backed diary: client and admin apps read and write through the same booking API. Reminders later: {practiceSettings.reminderOptions.join(', ')}.
           </div>
+          {error && (
+            <div className="notice warning" role="alert">
+              {error}<br />
+              Run the Netlify Database setup steps in the README, then refresh this page.
+              <div style={{ marginTop: 10 }}><button className="pill" type="button" onClick={refresh}>Retry database connection</button></div>
+            </div>
+          )}
         </div>
 
         <form className="card" onSubmit={handleSubmit}>
@@ -78,7 +93,7 @@ export default function BookPage() {
               <select
                 id="procedure"
                 name="procedure"
-                value={procedureId}
+                value={activeProcedureId}
                 onChange={(event) => {
                   setProcedureId(event.target.value);
                   setSelectedTime('');
@@ -106,17 +121,19 @@ export default function BookPage() {
           </div>
 
           {selectedProcedure && (
-            <p className="notice">Selected: {selectedProcedure.name}. Appointment length: {procedureDuration(procedureId)} minutes.</p>
+            <p className="notice">Selected: {selectedProcedure.name}. Appointment length: {procedureDuration(activeProcedureId, procedures)} minutes.</p>
           )}
 
           <h2 className="section-title compact">3. Available times</h2>
-          <p className="mini-copy">{getDayLabel(selectedDate)} · {availableSlots.length} available time{availableSlots.length === 1 ? '' : 's'}</p>
+          <p className="mini-copy">
+            {loading ? 'Loading diary from Netlify Database…' : `${getDayLabel(selectedDate)} · ${availableSlots.length} available time${availableSlots.length === 1 ? '' : 's'}`}
+          </p>
           <div className="slot-grid" role="list" aria-label="Available appointment times">
             {slots.map((slot) => (
               <button
                 key={`${slot.time}-${slot.endTime}`}
                 className={`slot ${slot.available ? 'available' : 'unavailable'} ${selectedTime === slot.time ? 'selected' : ''}`}
-                disabled={!slot.available}
+                disabled={!slot.available || saving}
                 type="button"
                 title={slot.reason ?? `Available until ${slot.endTime}`}
                 onClick={() => setSelectedTime(slot.time)}
@@ -132,24 +149,24 @@ export default function BookPage() {
             <textarea id="notes" name="notes" placeholder="Optional notes, symptoms, or preferred dentist." />
           </div>
 
-          <button className="button primary full" type="submit" disabled={!selectedTime}>
-            {selectedTime ? `Book ${selectedTime} appointment` : 'Choose an available time'}
+          <button className="button primary full" type="submit" disabled={!selectedTime || saving || Boolean(error)}>
+            {saving ? 'Saving confirmed booking…' : selectedTime ? `Book ${selectedTime} appointment` : 'Choose an available time'}
           </button>
 
           {confirmedBookingId && (
             <p className="notice success" role="status">
-              Appointment confirmed and added to the shared diary. Open the admin app to see it immediately.
+              Appointment confirmed and saved to Netlify Database. Open the admin app to see the same booking.
             </p>
           )}
         </form>
       </section>
 
       <section className="card diary-panel">
-        <h2 className="section-title compact">How this must work when database-connected</h2>
+        <h2 className="section-title compact">Live diary foundation</h2>
         <div className="grid three">
-          <div className="stat"><strong>Live booking</strong><span>Client-created bookings become confirmed diary records immediately.</span></div>
-          <div className="stat"><strong>Synced diary</strong><span>Admin and client apps read from the same booking source.</span></div>
-          <div className="stat"><strong>Availability first</strong><span>Only genuinely available times should be offered to clients.</span></div>
+          <div className="stat"><strong>Database-backed</strong><span>Bookings are read and written through Netlify Database APIs.</span></div>
+          <div className="stat"><strong>Confirmed instantly</strong><span>A client booking becomes a confirmed diary record immediately.</span></div>
+          <div className="stat"><strong>Availability first</strong><span>Clients only see times left open after bookings and blocked diary entries.</span></div>
         </div>
       </section>
 

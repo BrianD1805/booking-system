@@ -32,9 +32,37 @@ export type BlockedTime = {
   reason: string;
 };
 
-export const APP_VERSION = 'Ver-0.002';
+export type BlockedDate = {
+  date: string;
+  reason: string;
+};
 
-export const procedures: Procedure[] = [
+export type PracticeSettings = {
+  practiceId: string;
+  practiceName: string;
+  bookingSubdomain: string;
+  reminderOptions: string[];
+  workingDays: number[];
+  workingStartTime: string;
+  workingEndTime: string;
+  slotIntervalMinutes: number;
+  minimumNoticeHours: number;
+  maxBookingAheadDays: number;
+  fallbackSms: boolean;
+  mobilePush: boolean;
+  medicalDataMode: string;
+};
+
+export type BootstrapData = {
+  practiceSettings: PracticeSettings;
+  procedures: Procedure[];
+  blockedDates: BlockedDate[];
+  blockedTimes: BlockedTime[];
+};
+
+export const APP_VERSION = 'Ver-0.003A';
+
+export const fallbackProcedures: Procedure[] = [
   { id: 'checkup', name: 'Dental check-up', durationMinutes: 30, priceGuide: 'Standard consultation' },
   { id: 'cleaning', name: 'Scale and polish', durationMinutes: 45, priceGuide: 'Hygienist appointment' },
   { id: 'filling', name: 'Filling appointment', durationMinutes: 60, priceGuide: 'Time varies by case' },
@@ -42,49 +70,17 @@ export const procedures: Procedure[] = [
   { id: 'emergency', name: 'Emergency dental appointment', durationMinutes: 30, priceGuide: 'Priority slot' }
 ];
 
-export const blockedTimes: BlockedTime[] = [
+export const fallbackBlockedTimes: BlockedTime[] = [
   { id: 'block-lunch', date: '2026-05-18', startTime: '13:00', endTime: '14:00', reason: 'Lunch break' },
   { id: 'block-training', date: '2026-05-19', startTime: '15:00', endTime: '17:00', reason: 'Staff training' }
 ];
 
-export const blockedDates = [
+export const fallbackBlockedDates: BlockedDate[] = [
   { date: '2026-05-22', reason: 'Practice closed / leave day' }
 ];
 
-export const seedBookings: Booking[] = [
-  {
-    id: 'bk-1001',
-    patientName: 'Amina Patel',
-    patientPhone: '+254 700 000001',
-    patientEmail: 'amina@example.com',
-    procedureId: 'checkup',
-    date: '2026-05-18',
-    time: '09:30',
-    endTime: '10:00',
-    status: 'confirmed',
-    source: 'admin',
-    notes: 'Prefers morning appointments.',
-    createdAt: '2026-05-15T08:00:00.000Z',
-    updatedAt: '2026-05-15T08:00:00.000Z'
-  },
-  {
-    id: 'bk-1002',
-    patientName: 'David Mwangi',
-    patientPhone: '+254 700 000002',
-    patientEmail: 'david@example.com',
-    procedureId: 'cleaning',
-    date: '2026-05-18',
-    time: '11:00',
-    endTime: '11:45',
-    status: 'confirmed',
-    source: 'client',
-    notes: 'New patient.',
-    createdAt: '2026-05-15T08:10:00.000Z',
-    updatedAt: '2026-05-15T08:10:00.000Z'
-  }
-];
-
-export const practiceSettings = {
+export const fallbackPracticeSettings: PracticeSettings = {
+  practiceId: 'practice_001',
   practiceName: 'Zippy Dental Demo',
   bookingSubdomain: 'demo.bookings.zippyweb.uk',
   reminderOptions: ['1 day before', '1 hour before', 'Both'],
@@ -99,10 +95,17 @@ export const practiceSettings = {
   medicalDataMode: 'Dedicated Netlify Database first, later expandable to a shared SaaS database with strict tenant separation.'
 };
 
-export function procedureName(id: string) {
+export const fallbackBootstrap: BootstrapData = {
+  practiceSettings: fallbackPracticeSettings,
+  procedures: fallbackProcedures,
+  blockedDates: fallbackBlockedDates,
+  blockedTimes: fallbackBlockedTimes
+};
+
+export function procedureName(id: string, procedures: Procedure[] = fallbackProcedures) {
   return procedures.find((item) => item.id === id)?.name ?? 'Procedure not found';
 }
 
-export function procedureDuration(id: string) {
+export function procedureDuration(id: string, procedures: Procedure[] = fallbackProcedures) {
   return procedures.find((item) => item.id === id)?.durationMinutes ?? 30;
 }

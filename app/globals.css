@@ -340,3 +340,10 @@ textarea { min-height: 110px; resize: vertical; }
     flex-direction: column;
   }
 }
+
+/* Ver-0.003 Netlify Database additions */
+.notice.warning {
+  border-left-color: var(--danger);
+  background: #fff5f5;
+  color: #7f1d1d;
+}

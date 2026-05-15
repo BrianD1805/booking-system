@@ -1,10 +1,17 @@
-import { blockedDates, blockedTimes, practiceSettings, procedureDuration, type Booking } from '@/lib/mockData';
+import { procedureDuration, type BlockedDate, type BlockedTime, type Booking, type PracticeSettings, type Procedure } from '@/lib/mockData';
 
 export type DiarySlot = {
   time: string;
   endTime: string;
   available: boolean;
   reason?: string;
+};
+
+export type AvailabilityContext = {
+  practiceSettings: PracticeSettings;
+  procedures: Procedure[];
+  blockedDates: BlockedDate[];
+  blockedTimes: BlockedTime[];
 };
 
 function toMinutes(time: string) {
@@ -26,7 +33,7 @@ export function addMinutes(time: string, minutesToAdd: number) {
   return fromMinutes(toMinutes(time) + minutesToAdd);
 }
 
-export function isWorkingDay(date: string) {
+export function isWorkingDay(date: string, practiceSettings: PracticeSettings) {
   const day = new Date(`${date}T12:00:00`).getDay();
   return practiceSettings.workingDays.includes(day);
 }
@@ -46,11 +53,12 @@ export function getDateOffset(daysFromToday: number) {
   return date.toISOString().slice(0, 10);
 }
 
-export function getAvailabilityForDate(bookings: Booking[], date: string, procedureId: string): DiarySlot[] {
-  const duration = procedureDuration(procedureId);
+export function getAvailabilityForDate(bookings: Booking[], date: string, procedureId: string, context: AvailabilityContext): DiarySlot[] {
+  const { practiceSettings, procedures, blockedDates, blockedTimes } = context;
+  const duration = procedureDuration(procedureId, procedures);
   const dayBlocked = blockedDates.find((item) => item.date === date);
 
-  if (!isWorkingDay(date)) {
+  if (!isWorkingDay(date, practiceSettings)) {
     return [{ time: practiceSettings.workingStartTime, endTime: practiceSettings.workingEndTime, available: false, reason: 'Practice is closed on this day' }];
   }
 
@@ -79,32 +87,4 @@ export function getAvailabilityForDate(bookings: Booking[], date: string, proced
   }
 
   return slots;
-}
-
-export function createBooking(input: {
-  patientName: string;
-  patientPhone: string;
-  patientEmail: string;
-  procedureId: string;
-  date: string;
-  time: string;
-  source: Booking['source'];
-  notes?: string;
-}): Booking {
-  const now = new Date().toISOString();
-  return {
-    id: `bk-${Date.now()}`,
-    patientName: input.patientName,
-    patientPhone: input.patientPhone,
-    patientEmail: input.patientEmail,
-    procedureId: input.procedureId,
-    date: input.date,
-    time: input.time,
-    endTime: addMinutes(input.time, procedureDuration(input.procedureId)),
-    status: 'confirmed',
-    source: input.source,
-    notes: input.notes,
-    createdAt: now,
-    updatedAt: now
-  };
 }
