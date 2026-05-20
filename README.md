@@ -1,10 +1,10 @@
-# ZippyWeb Booking System — Ver-0.005G
+# ZippyWeb Booking System — Ver-0.005H
 
 From Brian Hallam at ZippyWeb.
 
 ## Current build
 
-**Ver-0.005G — 30 Minute Booking Slots**
+**Ver-0.005H — Migration Integrity Fix**
 
 This build keeps the existing live booking foundation and adjusts the appointment slot grid from 15-minute increments to 30-minute increments.
 
@@ -81,5 +81,10 @@ npm run build
 ## Deploy
 
 ```bash
-git status && git add . && git commit -m "Booking System Ver-0.005G 30 minute booking slots" && git push origin main
+git status && git add . && git commit -m "Booking System Ver-0.005H 30 minute booking slots" && git push origin main
 ```
+
+
+## Ver-0.005H note
+
+This build restores the original `0001_booking_system_foundation.sql` migration exactly as it was before Netlify applied it in production. Netlify Database does not allow an already-applied migration file to be edited. The 30-minute slot change remains in `0003_slot_interval_30_minutes.sql`.

@@ -5,7 +5,7 @@ CREATE TABLE IF NOT EXISTS practices (
   working_days INTEGER[] NOT NULL DEFAULT ARRAY[1,2,3,4,5],
   working_start_time TIME NOT NULL DEFAULT '08:30',
   working_end_time TIME NOT NULL DEFAULT '17:00',
-  slot_interval_minutes INTEGER NOT NULL DEFAULT 30,
+  slot_interval_minutes INTEGER NOT NULL DEFAULT 15,
   minimum_notice_hours INTEGER NOT NULL DEFAULT 2,
   max_booking_ahead_days INTEGER NOT NULL DEFAULT 90,
   fallback_sms BOOLEAN NOT NULL DEFAULT TRUE,
@@ -122,7 +122,7 @@ INSERT INTO practices (
   slot_interval_minutes, minimum_notice_hours, max_booking_ahead_days, fallback_sms, mobile_push, medical_data_mode
 ) VALUES (
   'practice_001', 'Zippy Dental Demo', 'demo.bookings.zippyweb.uk', ARRAY[1,2,3,4,5], '08:30', '17:00',
-  30, 2, 90, TRUE, TRUE, 'Dedicated Netlify Database first, later expandable to a shared SaaS database with strict tenant separation.'
+  15, 2, 90, TRUE, TRUE, 'Dedicated Netlify Database first, later expandable to a shared SaaS database with strict tenant separation.'
 ) ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO procedures (id, practice_id, name, duration_minutes, price_guide, active, display_order) VALUES
