@@ -1,10 +1,11 @@
 import type { Metadata, Viewport } from 'next';
+import { ZIPBOOK_DOMAINS } from '@/lib/domains';
 
 export const metadata: Metadata = {
-  title: 'Practice Diary',
-  description: 'Manage dental appointments, practitioner diaries, and live bookings.',
+  title: 'Admin Diary',
+  description: 'Manage appointments, practitioner diaries, bookings, and practice availability.',
   manifest: '/manifest-admin.json',
-  alternates: { canonical: '/admin' }
+  alternates: { canonical: ZIPBOOK_DOMAINS.admin }
 };
 
 export const viewport: Viewport = { themeColor: '#113f8c' };

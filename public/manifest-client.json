@@ -1,10 +1,10 @@
 {
-  "id": "/book",
-  "name": "ZippyWeb Dental Booking",
-  "short_name": "Book Dentist",
-  "description": "Book dental appointments online with live availability.",
-  "start_url": "/book",
-  "scope": "/book",
+  "id": "https://zipbook.app/",
+  "name": "ZipBook",
+  "short_name": "ZipBook",
+  "description": "Book appointments online with live availability.",
+  "start_url": "/",
+  "scope": "/",
   "display": "standalone",
   "display_override": [
     "standalone",
@@ -77,7 +77,7 @@
       "name": "Book appointment",
       "short_name": "Book",
       "description": "Open the client booking app.",
-      "url": "/book",
+      "url": "/",
       "icons": [
         {
           "src": "/icons/icon-192.png",

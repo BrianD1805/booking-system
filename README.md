@@ -1,21 +1,32 @@
-# ZippyWeb Booking System — Ver-0.006
+# ZipBook — Ver-0.007
 
 From Brian Hallam at ZippyWeb.
 
 ## Current build
 
-**Ver-0.006 — PWA Foundation and Dental Icon Setup**
+**Ver-0.007 — Domain Split Foundation**
 
-This build keeps the existing live booking foundation and adds the PWA/browser icon foundation using the new friendly tooth app icon.
+This build prepares ZipBook for the new production domain and separates the client-facing app from the admin app while keeping one shared codebase, one GitHub repo, one Netlify project, and one shared Netlify Database foundation.
+
+## Domain plan
+
+- `https://zipbook.app` — client-facing booking app.
+- `https://admin.zipbook.app` — owner/admin diary app.
+- `https://bookings-system.netlify.app` — temporary Netlify URL / fallback during setup.
+- Future SaaS route idea: `https://practice-name.zipbook.app` for tenant booking pages.
 
 ## What this build changes
 
-- Adds the new dental app icon as PNG icons for PWA installs.
-- Adds browser favicon files, Apple touch icon, maskable icons, and Open Graph browser/social image.
-- Improves the client and admin manifests so both apps install cleanly from one domain.
-- Adds an offline fallback page for the service worker.
-- Updates metadata for browser titles, descriptions, sharing previews, and install behaviour.
-- No booking table or API schema changes.
+- Adds domain-aware routing middleware.
+- `zipbook.app` opens the client booking app at the root domain.
+- `admin.zipbook.app` opens the admin diary app at the root of the subdomain.
+- `/admin` on the main ZipBook domain redirects to the admin subdomain.
+- `/book` on the admin subdomain redirects back to the client domain.
+- Localhost and the temporary Netlify URL continue to work with `/book`, `/admin`, and `/widget` for testing.
+- Updates metadata, browser titles, manifest IDs, PWA start URLs and app names for ZipBook.
+- Keeps the client and admin apps as separate installable PWAs from their own domains/subdomain.
+- Keeps the same Netlify Database, booking API, procedures, practitioners, conflict checks and slot logic.
+- No database migration changes in this build.
 
 ## App areas
 
@@ -31,10 +42,29 @@ This is a live booking system, not an appointment request system.
 - Dentist/admin/staff can create a confirmed booking directly.
 - Both apps use Netlify Database through API routes.
 - Client-created bookings and staff-created bookings sync between both apps.
+- Bookings are linked to a specific practitioner/resource.
 
-## Database migrations
+## SaaS direction
 
-Ver-0.006 does not add a new database migration. The existing `0003_slot_interval_30_minutes.sql` migration remains in place from the previous slot-interval build.
+The current version is still suitable for a dedicated dentist/practice database. The domain structure now keeps us ready for a SaaS expansion later, where tenant booking pages can use subdomains such as `practice-name.zipbook.app` while the owner/admin system remains separated at `admin.zipbook.app`.
+
+## Netlify custom domain setup notes
+
+In Netlify, add these domains to the same site first:
+
+```text
+zipbook.app
+www.zipbook.app
+admin.zipbook.app
+```
+
+Later, when we are ready for tenant SaaS subdomains, add:
+
+```text
+*.zipbook.app
+```
+
+Do not add the wildcard until the product is ready for tenant routing.
 
 ## Local Program Files workflow
 
@@ -59,6 +89,7 @@ Open:
 ```text
 http://localhost:8888/book
 http://localhost:8888/admin
+http://localhost:8888/widget
 ```
 
 ## Build check
@@ -70,16 +101,9 @@ npm run build
 ## Deploy
 
 ```bash
-git status && git add . && git commit -m "Booking System Ver-0.006 PWA foundation and dental icons" && git push origin main
+git status && git add . && git commit -m "Booking System Ver-0.007 domain split foundation" && git push origin main
 ```
 
+## Migration safety note
 
-## Ver-0.005H note
-
-This build restores the original `0001_booking_system_foundation.sql` migration exactly as it was before Netlify applied it in production. Netlify Database does not allow an already-applied migration file to be edited. The 30-minute slot change remains in `0003_slot_interval_30_minutes.sql`.
-
-## Ver-0.006 note
-
-This version sets up the PWA asset foundation using the new friendly tooth icon. It adds PNG app icons, maskable icons, favicon, Apple touch icon, Open Graph browser/social image, improved manifests for the client and admin apps, and an offline fallback page.
-
-Important: do not edit existing applied Netlify Database migrations. New database changes must always be added as a new migration file.
+Do not edit existing applied Netlify Database migrations. New database changes must always be added as a new migration file.

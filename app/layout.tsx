@@ -1,18 +1,19 @@
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import { RegisterServiceWorker } from './register-sw';
+import { ZIPBOOK_DOMAINS } from '@/lib/domains';
 
-const siteUrl = 'https://bookings-system.netlify.app';
+const siteUrl = ZIPBOOK_DOMAINS.client;
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
-  applicationName: 'ZippyWeb Dental Booking',
+  applicationName: 'ZipBook',
   title: {
-    default: 'ZippyWeb Dental Booking',
-    template: '%s | ZippyWeb Dental Booking'
+    default: 'ZipBook',
+    template: '%s | ZipBook'
   },
-  description: 'Book and manage dental appointments with live diary availability.',
-  keywords: ['dental booking', 'appointment booking', 'practice diary', 'PWA booking app'],
+  description: 'Book and manage appointments with live diary availability.',
+  keywords: ['appointment booking', 'dental booking', 'practice diary', 'PWA booking app', 'ZipBook'],
   authors: [{ name: 'Brian Hallam at ZippyWeb' }],
   creator: 'Brian Hallam at ZippyWeb',
   publisher: 'ZippyWeb',
@@ -29,27 +30,27 @@ export const metadata: Metadata = {
   openGraph: {
     type: 'website',
     url: siteUrl,
-    title: 'ZippyWeb Dental Booking',
-    description: 'Book and manage dental appointments with live diary availability.',
-    siteName: 'ZippyWeb Dental Booking',
+    title: 'ZipBook',
+    description: 'Book and manage appointments with live diary availability.',
+    siteName: 'ZipBook',
     images: [
       {
         url: '/og-image.png',
-        width: 1200,
-        height: 630,
-        alt: 'ZippyWeb Dental Booking app icon and booking prompt'
+        width: 512,
+        height: 512,
+        alt: 'ZipBook app icon'
       }
     ]
   },
   twitter: {
-    card: 'summary_large_image',
-    title: 'ZippyWeb Dental Booking',
-    description: 'Book and manage dental appointments with live diary availability.',
+    card: 'summary',
+    title: 'ZipBook',
+    description: 'Book and manage appointments with live diary availability.',
     images: ['/og-image.png']
   },
   appleWebApp: {
     capable: true,
-    title: 'Dental Booking',
+    title: 'ZipBook',
     statusBarStyle: 'default'
   }
 };

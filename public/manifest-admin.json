@@ -1,10 +1,10 @@
 {
-  "id": "/admin",
-  "name": "ZippyWeb Dental Booking Admin",
-  "short_name": "Diary Admin",
-  "description": "Manage dental appointments and practitioner diaries.",
-  "start_url": "/admin",
-  "scope": "/admin",
+  "id": "https://admin.zipbook.app/",
+  "name": "ZipBook Admin",
+  "short_name": "ZipBook Admin",
+  "description": "Manage appointments and practitioner diaries.",
+  "start_url": "/",
+  "scope": "/",
   "display": "standalone",
   "display_override": [
     "standalone",
@@ -77,7 +77,7 @@
       "name": "Open diary",
       "short_name": "Diary",
       "description": "Open the admin diary.",
-      "url": "/admin",
+      "url": "/",
       "icons": [
         {
           "src": "/icons/icon-192.png",
