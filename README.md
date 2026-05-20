@@ -1,16 +1,26 @@
-# ZippyWeb Booking System — Ver-0.005C
+# ZippyWeb Booking System — Ver-0.005G
 
 From Brian Hallam at ZippyWeb.
 
 ## Current build
 
-**Ver-0.005C — Fix Booking Popup UX**
+**Ver-0.005G — 30 Minute Booking Slots**
 
-This build keeps the two installable app areas from one domain:
+This build keeps the existing live booking foundation and adjusts the appointment slot grid from 15-minute increments to 30-minute increments.
 
-- `/book` — client-facing booking app
-- `/admin` — owner/admin app
-- `/widget` — website iframe/embed starter
+## What this build changes
+
+- Client and admin diary slots now step in **30-minute intervals**.
+- The setting is still stored as `slot_interval_minutes` so it can become a per-tenant setting later.
+- A new migration updates the current demo practice to `30` minutes.
+- Fallback/demo settings now also use `30` minutes for fresh installs.
+- No booking table or API schema changes.
+
+## App areas
+
+- `/book` — client-facing booking app.
+- `/admin` — owner/admin diary app.
+- `/widget` — website iframe/embed starter.
 
 ## Important booking rule
 
@@ -20,24 +30,22 @@ This is a live booking system, not an appointment request system.
 - Dentist/admin/staff can create a confirmed booking directly.
 - Both apps use Netlify Database through API routes.
 - Client-created bookings and staff-created bookings sync between both apps.
-- Request/approval wording should not be used unless a future practice setting enables it.
 
-## What Ver-0.005C adds
+## Database migrations
 
-- Client can choose **First available** or a specific dentist/practitioner.
-- Availability now checks practitioner working hours and practitioner procedure capability.
-- Staff/admin can create a booking for a selected practitioner.
-- Admin diary now shows the practitioner assigned to each booking.
-- Server-side conflict protection has been added before saving a booking.
-- The API refuses a booking if:
-  - the practitioner cannot perform the selected procedure,
-  - the practitioner is not working at that time,
-  - the practitioner already has an overlapping live booking,
-  - the practice is blocked at that time,
-  - the practitioner is specifically blocked at that time,
-  - or the practice is closed on that date.
-- App version updated to **Ver-0.005C**.
-- Service worker cache updated to `zippyweb-booking-system-v0.005C`.
+This build adds:
+
+```text
+0003_slot_interval_30_minutes.sql
+```
+
+Apply it locally with:
+
+```bash
+netlify database migrations apply
+```
+
+Netlify should apply it automatically during the GitHub deploy.
 
 ## Local Program Files workflow
 
@@ -49,17 +57,9 @@ C:\01 My Work 2026\Booking System\Booking System Program Files
 
 Open the terminal directly from that folder.
 
-## Install / update packages
+## Local testing
 
-Run after applying the ZIP:
-
-```bash
-npm install
-```
-
-## Local testing with Netlify Dev
-
-Use Netlify Dev for this build because the app uses Netlify Database and API routes:
+Use Netlify Dev for database/API testing:
 
 ```bash
 netlify dev
@@ -68,108 +68,18 @@ netlify dev
 Open:
 
 ```text
-http://localhost:8888/
 http://localhost:8888/book
 http://localhost:8888/admin
-http://localhost:8888/widget
 ```
 
-## Database migrations
-
-Ver-0.005C does not add a new migration. It uses the existing Ver-0.003/0.003A database foundation:
-
-```text
-0001_booking_system_foundation.sql
-0002_multi_practitioner_prep.sql
-```
-
-If your local database is already at pending migrations 0, no migration apply is needed for this build.
-
-To check:
+## Build check
 
 ```bash
-netlify database status
-```
-
-## Local test checklist
-
-1. Open `/book`.
-2. Choose a procedure.
-3. Choose **First available**.
-4. Pick a date and available time.
-5. Confirm the booking.
-6. Open `/admin`.
-7. Confirm the booking appears with a practitioner attached.
-8. In `/admin`, choose the same practitioner/procedure/date.
-9. Confirm the already-booked time is unavailable.
-10. Add a staff booking for another available slot.
-11. Return to `/book` and confirm that slot is no longer available for that practitioner.
-
-## Build checks
-
-Stop Netlify Dev with `Ctrl + C`, then run:
-
-```bash
-npm run typecheck
 npm run build
 ```
 
-## Git deploy commands
-
-After local testing and build pass:
+## Deploy
 
 ```bash
-git status
-git add .
-git commit -m "Booking System Ver-0.005C practitioner selection and conflict protection"
-git push origin main
+git status && git add . && git commit -m "Booking System Ver-0.005G 30 minute booking slots" && git push origin main
 ```
-
-Netlify will automatically deploy from GitHub.
-
-## Next recommended build
-
-**Ver-0.005C — Admin Settings Foundation**
-
-Suggested next scope:
-
-- Edit procedures and durations from admin.
-- Edit practitioner working hours.
-- Assign procedures to practitioners.
-- Block a practitioner’s time.
-- Block the whole practice.
-- Add a cleaner settings layout for practice customisation.
-
-
-## Ver-0.005C notes
-
-This version focuses on visual flow and reduced page clutter.
-
-- Client booking is now a guided step flow.
-- On mobile, the booking flow opens as a popup-style full-screen modal.
-- Admin/receptionist booking also uses a step flow, with mobile popup behaviour.
-- Desktop admin keeps the diary visible for laptop/reception use.
-- Colour scheme refreshed to a clean blue and white clinical style.
-- Netlify Database booking and conflict-protection APIs remain unchanged.
-
-Testing reminders:
-
-```bash
-npm install
-npm run build
-netlify dev
-```
-
-Deploy:
-
-```bash
-git status && git add . && git commit -m "Booking System Ver-0.005C review summary before final booking" && git push origin main
-```
-
-
-## Ver-0.005C popup UX notes
-
-- Booking-flow popups use a solid blue-white background.
-- Mobile popups are centred with 20px padding on all sides.
-- Bottom action buttons stay sticky across the booking flow.
-- Time selection remains in its own popup and keeps the review-before-booking flow.

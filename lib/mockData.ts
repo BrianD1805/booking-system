@@ -95,7 +95,7 @@ export type BootstrapData = {
   practitionerBlockedTimes: PractitionerBlockedTime[];
 };
 
-export const APP_VERSION = 'Ver-0.005F';
+export const APP_VERSION = 'Ver-0.005G';
 
 export const fallbackProcedures: Procedure[] = [
   { id: 'checkup', name: 'Dental check-up', durationMinutes: 30, priceGuide: 'Standard consultation' },
@@ -157,7 +157,7 @@ export const fallbackPracticeSettings: PracticeSettings = {
   workingDays: [1, 2, 3, 4, 5],
   workingStartTime: '08:30',
   workingEndTime: '17:00',
-  slotIntervalMinutes: 15,
+  slotIntervalMinutes: 30,
   minimumNoticeHours: 2,
   maxBookingAheadDays: 90,
   fallbackSms: true,
