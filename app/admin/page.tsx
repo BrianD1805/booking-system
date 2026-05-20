@@ -9,7 +9,7 @@ import { useBookingDatabase } from '@/lib/useBookingDatabase';
 type AdminStep = 0 | 1 | 2;
 
 export default function AdminPage() {
-  const [selectedDate, setSelectedDate] = useState(getDateOffset(3));
+  const [selectedDate, setSelectedDate] = useState(getDateOffset(0));
   const [procedureId, setProcedureId] = useState('checkup');
   const [selectedPractitionerId, setSelectedPractitionerId] = useState('practitioner_001');
   const [selectedTime, setSelectedTime] = useState('');

@@ -13,6 +13,7 @@ type FlowStep = 0 | 1 | 2 | 3;
 export default function BookPage() {
   const [confirmedBookingId, setConfirmedBookingId] = useState<string | null>(null);
   const [bookingOpen, setBookingOpen] = useState(false);
+  const [timePickerOpen, setTimePickerOpen] = useState(false);
   const [step, setStep] = useState<FlowStep>(0);
   const [patientName, setPatientName] = useState('');
   const [patientPhone, setPatientPhone] = useState('');
@@ -78,6 +79,7 @@ export default function BookPage() {
 
       setConfirmedBookingId(newBooking.id);
       setBookingOpen(false);
+      setTimePickerOpen(false);
       setStep(0);
       resetSelection();
     } catch {
@@ -139,7 +141,7 @@ export default function BookPage() {
               <p className="badge blue-badge">Step {step + 1} of {steps.length}</p>
               <h2>{steps[step]}</h2>
             </div>
-            <button className="icon-button mobile-close" type="button" aria-label="Close booking flow" onClick={() => setBookingOpen(false)}>×</button>
+            <button className="icon-button mobile-close" type="button" aria-label="Close booking flow" onClick={() => { setBookingOpen(false); setTimePickerOpen(false); }}>×</button>
           </div>
 
           <div className="step-dots" aria-label="Booking progress">
@@ -193,31 +195,72 @@ export default function BookPage() {
           )}
 
           {step === 2 && (
-            <section className="flow-step">
+            <section className="flow-step diary-choice-step">
               <div className="form-row">
                 <label htmlFor="date">Diary date</label>
                 <input id="date" type="date" value={selectedDate} onChange={(event) => { setSelectedDate(event.target.value); resetSelection(); }} required />
               </div>
-              <p className="mini-copy">{loading ? 'Loading diary…' : `${getDayLabel(selectedDate)} · ${availableSlots.length} available slot${availableSlots.length === 1 ? '' : 's'}`}</p>
-              <div className="slot-grid popup-slots" role="list" aria-label="Available appointment times">
-                {slots.map((slot) => (
-                  <button
-                    key={`${slot.time}-${slot.endTime}-${slot.practitionerId ?? 'none'}`}
-                    className={`slot ${slot.available ? 'available' : 'unavailable'} ${selectedTime === slot.time && selectedPractitionerId === slot.practitionerId ? 'selected' : ''}`}
-                    disabled={!slot.available || saving}
-                    type="button"
-                    onClick={() => {
-                      setSelectedTime(slot.time);
-                      setSelectedPractitionerId(slot.practitionerId ?? '');
-                      setStep(3);
-                    }}
-                  >
-                    <strong>{slot.time}</strong>
-                    <span>{slot.available ? `${slot.endTime} · ${slot.practitionerName}` : slot.reason ?? 'Unavailable'}</span>
-                  </button>
-                ))}
+              <div className="summary-strip">
+                <strong>{loading ? 'Loading diary…' : getDayLabel(selectedDate)}</strong>
+                <span>{availableSlots.length} available slot{availableSlots.length === 1 ? '' : 's'}</span>
               </div>
+              {selectedTime ? (
+                <div className="selected-slot-summary">
+                  <span>Selected time</span>
+                  <strong>{selectedTime} · {selectedPractitioner?.name ?? 'Practitioner selected'}</strong>
+                </div>
+              ) : (
+                <p className="mini-copy">Choose a date, then open the time selector to view the full list of available appointment slots.</p>
+              )}
+              <button className="button primary full" type="button" onClick={() => setTimePickerOpen(true)} disabled={loading || saving}>
+                {selectedTime ? 'Change time' : 'Select appointment time'}
+              </button>
             </section>
+          )}
+
+          {timePickerOpen && (
+            <div className="time-picker-popup" role="dialog" aria-modal="true" aria-labelledby="time-picker-title">
+              <div className="time-picker-card">
+                <div className="workflow-head time-picker-head">
+                  <div>
+                    <p className="badge blue-badge">Available times</p>
+                    <h2 id="time-picker-title">{getDayLabel(selectedDate)}</h2>
+                    <p className="mini-copy">Select one slot. You will review the appointment before it is booked.</p>
+                  </div>
+                  <button className="icon-button mobile-close" type="button" aria-label="Close time selector" onClick={() => setTimePickerOpen(false)}>×</button>
+                </div>
+
+                <div className="time-picker-slots" role="list" aria-label="Available appointment times">
+                  {slots.map((slot) => (
+                    <button
+                      key={`${slot.time}-${slot.endTime}-${slot.practitionerId ?? 'none'}`}
+                      className={`slot ${slot.available ? 'available' : 'unavailable'} ${selectedTime === slot.time && selectedPractitionerId === slot.practitionerId ? 'selected' : ''}`}
+                      disabled={!slot.available || saving}
+                      type="button"
+                      onClick={() => {
+                        setSelectedTime(slot.time);
+                        setSelectedPractitionerId(slot.practitionerId ?? '');
+                      }}
+                    >
+                      <strong>{slot.time}</strong>
+                      <span>{slot.available ? `${slot.endTime} · ${slot.practitionerName}` : slot.reason ?? 'Unavailable'}</span>
+                    </button>
+                  ))}
+                </div>
+
+                <div className="time-picker-actions">
+                  <button className="pill" type="button" onClick={() => setTimePickerOpen(false)}>Back</button>
+                  <button
+                    className="button primary"
+                    type="button"
+                    disabled={!canConfirm || saving}
+                    onClick={() => { setTimePickerOpen(false); setStep(3); }}
+                  >
+                    Continue
+                  </button>
+                </div>
+              </div>
+            </div>
           )}
 
           {step === 3 && (
@@ -243,9 +286,15 @@ export default function BookPage() {
                 className="button primary"
                 type="button"
                 disabled={(step === 0 && !canGoToTreatment) || (step === 1 && !canGoToDiary) || (step === 2 && !canConfirm)}
-                onClick={() => setStep((current) => Math.min(3, current + 1) as FlowStep)}
+                onClick={() => {
+                  if (step === 2) {
+                    setTimePickerOpen(true);
+                    return;
+                  }
+                  setStep((current) => Math.min(3, current + 1) as FlowStep);
+                }}
               >
-                Continue
+                {step === 2 ? 'Select time' : 'Continue'}
               </button>
             ) : (
               <button className="button primary" type="submit" disabled={!canConfirm || saving || Boolean(error)}>

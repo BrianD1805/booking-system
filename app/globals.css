@@ -256,12 +256,21 @@ textarea { min-height: 110px; resize: vertical; }
   inset: 0;
   z-index: 1000;
   margin: 0;
-  padding: 18px;
-  background: rgba(6, 22, 45, 0.46);
-  overflow: auto;
+  padding: 20px;
+  background: #f3f8ff;
+  overflow: hidden;
+  place-items: center;
 }
-.booking-workflow.is-open { display: block; }
-.workflow-card { max-width: 980px; margin: 0 auto; }
+.booking-workflow.is-open { display: grid; }
+.workflow-card {
+  width: min(980px, 100%);
+  max-height: calc(100dvh - 40px);
+  margin: 0 auto;
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  background: #ffffff;
+  overflow: hidden;
+}
 .workflow-head, .section-heading-row, .admin-command {
   display: flex;
   justify-content: space-between;
@@ -308,13 +317,18 @@ textarea { min-height: 110px; resize: vertical; }
   color: var(--zw-blue-deep);
 }
 .step-dot.active, .step-dot.done { border-color: rgba(37, 99, 235, 0.35); color: var(--zw-blue-deep); background: #f8fbff; }
-.flow-step { min-height: 260px; }
+.flow-step { min-height: 260px; overflow: auto; scrollbar-width: none; }
+.flow-step::-webkit-scrollbar, .time-picker-slots::-webkit-scrollbar { display: none; }
 .workflow-actions {
+  position: sticky;
+  bottom: 0;
   display: flex;
   justify-content: space-between;
   gap: 12px;
-  padding-top: 16px;
+  padding: 16px 0 0;
   border-top: 1px solid var(--line);
+  background: #ffffff;
+  z-index: 2;
 }
 .confirmation-card {
   border-radius: 22px;
@@ -394,19 +408,159 @@ textarea { min-height: 110px; resize: vertical; }
   .controls-grid { gap: 10px; }
   .step-dots { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 
-  .booking-workflow { padding: 12px; }
-  .workflow-card {
-    min-height: calc(100vh - 24px);
-    max-width: none;
-    margin: 0;
-    border-radius: 28px;
+  .booking-workflow {
+    padding: 20px;
+    display: none;
+    place-items: center;
+    background: #f3f8ff;
   }
-  .flow-step { min-height: auto; }
+  .booking-workflow.is-open { display: grid; }
+  .workflow-card {
+    width: 100%;
+    max-width: 560px;
+    min-height: auto;
+    max-height: calc(100dvh - 40px);
+    margin: 0 auto;
+    border-radius: 28px;
+    background: #ffffff;
+  }
+  .flow-step { min-height: auto; padding-bottom: 8px; }
   .popup-slots { max-height: 42vh; }
-  .workflow-actions {
-    position: sticky;
-    bottom: 0;
-    background: rgba(255, 255, 255, 0.96);
-    padding: 14px 0 0;
+  .workflow-actions { padding: 14px 0 0; background: #ffffff; }
+}
+
+/* Ver-0.005C popup UX refinement: solid centred popups, 20px mobile padding, sticky bottom actions */
+.summary-strip,
+.selected-slot-summary {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  align-items: center;
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  padding: 15px 16px;
+  background: #ffffff;
+  margin-bottom: 14px;
+}
+.summary-strip span,
+.selected-slot-summary span { color: var(--muted); font-weight: 700; }
+.selected-slot-summary strong { color: var(--zw-blue-deep); }
+
+.time-picker-popup {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  background: #f3f8ff;
+}
+.time-picker-card {
+  width: min(960px, 100%);
+  max-height: calc(100vh - 36px);
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  border: 1px solid var(--line);
+  border-radius: 30px;
+  background: #ffffff;
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+.time-picker-head {
+  padding: 22px 22px 10px;
+}
+.time-picker-slots {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(142px, 1fr));
+  gap: 10px;
+  padding: 12px 22px 18px;
+  overflow: auto;
+}
+.time-picker-actions {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 22px 18px;
+  border-top: 1px solid var(--line);
+  background: #ffffff;
+}
+
+@media (max-width: 860px) {
+  .booking-workflow {
+    background: #f3f8ff;
+    overflow: hidden;
+  }
+  .workflow-card {
+    display: grid;
+    grid-template-rows: auto auto 1fr auto;
+    max-height: calc(100vh - 24px);
+    background: #ffffff;
+    overflow: hidden;
+  }
+  .flow-step {
+    overflow: auto;
+    padding-bottom: 8px;
+  }
+  .time-picker-popup {
+    padding: 20px;
+    background: #f3f8ff;
+    place-items: center;
+  }
+  .time-picker-card {
+    width: 100%;
+    max-width: 560px;
+    height: auto;
+    max-height: calc(100dvh - 40px);
+    border: 1px solid var(--line);
+    border-radius: 28px;
+    box-shadow: var(--shadow);
+    background: #ffffff;
+  }
+  .time-picker-head {
+    padding: 20px 20px 8px;
+  }
+  .time-picker-slots {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    overflow: auto;
+    scrollbar-width: none;
+    align-content: start;
+    padding: 10px 20px 14px;
+  }
+  .time-picker-actions {
+    padding: 14px 20px calc(14px + env(safe-area-inset-bottom));
+    background: #ffffff;
+  }
+  .time-picker-actions .button,
+  .workflow-actions .button { min-width: 150px; }
+}
+
+
+/* Ver-0.005C: booking-flow popup consistency */
+.booking-workflow,
+.time-picker-popup {
+  background: #f3f8ff;
+}
+.workflow-card,
+.time-picker-card {
+  background: #ffffff;
+}
+.workflow-card > .flow-step,
+.time-picker-slots {
+  min-height: 0;
+}
+@media (max-width: 860px) {
+  .workflow-actions,
+  .time-picker-actions {
+    margin-top: auto;
+  }
+  .workflow-actions .button,
+  .time-picker-actions .button {
+    flex: 1;
+  }
+  .workflow-actions .pill,
+  .time-picker-actions .pill {
+    flex: 0 0 auto;
   }
 }
