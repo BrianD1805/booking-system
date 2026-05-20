@@ -1,14 +1,90 @@
 {
-  "name": "ZippyWeb Booking Admin",
-  "short_name": "Booking Admin",
-  "description": "Owner admin appointment booking app.",
+  "id": "/admin",
+  "name": "ZippyWeb Dental Booking Admin",
+  "short_name": "Diary Admin",
+  "description": "Manage dental appointments and practitioner diaries.",
   "start_url": "/admin",
   "scope": "/admin",
   "display": "standalone",
-  "background_color": "#eef5fb",
-  "theme_color": "#224866",
+  "display_override": [
+    "standalone",
+    "minimal-ui"
+  ],
+  "orientation": "portrait",
+  "background_color": "#eff6ff",
+  "theme_color": "#113f8c",
+  "categories": [
+    "business",
+    "productivity",
+    "health"
+  ],
   "icons": [
-    { "src": "/icons/icon-192.svg", "sizes": "192x192", "type": "image/svg+xml" },
-    { "src": "/icons/icon-512.svg", "sizes": "512x512", "type": "image/svg+xml" }
+    {
+      "src": "/icons/icon-72.png",
+      "sizes": "72x72",
+      "type": "image/png"
+    },
+    {
+      "src": "/icons/icon-96.png",
+      "sizes": "96x96",
+      "type": "image/png"
+    },
+    {
+      "src": "/icons/icon-128.png",
+      "sizes": "128x128",
+      "type": "image/png"
+    },
+    {
+      "src": "/icons/icon-144.png",
+      "sizes": "144x144",
+      "type": "image/png"
+    },
+    {
+      "src": "/icons/icon-152.png",
+      "sizes": "152x152",
+      "type": "image/png"
+    },
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icons/icon-384.png",
+      "sizes": "384x384",
+      "type": "image/png"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "/icons/maskable-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icons/maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Open diary",
+      "short_name": "Diary",
+      "description": "Open the admin diary.",
+      "url": "/admin",
+      "icons": [
+        {
+          "src": "/icons/icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    }
   ]
 }

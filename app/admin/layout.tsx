@@ -1,12 +1,13 @@
 import type { Metadata, Viewport } from 'next';
 
 export const metadata: Metadata = {
-  title: 'Admin | ZippyWeb Booking System',
-  description: 'Owner admin appointment booking app.',
-  manifest: '/manifest-admin.json'
+  title: 'Practice Diary',
+  description: 'Manage dental appointments, practitioner diaries, and live bookings.',
+  manifest: '/manifest-admin.json',
+  alternates: { canonical: '/admin' }
 };
 
-export const viewport: Viewport = { themeColor: '#224866' };
+export const viewport: Viewport = { themeColor: '#113f8c' };
 
 export default function AdminLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return children;

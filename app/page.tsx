@@ -8,10 +8,10 @@ export default function HomePage() {
       <Header area="landing" />
       <section className="focus-hero">
         <div>
-          <p className="badge blue-badge">{APP_VERSION} · Visual booking flow</p>
-          <h1 className="hero-title clean-title">Clean blue and white booking apps.</h1>
+          <p className="badge blue-badge">{APP_VERSION} · Dental appointment booking</p>
+          <h1 className="hero-title clean-title">A calm way to book dental appointments.</h1>
           <p className="hero-copy tight-copy">
-            A calmer visual foundation for a dentist booking system: client bookings open as a guided flow, receptionist bookings use a step-by-step popup on mobile, and both apps keep the same live conflict-protected diary.
+            Clients can choose a treatment, browse real availability and confirm a live appointment, while reception teams manage the same diary from the admin app.
           </p>
           <div className="nav-pills">
             <Link className="button primary" href="/book">Open Client App</Link>
@@ -20,7 +20,7 @@ export default function HomePage() {
         </div>
         <div className="visual-card grid">
           <div className="mini-card"><strong>Popup flow</strong><span>Less clutter on mobile screens.</span></div>
-          <div className="mini-card"><strong>Blue / white</strong><span>Fresh clinical colour scheme.</span></div>
+          <div className="mini-card"><strong>Installable app</strong><span>Client and admin PWAs from one domain.</span></div>
           <div className="mini-card"><strong>Live diary</strong><span>Same Netlify Database source.</span></div>
         </div>
       </section>

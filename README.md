@@ -1,19 +1,20 @@
-# ZippyWeb Booking System — Ver-0.005H
+# ZippyWeb Booking System — Ver-0.006
 
 From Brian Hallam at ZippyWeb.
 
 ## Current build
 
-**Ver-0.005H — Migration Integrity Fix**
+**Ver-0.006 — PWA Foundation and Dental Icon Setup**
 
-This build keeps the existing live booking foundation and adjusts the appointment slot grid from 15-minute increments to 30-minute increments.
+This build keeps the existing live booking foundation and adds the PWA/browser icon foundation using the new friendly tooth app icon.
 
 ## What this build changes
 
-- Client and admin diary slots now step in **30-minute intervals**.
-- The setting is still stored as `slot_interval_minutes` so it can become a per-tenant setting later.
-- A new migration updates the current demo practice to `30` minutes.
-- Fallback/demo settings now also use `30` minutes for fresh installs.
+- Adds the new dental app icon as PNG icons for PWA installs.
+- Adds browser favicon files, Apple touch icon, maskable icons, and Open Graph browser/social image.
+- Improves the client and admin manifests so both apps install cleanly from one domain.
+- Adds an offline fallback page for the service worker.
+- Updates metadata for browser titles, descriptions, sharing previews, and install behaviour.
 - No booking table or API schema changes.
 
 ## App areas
@@ -33,19 +34,7 @@ This is a live booking system, not an appointment request system.
 
 ## Database migrations
 
-This build adds:
-
-```text
-0003_slot_interval_30_minutes.sql
-```
-
-Apply it locally with:
-
-```bash
-netlify database migrations apply
-```
-
-Netlify should apply it automatically during the GitHub deploy.
+Ver-0.006 does not add a new database migration. The existing `0003_slot_interval_30_minutes.sql` migration remains in place from the previous slot-interval build.
 
 ## Local Program Files workflow
 
@@ -81,10 +70,16 @@ npm run build
 ## Deploy
 
 ```bash
-git status && git add . && git commit -m "Booking System Ver-0.005H 30 minute booking slots" && git push origin main
+git status && git add . && git commit -m "Booking System Ver-0.006 PWA foundation and dental icons" && git push origin main
 ```
 
 
 ## Ver-0.005H note
 
 This build restores the original `0001_booking_system_foundation.sql` migration exactly as it was before Netlify applied it in production. Netlify Database does not allow an already-applied migration file to be edited. The 30-minute slot change remains in `0003_slot_interval_30_minutes.sql`.
+
+## Ver-0.006 note
+
+This version sets up the PWA asset foundation using the new friendly tooth icon. It adds PNG app icons, maskable icons, favicon, Apple touch icon, Open Graph browser/social image, improved manifests for the client and admin apps, and an offline fallback page.
+
+Important: do not edit existing applied Netlify Database migrations. New database changes must always be added as a new migration file.

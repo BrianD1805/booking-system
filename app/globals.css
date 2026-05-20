@@ -54,7 +54,7 @@ button:not(:disabled):hover { transform: translateY(-1px); }
   letter-spacing: -0.03em;
 }
 
-.logo-mark {
+.logo-mark, .brand-icon {
   width: 44px;
   height: 44px;
   border-radius: 16px;
@@ -63,6 +63,7 @@ button:not(:disabled):hover { transform: translateY(-1px); }
   background: linear-gradient(135deg, var(--zw-blue), #60a5fa);
   color: white;
   box-shadow: var(--shadow);
+  object-fit: cover;
 }
 
 .nav-pills {
