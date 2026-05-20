@@ -12,6 +12,7 @@ export default function AdminPage() {
   const [selectedDate, setSelectedDate] = useState(getDateOffset(0));
   const [procedureId, setProcedureId] = useState('checkup');
   const [selectedPractitionerId, setSelectedPractitionerId] = useState('practitioner_001');
+  const [diaryPractitionerFilter, setDiaryPractitionerFilter] = useState('all');
   const [selectedTime, setSelectedTime] = useState('');
   const [adminBookingOpen, setAdminBookingOpen] = useState(false);
   const [adminStep, setAdminStep] = useState<AdminStep>(0);
@@ -41,9 +42,12 @@ export default function AdminPage() {
     () => getAvailabilityForDate(bookings, selectedDate, activeProcedureId, context, activePractitionerId),
     [bookings, selectedDate, activeProcedureId, context, activePractitionerId]
   );
-  const dateBookings = bookings
+  const allDateBookings = bookings
     .filter((booking) => booking.date === selectedDate)
     .sort((a, b) => a.time.localeCompare(b.time) || practitionerName(a.practitionerId, practitioners).localeCompare(practitionerName(b.practitionerId, practitioners)));
+  const dateBookings = allDateBookings.filter((booking) =>
+    diaryPractitionerFilter === 'all' ? true : booking.practitionerId === diaryPractitionerFilter
+  );
   const canSave = Boolean(selectedTime && activePractitionerId && patientName.trim() && patientPhone.trim() && patientEmail.trim());
 
   async function handleAdminBooking(event: FormEvent<HTMLFormElement>) {
@@ -100,7 +104,7 @@ export default function AdminPage() {
 
       <section className="compact-dashboard">
         <article className="mini-card"><strong>{practitioners.filter((item) => item.active).length}</strong><span>Active clinicians</span></article>
-        <article className="mini-card"><strong>{dateBookings.length}</strong><span>Bookings on this date</span></article>
+        <article className="mini-card"><strong>{allDateBookings.length}</strong><span>Bookings on this date</span></article>
         <article className="mini-card"><strong>{loading ? '…' : slots.filter((slot) => slot.available).length}</strong><span>Open slots</span></article>
       </section>
 
@@ -112,64 +116,37 @@ export default function AdminPage() {
           </div>
         </div>
 
-        <div className="grid three controls-grid">
+        <div className="grid two controls-grid">
           <div className="form-row">
             <label htmlFor="adminDate">Date</label>
             <input id="adminDate" type="date" value={selectedDate} onChange={(event) => { setSelectedDate(event.target.value); setSelectedTime(''); }} />
           </div>
           <div className="form-row">
-            <label htmlFor="adminProcedure">Procedure</label>
-            <select id="adminProcedure" value={activeProcedureId} onChange={(event) => { setProcedureId(event.target.value); setSelectedTime(''); }}>
-              {procedures.map((procedure) => (
-                <option key={procedure.id} value={procedure.id}>{procedure.name} — {procedure.durationMinutes} mins</option>
-              ))}
-            </select>
-          </div>
-          <div className="form-row">
-            <label htmlFor="adminPractitioner">Practitioner</label>
-            <select id="adminPractitioner" value={activePractitionerId} onChange={(event) => { setSelectedPractitionerId(event.target.value); setSelectedTime(''); }}>
-              {eligiblePractitioners.map((practitioner) => (
+            <label htmlFor="adminPractitionerFilter">Practitioner</label>
+            <select id="adminPractitionerFilter" value={diaryPractitionerFilter} onChange={(event) => setDiaryPractitionerFilter(event.target.value)}>
+              <option value="all">All practitioners</option>
+              {practitioners.filter((practitioner) => practitioner.active).map((practitioner) => (
                 <option key={practitioner.id} value={practitioner.id}>{practitioner.name} — {practitioner.role}</option>
               ))}
             </select>
           </div>
         </div>
 
-        <div className="slot-grid admin-slots">
-          {slots.map((slot) => (
-            <button
-              key={`${slot.time}-${slot.endTime}-${slot.practitionerId ?? activePractitionerId}`}
-              className={`slot ${slot.available ? 'available' : 'unavailable'} ${selectedTime === slot.time ? 'selected' : ''}`}
-              disabled={!slot.available || saving}
-              type="button"
-              onClick={() => {
-                setSelectedTime(slot.time);
-                setAdminBookingOpen(true);
-                setAdminStep(1);
-              }}
-            >
-              <strong>{slot.time}</strong>
-              <span>{slot.available ? `${slot.endTime} · free` : slot.reason ?? 'Unavailable'}</span>
-            </button>
-          ))}
+        <div className="diary-focus-note">
+          <strong>Diary view</strong>
+          <span>This view shows confirmed bookings for the selected date. Procedures are selected only when adding a new booking.</span>
         </div>
-      </section>
 
-      <section className="card clean-panel">
-        <div className="section-heading-row">
-          <div>
-            <h2 className="section-title compact">Bookings</h2>
-            <p className="mini-copy">Selected date records from the shared Netlify Database.</p>
-          </div>
-        </div>
-        <section className="booking-list visual-list">
-          {dateBookings.length === 0 && <p className="notice">No bookings on this date yet.</p>}
+        <section className="booking-list visual-list diary-appointment-list">
+          {dateBookings.length === 0 && (
+            <p className="notice">No bookings are showing for this date and practitioner filter.</p>
+          )}
           {dateBookings.map((booking) => (
-            <article className="booking-item" key={booking.id}>
+            <article className="booking-item diary-booking-item" key={booking.id}>
               <div>
                 <strong>{booking.time}–{booking.endTime} · {booking.patientName}</strong>
-                <small>{procedureName(booking.procedureId, procedures)} · {practitionerName(booking.practitionerId, practitioners)}</small>
-                <small>{booking.patientPhone} · {booking.patientEmail}</small>
+                <small>{procedureName(booking.procedureId, procedures)}</small>
+                <small>{practitionerName(booking.practitionerId, practitioners)}</small>
                 <small>Source: {booking.source}. Status: <span className={`status status-${booking.status}`}>{booking.status}</span></small>
               </div>
               <div className="nav-pills booking-actions">
