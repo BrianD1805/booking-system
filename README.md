@@ -1,10 +1,10 @@
-# ZippyWeb Booking System — Ver-0.004
+# ZippyWeb Booking System — Ver-0.005
 
 From Brian Hallam at ZippyWeb.
 
 ## Current build
 
-**Ver-0.004 — Practitioner Selection and Conflict Protection**
+**Ver-0.005 — Visual Mobile Popup Flow and Blue White Refresh**
 
 This build keeps the two installable app areas from one domain:
 
@@ -22,7 +22,7 @@ This is a live booking system, not an appointment request system.
 - Client-created bookings and staff-created bookings sync between both apps.
 - Request/approval wording should not be used unless a future practice setting enables it.
 
-## What Ver-0.004 adds
+## What Ver-0.005 adds
 
 - Client can choose **First available** or a specific dentist/practitioner.
 - Availability now checks practitioner working hours and practitioner procedure capability.
@@ -36,8 +36,8 @@ This is a live booking system, not an appointment request system.
   - the practice is blocked at that time,
   - the practitioner is specifically blocked at that time,
   - or the practice is closed on that date.
-- App version updated to **Ver-0.004**.
-- Service worker cache updated to `zippyweb-booking-system-v0.004`.
+- App version updated to **Ver-0.005**.
+- Service worker cache updated to `zippyweb-booking-system-v0.005`.
 
 ## Local Program Files workflow
 
@@ -76,7 +76,7 @@ http://localhost:8888/widget
 
 ## Database migrations
 
-Ver-0.004 does not add a new migration. It uses the existing Ver-0.003/0.003A database foundation:
+Ver-0.005 does not add a new migration. It uses the existing Ver-0.003/0.003A database foundation:
 
 ```text
 0001_booking_system_foundation.sql
@@ -121,7 +121,7 @@ After local testing and build pass:
 ```bash
 git status
 git add .
-git commit -m "Booking System Ver-0.004 practitioner selection and conflict protection"
+git commit -m "Booking System Ver-0.005 practitioner selection and conflict protection"
 git push origin main
 ```
 
@@ -139,3 +139,29 @@ Suggested next scope:
 - Block a practitioner’s time.
 - Block the whole practice.
 - Add a cleaner settings layout for practice customisation.
+
+
+## Ver-0.005 notes
+
+This version focuses on visual flow and reduced page clutter.
+
+- Client booking is now a guided step flow.
+- On mobile, the booking flow opens as a popup-style full-screen modal.
+- Admin/receptionist booking also uses a step flow, with mobile popup behaviour.
+- Desktop admin keeps the diary visible for laptop/reception use.
+- Colour scheme refreshed to a clean blue and white clinical style.
+- Netlify Database booking and conflict-protection APIs remain unchanged.
+
+Testing reminders:
+
+```bash
+npm install
+npm run build
+netlify dev
+```
+
+Deploy:
+
+```bash
+git status && git add . && git commit -m "Booking System Ver-0.005 visual mobile popup flow and blue white refresh" && git push origin main
+```
