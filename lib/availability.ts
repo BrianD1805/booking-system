@@ -1,10 +1,24 @@
-import { procedureDuration, type BlockedDate, type BlockedTime, type Booking, type PracticeSettings, type Procedure } from '@/lib/mockData';
+import {
+  procedureDuration,
+  type BlockedDate,
+  type BlockedTime,
+  type Booking,
+  type PracticeSettings,
+  type Practitioner,
+  type PractitionerBlockedTime,
+  type PractitionerProcedure,
+  type PractitionerWorkingHour,
+  type Procedure
+} from '@/lib/mockData';
 
 export type DiarySlot = {
   time: string;
   endTime: string;
   available: boolean;
   reason?: string;
+  practitionerId?: string;
+  practitionerName?: string;
+  availablePractitioners?: Practitioner[];
 };
 
 export type AvailabilityContext = {
@@ -12,7 +26,13 @@ export type AvailabilityContext = {
   procedures: Procedure[];
   blockedDates: BlockedDate[];
   blockedTimes: BlockedTime[];
+  practitioners: Practitioner[];
+  practitionerWorkingHours: PractitionerWorkingHour[];
+  practitionerProcedures: PractitionerProcedure[];
+  practitionerBlockedTimes: PractitionerBlockedTime[];
 };
+
+export const FIRST_AVAILABLE = 'first_available';
 
 function toMinutes(time: string) {
   const [hours, minutes] = time.split(':').map(Number);
@@ -53,9 +73,62 @@ export function getDateOffset(daysFromToday: number) {
   return date.toISOString().slice(0, 10);
 }
 
-export function getAvailabilityForDate(bookings: Booking[], date: string, procedureId: string, context: AvailabilityContext): DiarySlot[] {
-  const { practiceSettings, procedures, blockedDates, blockedTimes } = context;
-  const duration = procedureDuration(procedureId, procedures);
+export function practitionersForProcedure(procedureId: string, context: AvailabilityContext) {
+  const allowedIds = new Set(
+    context.practitionerProcedures
+      .filter((item) => item.procedureId === procedureId)
+      .map((item) => item.practitionerId)
+  );
+
+  return context.practitioners
+    .filter((practitioner) => practitioner.active && allowedIds.has(practitioner.id))
+    .sort((a, b) => a.displayOrder - b.displayOrder || a.name.localeCompare(b.name));
+}
+
+function workingWindowForPractitioner(practitionerId: string, date: string, context: AvailabilityContext) {
+  const dayOfWeek = new Date(`${date}T12:00:00`).getDay();
+  const windows = context.practitionerWorkingHours.filter(
+    (item) => item.practitionerId === practitionerId && item.dayOfWeek === dayOfWeek && item.active
+  );
+
+  if (!windows.length) return null;
+
+  return {
+    start: Math.min(...windows.map((item) => toMinutes(item.startTime))),
+    end: Math.max(...windows.map((item) => toMinutes(item.endTime)))
+  };
+}
+
+function isPractitionerFree(practitioner: Practitioner, date: string, slotStart: number, slotEnd: number, bookings: Booking[], context: AvailabilityContext) {
+  const workingWindow = workingWindowForPractitioner(practitioner.id, date, context);
+  if (!workingWindow || slotStart < workingWindow.start || slotEnd > workingWindow.end) return false;
+
+  const bookingConflict = bookings.find((booking) => (
+    booking.date === date &&
+    booking.practitionerId === practitioner.id &&
+    booking.status !== 'cancelled' &&
+    rangesOverlap(slotStart, slotEnd, toMinutes(booking.time), toMinutes(booking.endTime))
+  ));
+  if (bookingConflict) return false;
+
+  const practitionerBlock = context.practitionerBlockedTimes.find((block) => (
+    block.date === date &&
+    block.practitionerId === practitioner.id &&
+    rangesOverlap(slotStart, slotEnd, toMinutes(block.startTime), toMinutes(block.endTime))
+  ));
+
+  return !practitionerBlock;
+}
+
+export function getAvailabilityForDate(
+  bookings: Booking[],
+  date: string,
+  procedureId: string,
+  context: AvailabilityContext,
+  practitionerId: string = FIRST_AVAILABLE
+): DiarySlot[] {
+  const { practiceSettings, blockedDates, blockedTimes } = context;
+  const duration = procedureDuration(procedureId, context.procedures);
   const dayBlocked = blockedDates.find((item) => item.date === date);
 
   if (!isWorkingDay(date, practiceSettings)) {
@@ -66,23 +139,44 @@ export function getAvailabilityForDate(bookings: Booking[], date: string, proced
     return [{ time: practiceSettings.workingStartTime, endTime: practiceSettings.workingEndTime, available: false, reason: dayBlocked.reason }];
   }
 
+  const eligiblePractitioners = practitionersForProcedure(procedureId, context)
+    .filter((practitioner) => practitionerId === FIRST_AVAILABLE || practitioner.id === practitionerId);
+
+  if (!eligiblePractitioners.length) {
+    return [{ time: practiceSettings.workingStartTime, endTime: practiceSettings.workingEndTime, available: false, reason: 'No practitioner can perform this procedure' }];
+  }
+
   const start = toMinutes(practiceSettings.workingStartTime);
   const end = toMinutes(practiceSettings.workingEndTime);
   const slotInterval = practiceSettings.slotIntervalMinutes;
-  const liveBookings = bookings.filter((booking) => booking.date === date && booking.status !== 'cancelled');
-  const blocks = blockedTimes.filter((block) => block.date === date);
+  const practiceBlocks = blockedTimes.filter((block) => block.date === date);
   const slots: DiarySlot[] = [];
 
   for (let slotStart = start; slotStart + duration <= end; slotStart += slotInterval) {
     const slotEnd = slotStart + duration;
-    const bookingConflict = liveBookings.find((booking) => rangesOverlap(slotStart, slotEnd, toMinutes(booking.time), toMinutes(booking.endTime)));
-    const blockConflict = blocks.find((block) => rangesOverlap(slotStart, slotEnd, toMinutes(block.startTime), toMinutes(block.endTime)));
+    const practiceBlock = practiceBlocks.find((block) => rangesOverlap(slotStart, slotEnd, toMinutes(block.startTime), toMinutes(block.endTime)));
+
+    if (practiceBlock) {
+      slots.push({
+        time: fromMinutes(slotStart),
+        endTime: fromMinutes(slotEnd),
+        available: false,
+        reason: practiceBlock.reason
+      });
+      continue;
+    }
+
+    const availablePractitioners = eligiblePractitioners.filter((practitioner) => isPractitionerFree(practitioner, date, slotStart, slotEnd, bookings, context));
+    const assignedPractitioner = availablePractitioners[0];
 
     slots.push({
       time: fromMinutes(slotStart),
       endTime: fromMinutes(slotEnd),
-      available: !bookingConflict && !blockConflict,
-      reason: bookingConflict ? `Booked: ${bookingConflict.patientName}` : blockConflict?.reason
+      available: Boolean(assignedPractitioner),
+      reason: assignedPractitioner ? undefined : 'No practitioner available',
+      practitionerId: assignedPractitioner?.id,
+      practitionerName: assignedPractitioner?.name,
+      availablePractitioners
     });
   }
 

@@ -8,10 +8,10 @@ export default function HomePage() {
       <Header area="landing" />
       <section className="hero">
         <div className="card">
-          <p className="badge">{APP_VERSION} · Netlify Database foundation</p>
+          <p className="badge">{APP_VERSION} · Practitioner selection and conflict protection</p>
           <h1 className="hero-title">Two synced booking apps from one domain.</h1>
           <p className="hero-copy">
-            The client app lets patients browse diary dates and book available times. The admin app lets dentist staff create, manage, cancel and complete bookings from the same Netlify Database-backed diary source.
+            The client app lets patients choose a procedure, pick first available or a specific practitioner, browse diary dates and book confirmed times. The admin app lets dentist staff create and manage bookings from the same conflict-protected Netlify Database diary.
           </p>
           <div className="nav-pills">
             <Link className="button primary" href="/book">Open Client App</Link>
@@ -19,8 +19,8 @@ export default function HomePage() {
           </div>
         </div>
         <div className="card grid">
-          <div className="stat"><strong>Client PWA</strong><span>Patients book confirmed appointments from available diary slots.</span></div>
-          <div className="stat"><strong>Admin PWA</strong><span>Dentist/team manage the live diary, procedures, blocks, reminders and messages.</span></div>
+          <div className="stat"><strong>Client PWA</strong><span>Patients book confirmed appointments from practitioner-aware diary slots.</span></div>
+          <div className="stat"><strong>Admin PWA</strong><span>Dentist/team manage practitioner diaries, procedures, blocks, reminders and messages.</span></div>
           <div className="stat"><strong>Embed-ready</strong><span>Booking page can be added to an existing website with simple HTML.</span></div>
           <div className="stat"><strong>SaaS path</strong><span>Dedicated Netlify Database now, later expandable to shared SaaS tenancy.</span></div>
         </div>

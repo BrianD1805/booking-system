@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const required = ['patientName', 'patientPhone', 'patientEmail', 'procedureId', 'date', 'time', 'source'];
+    const required = ['patientName', 'patientPhone', 'patientEmail', 'procedureId', 'practitionerId', 'date', 'time', 'source'];
     for (const field of required) {
       if (!body[field]) {
         return NextResponse.json({ error: `Missing required booking field: ${field}` }, { status: 400 });
@@ -30,6 +30,7 @@ export async function POST(request: NextRequest) {
       patientPhone: String(body.patientPhone),
       patientEmail: String(body.patientEmail),
       procedureId: String(body.procedureId),
+      practitionerId: String(body.practitionerId),
       date: String(body.date),
       time: String(body.time),
       source: body.source === 'admin' ? 'admin' : body.source === 'staff' ? 'staff' : 'client',

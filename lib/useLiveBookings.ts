@@ -1,6 +1,6 @@
 'use client';
 
-// Ver-0.003A compatibility wrapper.
+// Ver-0.004 compatibility wrapper.
 // Older Ver-0.002 builds used browser localStorage through this hook.
 // The live diary now uses Netlify Database through useBookingDatabase.
 // This file is intentionally kept so stale imports cannot break TypeScript builds

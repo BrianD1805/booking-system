@@ -8,6 +8,7 @@ type BookingInput = {
   patientPhone: string;
   patientEmail: string;
   procedureId: string;
+  practitionerId: string;
   date: string;
   time: string;
   source: 'client' | 'admin' | 'staff';

@@ -1,10 +1,10 @@
-# ZippyWeb Booking System — Ver-0.003A
+# ZippyWeb Booking System — Ver-0.004
 
 From Brian Hallam at ZippyWeb.
 
 ## Current build
 
-**Ver-0.003A — Netlify Database Foundation**
+**Ver-0.004 — Practitioner Selection and Conflict Protection**
 
 This build keeps the two installable app areas from one domain:
 
@@ -18,101 +18,54 @@ This is a live booking system, not an appointment request system.
 
 - A client can create a confirmed booking directly.
 - Dentist/admin/staff can create a confirmed booking directly.
-- Both apps now use API routes designed to read/write through Netlify Database.
-- Client-created bookings and staff-created bookings must sync between both apps.
+- Both apps use Netlify Database through API routes.
+- Client-created bookings and staff-created bookings sync between both apps.
 - Request/approval wording should not be used unless a future practice setting enables it.
 
-## What Ver-0.003A adds
+## What Ver-0.004 adds
 
-- Adds `@netlify/database` to the project dependencies.
-- Adds a Netlify Database migration at `netlify/database/migrations/0001_booking_system_foundation.sql`.
-- Adds API routes:
-  - `/api/bootstrap` — loads practice settings, procedures and blocked diary records.
-  - `/api/bookings` — lists and creates live bookings.
-  - `/api/bookings/[id]` — updates booking status or deletes a booking.
-- Replaces browser localStorage booking storage with database API calls.
-- Adds 10-second client/admin diary refresh polling.
-- Keeps the availability engine from Ver-0.002.
-- Updates app version to **Ver-0.003A**.
-- Updates service worker cache to `zippyweb-booking-system-v0.003`.
+- Client can choose **First available** or a specific dentist/practitioner.
+- Availability now checks practitioner working hours and practitioner procedure capability.
+- Staff/admin can create a booking for a selected practitioner.
+- Admin diary now shows the practitioner assigned to each booking.
+- Server-side conflict protection has been added before saving a booking.
+- The API refuses a booking if:
+  - the practitioner cannot perform the selected procedure,
+  - the practitioner is not working at that time,
+  - the practitioner already has an overlapping live booking,
+  - the practice is blocked at that time,
+  - the practitioner is specifically blocked at that time,
+  - or the practice is closed on that date.
+- App version updated to **Ver-0.004**.
+- Service worker cache updated to `zippyweb-booking-system-v0.004`.
 
 ## Local Program Files workflow
 
-Unzip this ZIP and copy/replace the contents into your existing local **Booking System Program Files** folder.
+Place/update files in your local Program Files folder, for example:
 
-Open the terminal directly from the Program Files folder.
+```text
+C:\01 My Work 2026\Booking System\Booking System Program Files
+```
 
-Because this version adds a new database package, run:
+Open the terminal directly from that folder.
+
+## Install / update packages
+
+Run after applying the ZIP:
 
 ```bash
 npm install
 ```
 
-Then make sure your project is linked to the Netlify site:
+## Local testing with Netlify Dev
 
-```bash
-netlify link
-```
-
-If Netlify CLI is not installed yet:
-
-```bash
-npm install -g netlify-cli
-netlify login
-netlify link
-```
-
-## Netlify Database local setup
-
-Netlify Database requires Netlify CLI 26.0.0 or later and Node.js 20.12.2 or later.
-
-Check your CLI version:
-
-```bash
-netlify --version
-```
-
-Initialise Netlify Database for this project:
-
-```bash
-netlify database init
-```
-
-When asked about sample data, you can decline because this project already includes its own migration and seed data.
-
-Apply the local migration:
-
-```bash
-netlify database migrations apply
-```
-
-Check database status:
-
-```bash
-netlify database status
-```
-
-Optional quick database check:
-
-```bash
-netlify database connect --query "SELECT id, name FROM practices;"
-```
-
-## Local testing
-
-For this database-backed build, use Netlify Dev so API/database environment behaviour is closer to Netlify:
+Use Netlify Dev for this build because the app uses Netlify Database and API routes:
 
 ```bash
 netlify dev
 ```
 
-Netlify Dev normally opens around:
-
-```text
-http://localhost:8888/
-```
-
-Check:
+Open:
 
 ```text
 http://localhost:8888/
@@ -121,104 +74,68 @@ http://localhost:8888/admin
 http://localhost:8888/widget
 ```
 
-You can still use Next dev for visual-only work, but database calls may not work unless the Netlify Database local environment is available:
+## Database migrations
 
-```bash
-npm run dev
+Ver-0.004 does not add a new migration. It uses the existing Ver-0.003/0.003A database foundation:
+
+```text
+0001_booking_system_foundation.sql
+0002_multi_practitioner_prep.sql
 ```
 
-## TypeScript and production build check
+If your local database is already at pending migrations 0, no migration apply is needed for this build.
 
-Run:
-
-```bash
-npm run typecheck
-```
-
-Then:
+To check:
 
 ```bash
-npm run build
+netlify database status
 ```
 
 ## Local test checklist
 
 1. Open `/book`.
 2. Choose a procedure.
-3. Pick a diary date.
-4. Confirm that available slots display from database-backed practice settings.
-5. Book a time.
+3. Choose **First available**.
+4. Pick a date and available time.
+5. Confirm the booking.
 6. Open `/admin`.
-7. Select the same date.
-8. Confirm the client booking appears in the admin diary.
-9. Add a staff booking in `/admin`.
-10. Return to `/book` and confirm that the booked time is no longer available.
-11. Cancel/delete a booking in `/admin` and confirm the slot becomes available again.
-12. Use the refresh button if you want to force a diary reload immediately.
+7. Confirm the booking appears with a practitioner attached.
+8. In `/admin`, choose the same practitioner/procedure/date.
+9. Confirm the already-booked time is unavailable.
+10. Add a staff booking for another available slot.
+11. Return to `/book` and confirm that slot is no longer available for that practitioner.
+
+## Build checks
+
+Stop Netlify Dev with `Ctrl + C`, then run:
+
+```bash
+npm run typecheck
+npm run build
+```
 
 ## Git deploy commands
 
-Use these after local database testing and build checks pass:
+After local testing and build pass:
 
 ```bash
 git status
 git add .
-git commit -m "Booking System Ver-0.003A Netlify Database foundation"
+git commit -m "Booking System Ver-0.004 practitioner selection and conflict protection"
 git push origin main
 ```
 
-Netlify should automatically deploy from GitHub.
+Netlify will automatically deploy from GitHub.
 
-## Netlify production deployment notes
+## Next recommended build
 
-Netlify Database applies migrations automatically from:
+**Ver-0.005 — Admin Settings Foundation**
 
-```text
-netlify/database/migrations
-```
+Suggested next scope:
 
-On production deploys, Netlify applies the migration before the deploy is published. If the migration fails, the deploy should not publish.
-
-Netlify settings:
-
-```text
-Base directory: leave empty
-Build command: npm run build
-Publish directory: .next
-```
-
-Node version is pinned in `netlify.toml`:
-
-```text
-20.12.2
-```
-
-## Database tables in this foundation
-
-- `practices`
-- `procedures`
-- `bookings`
-- `blocked_dates`
-- `blocked_times`
-- `notification_settings`
-- `notification_logs`
-- `late_messages`
-- `embed_settings`
-- `audit_logs`
-
-## Dedicated dentist first, SaaS later
-
-This build is deliberately shaped for one dedicated dentist database first. Later SaaS expansion should add stronger tenant/practice separation, custom domains, subdomain routing, staff roles, patient login, consent/data-retention controls and stricter medical-data handling.
-
-## Suggested next build
-
-**Ver-0.004 — Booking Conflict Protection and Settings Admin**
-
-Add server-side conflict checking before inserts, then begin building editable settings for procedures, working hours, blocked dates and blocked times.
-
-
-## Ver-0.003A notes
-
-- Keeps `lib/useLiveBookings.ts` as a compatibility wrapper so old local-storage imports cannot break TypeScript builds after Windows overwrites files.
-- Fixes database date mapping by selecting DATE fields as plain text from Postgres, avoiding timezone display shifts such as `2026-05-17T21:00:00.000Z` for a `2026-05-18` diary date.
-- Adds migration `0002_multi_practitioner_prep.sql` to prepare for multiple dentists/practitioners per practice.
+- Edit procedures and durations from admin.
+- Edit practitioner working hours.
+- Assign procedures to practitioners.
+- Block a practitioner’s time.
+- Block the whole practice.
+- Add a cleaner settings layout for practice customisation.
