@@ -1,6 +1,6 @@
 'use client';
 
-import { FormEvent, useMemo, useState } from 'react';
+import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { Header } from '@/components/Header';
 import { APP_VERSION, practitionerName, procedureName, type BookingStatus } from '@/lib/mockData';
 import { FIRST_AVAILABLE, getAvailabilityForDate, getDateOffset, getDayLabel, practitionersForProcedure } from '@/lib/availability';
@@ -21,6 +21,7 @@ export default function AdminPage() {
   const [patientEmail, setPatientEmail] = useState('');
   const [notes, setNotes] = useState('');
   const [lateMessage, setLateMessage] = useState('The dentist is running around 15 minutes late. Thank you for your patience.');
+  const [databaseSourceLabel, setDatabaseSourceLabel] = useState('Netlify Database');
   const { bootstrap, bookings, loading, saving, error, createBooking, updateBookingStatus, deleteBooking, refresh } = useBookingDatabase(selectedDate);
   const { practiceSettings, procedures, blockedDates, blockedTimes, practitioners } = bootstrap;
   const activeProcedureId = procedures.find((procedure) => procedure.id === procedureId)?.id ?? procedures[0]?.id ?? procedureId;
@@ -59,7 +60,24 @@ export default function AdminPage() {
   const dateBookings = allDateBookings.filter((booking) =>
     diaryPractitionerFilter === 'all' ? true : booking.practitionerId === diaryPractitionerFilter
   );
+  const selectedDiaryPractitioner = practitioners.find((item) => item.id === diaryPractitionerFilter);
+  const selectedDiaryPractitionerLabel = diaryPractitionerFilter === 'all'
+    ? 'All practitioners'
+    : selectedDiaryPractitioner ? `${selectedDiaryPractitioner.name} · ${selectedDiaryPractitioner.role}` : 'Practitioner not found';
+  const selectedDayOfWeek = new Date(`${selectedDate}T12:00:00`).getDay();
+  const selectedWorkingHours = bootstrap.practitionerWorkingHours
+    .filter((item) => item.active && (diaryPractitionerFilter === 'all' || item.practitionerId === diaryPractitionerFilter) && item.dayOfWeek === selectedDayOfWeek)
+    .sort((a, b) => practitionerName(a.practitionerId, practitioners).localeCompare(practitionerName(b.practitionerId, practitioners)) || a.startTime.localeCompare(b.startTime));
+  const selectedPracticeBlocks = blockedTimes.filter((block) => block.date === selectedDate);
+  const selectedPractitionerBlocks = bootstrap.practitionerBlockedTimes
+    .filter((block) => block.date === selectedDate && (diaryPractitionerFilter === 'all' || block.practitionerId === diaryPractitionerFilter));
+  const unavailableSlots = diarySlots.filter((slot) => !slot.available).length;
   const canSave = Boolean(selectedTime && activePractitionerId && patientName.trim() && patientPhone.trim() && patientEmail.trim());
+
+  useEffect(() => {
+    const host = window.location.hostname;
+    setDatabaseSourceLabel(host === 'localhost' || host === '127.0.0.1' ? 'Local Netlify Dev database' : 'Live Netlify Database');
+  }, []);
 
   async function handleAdminBooking(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -148,6 +166,38 @@ export default function AdminPage() {
           <span>This view shows confirmed bookings for the selected date. Procedures are selected only when adding a new booking.</span>
         </div>
 
+        <section className="diary-debug-panel" aria-label="Diary logic check">
+          <div className="debug-header">
+            <div>
+              <h3 className="mini-section-title">Diary logic check</h3>
+              <p className="mini-copy">Temporary testing labels so we can see exactly why slots are available or greyed out.</p>
+            </div>
+            <span className="debug-source">{databaseSourceLabel}</span>
+          </div>
+          <div className="debug-grid">
+            <span><strong>Date</strong>{selectedDate}</span>
+            <span><strong>Practitioner filter</strong>{selectedDiaryPractitionerLabel}</span>
+            <span><strong>Preview procedure</strong>{procedureName(diarySlotPreviewProcedureId, procedures)}</span>
+            <span><strong>Bookings found</strong>{dateBookings.length}</span>
+            <span><strong>Open slots</strong>{diarySlots.filter((slot) => slot.available).length}</span>
+            <span><strong>Greyed slots</strong>{unavailableSlots}</span>
+            <span><strong>Practice blocks</strong>{selectedPracticeBlocks.length || 'None'}</span>
+            <span><strong>Practitioner blocks</strong>{selectedPractitionerBlocks.length || 'None'}</span>
+          </div>
+          <div className="debug-working-hours">
+            <strong>Working hours on this date</strong>
+            {selectedWorkingHours.length ? (
+              <ul>
+                {selectedWorkingHours.map((item) => (
+                  <li key={`${item.practitionerId}-${item.dayOfWeek}-${item.startTime}`}>{practitionerName(item.practitionerId, practitioners)} · {item.startTime}–{item.endTime}</li>
+                ))}
+              </ul>
+            ) : (
+              <p>No working hours are set for this practitioner/date.</p>
+            )}
+          </div>
+        </section>
+
         <section className="diary-slots-panel">
           <div className="section-heading-row compact-row">
             <div>
@@ -162,11 +212,17 @@ export default function AdminPage() {
               const firstBooking = slotBookings[0];
               return (
                 <article key={`${slot.time}-${slot.endTime}-admin-diary`} className={`slot diary-slot-card ${slotBookings.length ? 'booked' : slot.available ? 'available' : 'unavailable'}`}>
-                  <strong>{slot.time}</strong>
+                  <strong>{slot.time}–{slot.endTime}</strong>
                   {slotBookings.length ? (
-                    <span>{slotBookings.length === 1 ? firstBooking.patientName : `${slotBookings.length} bookings`} · {slotBookings.length === 1 ? practitionerName(firstBooking.practitionerId, practitioners) : 'multiple clinicians'}</span>
+                    <>
+                      <span>{slotBookings.length === 1 ? firstBooking.patientName : `${slotBookings.length} bookings`} · {slotBookings.length === 1 ? practitionerName(firstBooking.practitionerId, practitioners) : 'multiple clinicians'}</span>
+                      {slot.available && <em>{slot.availablePractitioners?.length ?? 0} other clinician{(slot.availablePractitioners?.length ?? 0) === 1 ? '' : 's'} still free</em>}
+                    </>
                   ) : (
-                    <span>{slot.available ? `${slot.availablePractitioners?.length ?? 1} clinician${(slot.availablePractitioners?.length ?? 1) === 1 ? '' : 's'} free` : slot.reason ?? 'Unavailable'}</span>
+                    <>
+                      <span>{slot.available ? `${slot.availablePractitioners?.length ?? 1} clinician${(slot.availablePractitioners?.length ?? 1) === 1 ? '' : 's'} free` : 'Greyed out'}</span>
+                      <em>{slot.available ? slot.availablePractitioners?.map((item) => item.name).join(', ') : slot.reason ?? 'Unavailable'}</em>
+                    </>
                   )}
                 </article>
               );

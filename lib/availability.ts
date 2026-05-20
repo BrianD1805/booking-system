@@ -34,6 +34,12 @@ export type AvailabilityContext = {
 
 export const FIRST_AVAILABLE = 'first_available';
 
+export type PractitionerSlotCheck = {
+  practitioner: Practitioner;
+  available: boolean;
+  reason?: string;
+};
+
 function toMinutes(time: string) {
   const [hours, minutes] = time.split(':').map(Number);
   return (hours * 60) + minutes;
@@ -99,9 +105,20 @@ function workingWindowForPractitioner(practitionerId: string, date: string, cont
   };
 }
 
-function isPractitionerFree(practitioner: Practitioner, date: string, slotStart: number, slotEnd: number, bookings: Booking[], context: AvailabilityContext) {
+function explainPractitionerAvailability(practitioner: Practitioner, date: string, slotStart: number, slotEnd: number, bookings: Booking[], context: AvailabilityContext): PractitionerSlotCheck {
   const workingWindow = workingWindowForPractitioner(practitioner.id, date, context);
-  if (!workingWindow || slotStart < workingWindow.start || slotEnd > workingWindow.end) return false;
+
+  if (!workingWindow) {
+    return { practitioner, available: false, reason: 'Not working this day' };
+  }
+
+  if (slotStart < workingWindow.start) {
+    return { practitioner, available: false, reason: `Not working yet (${fromMinutes(workingWindow.start)} start)` };
+  }
+
+  if (slotEnd > workingWindow.end) {
+    return { practitioner, available: false, reason: `Not enough time before ${fromMinutes(workingWindow.end)}` };
+  }
 
   const bookingConflict = bookings.find((booking) => (
     booking.date === date &&
@@ -109,7 +126,10 @@ function isPractitionerFree(practitioner: Practitioner, date: string, slotStart:
     booking.status !== 'cancelled' &&
     rangesOverlap(slotStart, slotEnd, toMinutes(booking.time), toMinutes(booking.endTime))
   ));
-  if (bookingConflict) return false;
+
+  if (bookingConflict) {
+    return { practitioner, available: false, reason: `Already booked: ${bookingConflict.patientName}` };
+  }
 
   const practitionerBlock = context.practitionerBlockedTimes.find((block) => (
     block.date === date &&
@@ -117,7 +137,25 @@ function isPractitionerFree(practitioner: Practitioner, date: string, slotStart:
     rangesOverlap(slotStart, slotEnd, toMinutes(block.startTime), toMinutes(block.endTime))
   ));
 
-  return !practitionerBlock;
+  if (practitionerBlock) {
+    return { practitioner, available: false, reason: `Practitioner blocked: ${practitionerBlock.reason}` };
+  }
+
+  return { practitioner, available: true };
+}
+
+function isPractitionerFree(practitioner: Practitioner, date: string, slotStart: number, slotEnd: number, bookings: Booking[], context: AvailabilityContext) {
+  return explainPractitionerAvailability(practitioner, date, slotStart, slotEnd, bookings, context).available;
+}
+
+function summariseUnavailableChecks(checks: PractitionerSlotCheck[]) {
+  const reasons = checks
+    .filter((check) => !check.available)
+    .slice(0, 2)
+    .map((check) => `${check.practitioner.name}: ${check.reason}`);
+
+  if (!reasons.length) return 'No practitioner available';
+  return reasons.length < checks.length ? `${reasons.join('; ')}…` : reasons.join('; ');
 }
 
 export function getAvailabilityForDate(
@@ -166,14 +204,17 @@ export function getAvailabilityForDate(
       continue;
     }
 
-    const availablePractitioners = eligiblePractitioners.filter((practitioner) => isPractitionerFree(practitioner, date, slotStart, slotEnd, bookings, context));
+    const practitionerChecks = eligiblePractitioners.map((practitioner) =>
+      explainPractitionerAvailability(practitioner, date, slotStart, slotEnd, bookings, context)
+    );
+    const availablePractitioners = practitionerChecks.filter((check) => check.available).map((check) => check.practitioner);
     const assignedPractitioner = availablePractitioners[0];
 
     slots.push({
       time: fromMinutes(slotStart),
       endTime: fromMinutes(slotEnd),
       available: Boolean(assignedPractitioner),
-      reason: assignedPractitioner ? undefined : 'No practitioner available',
+      reason: assignedPractitioner ? undefined : summariseUnavailableChecks(practitionerChecks),
       practitionerId: assignedPractitioner?.id,
       practitionerName: assignedPractitioner?.name,
       availablePractitioners
