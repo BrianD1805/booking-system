@@ -3,7 +3,7 @@
 import { FormEvent, useMemo, useState } from 'react';
 import { Header } from '@/components/Header';
 import { APP_VERSION, practitionerName, procedureName, type BookingStatus } from '@/lib/mockData';
-import { getAvailabilityForDate, getDateOffset, getDayLabel, practitionersForProcedure } from '@/lib/availability';
+import { FIRST_AVAILABLE, getAvailabilityForDate, getDateOffset, getDayLabel, practitionersForProcedure } from '@/lib/availability';
 import { useBookingDatabase } from '@/lib/useBookingDatabase';
 
 type AdminStep = 0 | 1 | 2;
@@ -38,9 +38,20 @@ export default function AdminPage() {
   const activePractitionerId = eligiblePractitioners.some((item) => item.id === selectedPractitionerId)
     ? selectedPractitionerId
     : eligiblePractitioners[0]?.id ?? selectedPractitionerId;
-  const slots = useMemo(
+  const bookingFlowSlots = useMemo(
     () => getAvailabilityForDate(bookings, selectedDate, activeProcedureId, context, activePractitionerId),
     [bookings, selectedDate, activeProcedureId, context, activePractitionerId]
+  );
+  const diarySlotPreviewProcedureId = procedures.find((procedure) => procedure.id === 'checkup')?.id ?? activeProcedureId;
+  const diarySlots = useMemo(
+    () => getAvailabilityForDate(
+      bookings,
+      selectedDate,
+      diarySlotPreviewProcedureId,
+      context,
+      diaryPractitionerFilter === 'all' ? FIRST_AVAILABLE : diaryPractitionerFilter
+    ),
+    [bookings, selectedDate, diarySlotPreviewProcedureId, context, diaryPractitionerFilter]
   );
   const allDateBookings = bookings
     .filter((booking) => booking.date === selectedDate)
@@ -105,7 +116,7 @@ export default function AdminPage() {
       <section className="compact-dashboard">
         <article className="mini-card"><strong>{practitioners.filter((item) => item.active).length}</strong><span>Active clinicians</span></article>
         <article className="mini-card"><strong>{allDateBookings.length}</strong><span>Bookings on this date</span></article>
-        <article className="mini-card"><strong>{loading ? '…' : slots.filter((slot) => slot.available).length}</strong><span>Open slots</span></article>
+        <article className="mini-card"><strong>{loading ? '…' : diarySlots.filter((slot) => slot.available).length}</strong><span>Open slots</span></article>
       </section>
 
       <section className="card diary-panel clean-panel">
@@ -136,6 +147,32 @@ export default function AdminPage() {
           <strong>Diary view</strong>
           <span>This view shows confirmed bookings for the selected date. Procedures are selected only when adding a new booking.</span>
         </div>
+
+        <section className="diary-slots-panel">
+          <div className="section-heading-row compact-row">
+            <div>
+              <h3 className="mini-section-title">Slots view</h3>
+              <p className="mini-copy">Visual 30-minute diary preview for the selected date and practitioner filter.</p>
+            </div>
+            <button className="pill" type="button" onClick={refresh} disabled={saving}>Refresh</button>
+          </div>
+          <div className="slot-grid admin-slot-grid">
+            {diarySlots.map((slot) => {
+              const slotBookings = dateBookings.filter((booking) => booking.time === slot.time);
+              const firstBooking = slotBookings[0];
+              return (
+                <article key={`${slot.time}-${slot.endTime}-admin-diary`} className={`slot diary-slot-card ${slotBookings.length ? 'booked' : slot.available ? 'available' : 'unavailable'}`}>
+                  <strong>{slot.time}</strong>
+                  {slotBookings.length ? (
+                    <span>{slotBookings.length === 1 ? firstBooking.patientName : `${slotBookings.length} bookings`} · {slotBookings.length === 1 ? practitionerName(firstBooking.practitionerId, practitioners) : 'multiple clinicians'}</span>
+                  ) : (
+                    <span>{slot.available ? `${slot.availablePractitioners?.length ?? 1} clinician${(slot.availablePractitioners?.length ?? 1) === 1 ? '' : 's'} free` : slot.reason ?? 'Unavailable'}</span>
+                  )}
+                </article>
+              );
+            })}
+          </div>
+        </section>
 
         <section className="booking-list visual-list diary-appointment-list">
           {dateBookings.length === 0 && (
@@ -201,7 +238,7 @@ export default function AdminPage() {
                 </div>
               </div>
               <div className="slot-grid popup-slots">
-                {slots.map((slot) => (
+                {bookingFlowSlots.map((slot) => (
                   <button key={`${slot.time}-${slot.endTime}-modal`} className={`slot ${slot.available ? 'available' : 'unavailable'} ${selectedTime === slot.time ? 'selected' : ''}`} disabled={!slot.available || saving} type="button" onClick={() => setSelectedTime(slot.time)}>
                     <strong>{slot.time}</strong>
                     <span>{slot.available ? slot.endTime : slot.reason ?? 'Unavailable'}</span>
