@@ -1,10 +1,10 @@
-# ZippyWeb Booking System — Ver-0.005
+# ZippyWeb Booking System — Ver-0.005A
 
 From Brian Hallam at ZippyWeb.
 
 ## Current build
 
-**Ver-0.005 — Visual Mobile Popup Flow and Blue White Refresh**
+**Ver-0.005A — Review Summary Before Final Booking**
 
 This build keeps the two installable app areas from one domain:
 
@@ -22,7 +22,7 @@ This is a live booking system, not an appointment request system.
 - Client-created bookings and staff-created bookings sync between both apps.
 - Request/approval wording should not be used unless a future practice setting enables it.
 
-## What Ver-0.005 adds
+## What Ver-0.005A adds
 
 - Client can choose **First available** or a specific dentist/practitioner.
 - Availability now checks practitioner working hours and practitioner procedure capability.
@@ -36,8 +36,8 @@ This is a live booking system, not an appointment request system.
   - the practice is blocked at that time,
   - the practitioner is specifically blocked at that time,
   - or the practice is closed on that date.
-- App version updated to **Ver-0.005**.
-- Service worker cache updated to `zippyweb-booking-system-v0.005`.
+- App version updated to **Ver-0.005A**.
+- Service worker cache updated to `zippyweb-booking-system-v0.005A`.
 
 ## Local Program Files workflow
 
@@ -76,7 +76,7 @@ http://localhost:8888/widget
 
 ## Database migrations
 
-Ver-0.005 does not add a new migration. It uses the existing Ver-0.003/0.003A database foundation:
+Ver-0.005A does not add a new migration. It uses the existing Ver-0.003/0.003A database foundation:
 
 ```text
 0001_booking_system_foundation.sql
@@ -121,7 +121,7 @@ After local testing and build pass:
 ```bash
 git status
 git add .
-git commit -m "Booking System Ver-0.005 practitioner selection and conflict protection"
+git commit -m "Booking System Ver-0.005A practitioner selection and conflict protection"
 git push origin main
 ```
 
@@ -129,7 +129,7 @@ Netlify will automatically deploy from GitHub.
 
 ## Next recommended build
 
-**Ver-0.005 — Admin Settings Foundation**
+**Ver-0.005A — Admin Settings Foundation**
 
 Suggested next scope:
 
@@ -141,7 +141,7 @@ Suggested next scope:
 - Add a cleaner settings layout for practice customisation.
 
 
-## Ver-0.005 notes
+## Ver-0.005A notes
 
 This version focuses on visual flow and reduced page clutter.
 
@@ -163,5 +163,5 @@ netlify dev
 Deploy:
 
 ```bash
-git status && git add . && git commit -m "Booking System Ver-0.005 visual mobile popup flow and blue white refresh" && git push origin main
+git status && git add . && git commit -m "Booking System Ver-0.005A review summary before final booking" && git push origin main
 ```

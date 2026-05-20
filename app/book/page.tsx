@@ -6,7 +6,7 @@ import { APP_VERSION, procedureDuration } from '@/lib/mockData';
 import { FIRST_AVAILABLE, getAvailabilityForDate, getDateOffset, getDayLabel, practitionersForProcedure } from '@/lib/availability';
 import { useBookingDatabase } from '@/lib/useBookingDatabase';
 
-const steps = ['Details', 'Treatment', 'Diary', 'Confirm'];
+const steps = ['Details', 'Treatment', 'Diary', 'Review'];
 
 type FlowStep = 0 | 1 | 2 | 3;
 
@@ -94,7 +94,7 @@ export default function BookPage() {
           <p className="badge blue-badge">Client booking app · {APP_VERSION}</p>
           <h1 className="hero-title clean-title">Book your dental appointment.</h1>
           <p className="hero-copy tight-copy">
-            A simple step-by-step booking flow. Patients enter their details, choose the treatment, browse real available slots and confirm a live appointment.
+            A simple step-by-step booking flow. Patients enter their details, choose the treatment, browse real available slots, review a clear summary, then book a live appointment.
           </p>
           <div className="quick-summary">
             <span>Live diary</span>
@@ -105,7 +105,7 @@ export default function BookPage() {
             Start booking
           </button>
           {confirmedBookingId && (
-            <p className="notice success" role="status">Appointment confirmed and saved to the shared diary.</p>
+            <p className="notice success" role="status">Appointment booked and saved to the shared diary.</p>
           )}
           {error && (
             <div className="notice warning" role="alert">
@@ -121,7 +121,7 @@ export default function BookPage() {
             <strong>1. Details</strong>
             <strong>2. Treatment</strong>
             <strong>3. Diary slot</strong>
-            <strong>4. Confirmed</strong>
+            <strong>4. Review & book</strong>
           </div>
         </div>
       </section>
@@ -209,6 +209,7 @@ export default function BookPage() {
                     onClick={() => {
                       setSelectedTime(slot.time);
                       setSelectedPractitionerId(slot.practitionerId ?? '');
+                      setStep(3);
                     }}
                   >
                     <strong>{slot.time}</strong>
@@ -222,7 +223,7 @@ export default function BookPage() {
           {step === 3 && (
             <section className="flow-step">
               <div className="confirmation-card">
-                <h3>Ready to confirm</h3>
+                <h3>Review your appointment</h3>
                 <p><strong>{patientName || 'Patient'}</strong></p>
                 <p>{selectedProcedure?.name} · {procedureDuration(activeProcedureId, procedures)} mins</p>
                 <p>{getDayLabel(selectedDate)} at {selectedTime || 'choose a time'}</p>
@@ -248,7 +249,7 @@ export default function BookPage() {
               </button>
             ) : (
               <button className="button primary" type="submit" disabled={!canConfirm || saving || Boolean(error)}>
-                {saving ? 'Checking diary…' : 'Confirm live booking'}
+                {saving ? 'Checking diary…' : 'Book appointment'}
               </button>
             )}
           </div>
