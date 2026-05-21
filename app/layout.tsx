@@ -20,7 +20,6 @@ export const metadata: Metadata = {
   icons: {
     icon: [
       { url: '/favicon.ico', sizes: 'any' },
-      { url: '/favicon.svg', type: 'image/svg+xml' },
       { url: '/icons/icon-32.png', sizes: '32x32', type: 'image/png' },
       { url: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' }
     ],
@@ -38,7 +37,7 @@ export const metadata: Metadata = {
         url: '/og-image.png',
         width: 1200,
         height: 1200,
-        alt: 'ZipBook calendar booking app icon'
+        alt: 'ZipBook wordmark app icon'
       }
     ]
   },

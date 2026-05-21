@@ -1,24 +1,24 @@
-# ZipBook — Ver-0.008
+# ZipBook — Ver-0.008A
 
 From Brian Hallam at ZippyWeb.
 
 ## Current build
 
-**Ver-0.008 — Client PWA Install Prompt**
+**Ver-0.008A — ZipBook Wordmark Icon Refresh**
 
-This build keeps the existing Ver-0.007 domain split foundation and Ver-0.007A favicon/app icon refresh, then adds a client-facing install prompt for the booking app.
+This build keeps the existing Ver-0.008 client PWA install prompt and updates the browser favicon, client PWA icon, admin PWA icon, Apple touch icon and Open Graph sharing image to the new blue **Zip Book** wordmark artwork.
 
 ## What this build changes
 
-- Adds a tasteful **Install ZipBook** prompt to the client booking app only.
-- Uses the browser `beforeinstallprompt` event where supported, mainly Android/Chrome/Brave/Edge and compatible desktop browsers.
-- Adds a clear **Install App** button when the browser allows the native install prompt.
-- Adds a **Not now** button so clients are not repeatedly nagged after dismissing it.
-- Adds iPhone/Safari guidance: tap Share, then Add to Home Screen.
-- Hides the prompt when the app is already installed or running in standalone PWA mode.
-- Updates the client manifest start URL to `/book`, so the client PWA opens directly into the booking app rather than the landing page.
-- Updates the service worker cache name to `zipbook-v0.008`.
-- Updates the visible app version to `Ver-0.008`.
+- Replaces the browser favicon with the new Zip Book wordmark icon.
+- Replaces the client PWA icons used by `manifest-client.json`.
+- Replaces the admin PWA icons used by `manifest-admin.json`.
+- Replaces the Apple touch icon.
+- Replaces the Open Graph image with a square 1200 × 1200 image.
+- Keeps the artwork square and preserves the bleed area around the wordmark.
+- Keeps the Ver-0.008 client install prompt in place.
+- Updates the service worker cache name to `zipbook-v0.008a`.
+- Updates the visible app version to `Ver-0.008A`.
 - No database migration changes in this build.
 
 ## Domain plan
@@ -80,7 +80,7 @@ npm run build
 ## Deploy
 
 ```bash
-git status && git add . && git commit -m "Booking System Ver-0.008 client PWA install prompt" && git push origin main
+git status && git add . && git commit -m "Booking System Ver-0.008A ZipBook wordmark icon refresh" && git push origin main
 ```
 
 ## Migration safety note

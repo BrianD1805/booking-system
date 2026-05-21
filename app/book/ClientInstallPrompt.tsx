@@ -7,8 +7,8 @@ type BeforeInstallPromptEvent = Event & {
   userChoice: Promise<{ outcome: 'accepted' | 'dismissed'; platform: string }>;
 };
 
-const DISMISS_KEY = 'zipbook-client-install-dismissed-v0.008';
-const INSTALLED_KEY = 'zipbook-client-install-installed-v0.008';
+const DISMISS_KEY = 'zipbook-client-install-dismissed-v0.008a';
+const INSTALLED_KEY = 'zipbook-client-install-installed-v0.008a';
 
 function isStandaloneDisplay() {
   if (typeof window === 'undefined') return false;
