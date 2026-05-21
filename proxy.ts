@@ -3,7 +3,7 @@ import { ADMIN_HOSTS, CLIENT_HOSTS, ZIPBOOK_DOMAINS, isLocalHost, normaliseHost 
 
 const PUBLIC_FILE = /\.(.*)$/;
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const host = normaliseHost(request.headers.get('host'));
   const { pathname } = request.nextUrl;
 

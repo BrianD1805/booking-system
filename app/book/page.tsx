@@ -11,8 +11,29 @@ const steps = ['Details', 'Treatment', 'Diary', 'Review'];
 
 type FlowStep = 0 | 1 | 2 | 3;
 
+type BookingSuccess = {
+  id: string;
+  patientName: string;
+  patientPhone: string;
+  patientEmail: string;
+  treatment: string;
+  duration: number;
+  dateLabel: string;
+  time: string;
+  practitioner: string;
+  notes: string;
+};
+
+function todayInputValue() {
+  const today = new Date();
+  const offsetDate = new Date(today.getTime() - today.getTimezoneOffset() * 60000);
+  return offsetDate.toISOString().slice(0, 10);
+}
+
 export default function BookPage() {
   const [confirmedBookingId, setConfirmedBookingId] = useState<string | null>(null);
+  const [successBooking, setSuccessBooking] = useState<BookingSuccess | null>(null);
+  const [copyStatus, setCopyStatus] = useState('');
   const [bookingOpen, setBookingOpen] = useState(false);
   const [timePickerOpen, setTimePickerOpen] = useState(false);
   const [step, setStep] = useState<FlowStep>(0);
@@ -22,7 +43,7 @@ export default function BookPage() {
   const [notes, setNotes] = useState('');
   const [procedureId, setProcedureId] = useState('checkup');
   const [practitionerChoice, setPractitionerChoice] = useState(FIRST_AVAILABLE);
-  const [selectedDate, setSelectedDate] = useState(getDateOffset(3));
+  const [selectedDate, setSelectedDate] = useState(todayInputValue);
   const [selectedTime, setSelectedTime] = useState('');
   const [selectedPractitionerId, setSelectedPractitionerId] = useState('');
   const { bootstrap, bookings, loading, saving, error, createBooking, refresh } = useBookingDatabase(selectedDate);
@@ -49,6 +70,18 @@ export default function BookPage() {
   const canGoToTreatment = patientName.trim() && patientPhone.trim() && patientEmail.trim();
   const canGoToDiary = Boolean(activeProcedureId && practitionerChoice);
   const canConfirm = Boolean(selectedTime && selectedPractitionerId);
+  const successCopyText = successBooking ? [
+    'ZipBook appointment confirmed',
+    `Booking ID: ${successBooking.id}`,
+    `Patient: ${successBooking.patientName}`,
+    `Phone: ${successBooking.patientPhone}`,
+    `Email: ${successBooking.patientEmail}`,
+    `Treatment: ${successBooking.treatment} (${successBooking.duration} mins)`,
+    `Date: ${successBooking.dateLabel}`,
+    `Time: ${successBooking.time}`,
+    `Practitioner: ${successBooking.practitioner}`,
+    successBooking.notes ? `Notes: ${successBooking.notes}` : ''
+  ].filter(Boolean).join('\n') : '';
 
   useEffect(() => {
     if (practitionerChoice !== FIRST_AVAILABLE && !eligiblePractitioners.some((item) => item.id === practitionerChoice)) {
@@ -59,6 +92,19 @@ export default function BookPage() {
   function resetSelection() {
     setSelectedTime('');
     setSelectedPractitionerId('');
+  }
+
+  async function copyBookingDetails() {
+    if (!successCopyText) return;
+
+    try {
+      await navigator.clipboard.writeText(successCopyText);
+      setCopyStatus('Copied');
+      window.setTimeout(() => setCopyStatus(''), 2000);
+    } catch {
+      setCopyStatus('Copy failed');
+      window.setTimeout(() => setCopyStatus(''), 2500);
+    }
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -79,6 +125,18 @@ export default function BookPage() {
       });
 
       setConfirmedBookingId(newBooking.id);
+      setSuccessBooking({
+        id: newBooking.id,
+        patientName,
+        patientPhone,
+        patientEmail,
+        treatment: selectedProcedure?.name ?? 'Selected treatment',
+        duration: procedureDuration(activeProcedureId, procedures),
+        dateLabel: getDayLabel(selectedDate),
+        time: selectedTime,
+        practitioner: selectedPractitioner?.name ?? 'Selected practitioner',
+        notes
+      });
       setBookingOpen(false);
       setTimePickerOpen(false);
       setStep(0);
@@ -97,7 +155,7 @@ export default function BookPage() {
           <p className="badge blue-badge">Client booking app · {APP_VERSION}</p>
           <h1 className="hero-title clean-title">Book your dental appointment.</h1>
           <p className="hero-copy tight-copy">
-            A simple step-by-step booking flow. Patients enter their details, choose the treatment, browse real available slots, review a clear summary, then book a live appointment.
+            A simple step-by-step booking flow. Patients enter their details, choose the treatment, browse real available times, review a clear summary, then book a live appointment.
           </p>
           <div className="quick-summary">
             <span>Live diary</span>
@@ -145,13 +203,6 @@ export default function BookPage() {
             <button className="icon-button mobile-close" type="button" aria-label="Close booking flow" onClick={() => { setBookingOpen(false); setTimePickerOpen(false); }}>×</button>
           </div>
 
-          <div className="step-dots" aria-label="Booking progress">
-            {steps.map((item, index) => (
-              <button key={item} type="button" className={`step-dot ${index === step ? 'active' : ''} ${index < step ? 'done' : ''}`} onClick={() => setStep(index as FlowStep)}>
-                <span>{index + 1}</span>{item}
-              </button>
-            ))}
-          </div>
 
           {step === 0 && (
             <section className="flow-step">
@@ -203,7 +254,7 @@ export default function BookPage() {
               </div>
               <div className="summary-strip">
                 <strong>{loading ? 'Loading diary…' : getDayLabel(selectedDate)}</strong>
-                <span>{availableSlots.length} available slot{availableSlots.length === 1 ? '' : 's'}</span>
+                <span>{availableSlots.length} Available Times</span>
               </div>
               {selectedTime ? (
                 <div className="selected-slot-summary">
@@ -211,11 +262,14 @@ export default function BookPage() {
                   <strong>{selectedTime} · {selectedPractitioner?.name ?? 'Practitioner selected'}</strong>
                 </div>
               ) : (
-                <p className="mini-copy">Choose a date, then open the time selector to view the full list of available appointment slots.</p>
+                <p className="mini-copy">Choose a date, then open the time selector to view the full list of available appointment times.</p>
               )}
-              <button className="button primary full" type="button" onClick={() => setTimePickerOpen(true)} disabled={loading || saving}>
-                {selectedTime ? 'Change time' : 'Select appointment time'}
-              </button>
+              <div className="diary-inline-actions">
+                <button className="pill" type="button" onClick={() => setStep(1)} disabled={saving}>Back</button>
+                <button className="button primary" type="button" onClick={() => setTimePickerOpen(true)} disabled={loading || saving}>
+                  Select Time
+                </button>
+              </div>
             </section>
           )}
 
@@ -280,31 +334,70 @@ export default function BookPage() {
             </section>
           )}
 
-          <div className="workflow-actions">
-            <button className="pill" type="button" disabled={step === 0 || saving} onClick={() => setStep((current) => Math.max(0, current - 1) as FlowStep)}>Back</button>
-            {step < 3 ? (
-              <button
-                className="button primary"
-                type="button"
-                disabled={(step === 0 && !canGoToTreatment) || (step === 1 && !canGoToDiary) || (step === 2 && !canConfirm)}
-                onClick={() => {
-                  if (step === 2) {
-                    setTimePickerOpen(true);
-                    return;
-                  }
-                  setStep((current) => Math.min(3, current + 1) as FlowStep);
-                }}
-              >
-                {step === 2 ? 'Select time' : 'Continue'}
-              </button>
-            ) : (
-              <button className="button primary" type="submit" disabled={!canConfirm || saving || Boolean(error)}>
-                {saving ? 'Checking diary…' : 'Book appointment'}
-              </button>
-            )}
-          </div>
+          {step !== 2 && (
+            <div className="workflow-actions">
+              <button className="pill" type="button" disabled={step === 0 || saving} onClick={() => setStep((current) => Math.max(0, current - 1) as FlowStep)}>Back</button>
+              {step < 3 ? (
+                <button
+                  className="button primary"
+                  type="button"
+                  disabled={(step === 0 && !canGoToTreatment) || (step === 1 && !canGoToDiary)}
+                  onClick={() => setStep((current) => Math.min(3, current + 1) as FlowStep)}
+                >
+                  Continue
+                </button>
+              ) : (
+                <button className="button primary" type="submit" disabled={!canConfirm || saving || Boolean(error)}>
+                  {saving ? 'Checking diary…' : 'Book appointment'}
+                </button>
+              )}
+            </div>
+          )}
         </div>
       </form>
+
+
+      {successBooking && (
+        <section className="booking-success-page" aria-labelledby="booking-success-title" role="dialog" aria-modal="true">
+          <div className="booking-success-card">
+            <p className="badge blue-badge">Booking confirmed</p>
+            <h2 id="booking-success-title">Appointment booked successfully.</h2>
+            <p className="mini-copy">Copy the booking details below, or return to the home page when you are finished.</p>
+
+            <div className="success-details-card">
+              <div className="success-details-head">
+                <strong>Booking details</strong>
+                <button className="copy-details-button" type="button" onClick={copyBookingDetails} aria-label="Copy booking details">
+                  <span aria-hidden="true">⧉</span>
+                  {copyStatus || 'Copy'}
+                </button>
+              </div>
+              <p><strong>Patient:</strong> {successBooking.patientName}</p>
+              <p><strong>Phone:</strong> {successBooking.patientPhone}</p>
+              <p><strong>Email:</strong> {successBooking.patientEmail}</p>
+              <p><strong>Treatment:</strong> {successBooking.treatment} · {successBooking.duration} mins</p>
+              <p><strong>Date:</strong> {successBooking.dateLabel}</p>
+              <p><strong>Time:</strong> {successBooking.time}</p>
+              <p><strong>Practitioner:</strong> {successBooking.practitioner}</p>
+              <p><strong>Booking ID:</strong> {successBooking.id}</p>
+            </div>
+
+            <div className="success-actions">
+              <a className="button primary" href="/">Back to home</a>
+              <button
+                className="pill"
+                type="button"
+                onClick={() => {
+                  setSuccessBooking(null);
+                  window.close();
+                }}
+              >
+                Cancel / close app
+              </button>
+            </div>
+          </div>
+        </section>
+      )}
 
       <ClientInstallPrompt />
 
