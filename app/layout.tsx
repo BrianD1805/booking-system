@@ -12,7 +12,7 @@ export const metadata: Metadata = {
     default: 'ZipBook',
     template: '%s | ZipBook'
   },
-  description: 'Book and manage appointments with live diary availability.',
+  description: 'Book appointments online and manage live diary availability.',
   keywords: ['appointment booking', 'dental booking', 'practice diary', 'PWA booking app', 'ZipBook'],
   authors: [{ name: 'Brian Hallam at ZippyWeb' }],
   creator: 'Brian Hallam at ZippyWeb',
@@ -31,21 +31,21 @@ export const metadata: Metadata = {
     type: 'website',
     url: siteUrl,
     title: 'ZipBook',
-    description: 'Book and manage appointments with live diary availability.',
+    description: 'Book appointments online and manage live diary availability.',
     siteName: 'ZipBook',
     images: [
       {
         url: '/og-image.png',
-        width: 512,
-        height: 512,
-        alt: 'ZipBook app icon'
+        width: 1200,
+        height: 1200,
+        alt: 'ZipBook calendar booking app icon'
       }
     ]
   },
   twitter: {
     card: 'summary',
     title: 'ZipBook',
-    description: 'Book and manage appointments with live diary availability.',
+    description: 'Book appointments online and manage live diary availability.',
     images: ['/og-image.png']
   },
   appleWebApp: {

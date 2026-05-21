@@ -1,12 +1,23 @@
-# ZipBook — Ver-0.007
+# ZipBook — Ver-0.007A
 
 From Brian Hallam at ZippyWeb.
 
 ## Current build
 
-**Ver-0.007 — Domain Split Foundation**
+**Ver-0.007A — Favicon and App Icon Refresh**
 
-This build prepares ZipBook for the new production domain and separates the client-facing app from the admin app while keeping one shared codebase, one GitHub repo, one Netlify project, and one shared Netlify Database foundation.
+This build keeps the existing Ver-0.007 domain split foundation and updates the ZipBook favicon, browser icon, PWA icons, Apple touch icon, SVG fallback icon, and Open Graph sharing image using the supplied calendar/check artwork.
+
+## What this build changes
+
+- Replaces the browser favicon with the supplied ZipBook calendar/check icon.
+- Replaces all generated PWA app icon sizes used by both the client app and the admin app.
+- Replaces the Apple touch icon for iPhone/iPad home screen installs.
+- Replaces the Open Graph image used when the app is shared in WhatsApp/social previews.
+- Keeps the supplied artwork visually unchanged, only resized into the required icon dimensions.
+- Updates the service worker cache name to `zipbook-v0.007a` so browsers and installed PWAs can pick up the refreshed assets.
+- Updates the visible app version to `Ver-0.007A`.
+- No database migration changes in this build.
 
 ## Domain plan
 
@@ -14,19 +25,6 @@ This build prepares ZipBook for the new production domain and separates the clie
 - `https://admin.zipbook.app` — owner/admin diary app.
 - `https://bookings-system.netlify.app` — temporary Netlify URL / fallback during setup.
 - Future SaaS route idea: `https://practice-name.zipbook.app` for tenant booking pages.
-
-## What this build changes
-
-- Adds domain-aware routing middleware.
-- `zipbook.app` opens the client booking app at the root domain.
-- `admin.zipbook.app` opens the admin diary app at the root of the subdomain.
-- `/admin` on the main ZipBook domain redirects to the admin subdomain.
-- `/book` on the admin subdomain redirects back to the client domain.
-- Localhost and the temporary Netlify URL continue to work with `/book`, `/admin`, and `/widget` for testing.
-- Updates metadata, browser titles, manifest IDs, PWA start URLs and app names for ZipBook.
-- Keeps the client and admin apps as separate installable PWAs from their own domains/subdomain.
-- Keeps the same Netlify Database, booking API, procedures, practitioners, conflict checks and slot logic.
-- No database migration changes in this build.
 
 ## App areas
 
@@ -43,28 +41,6 @@ This is a live booking system, not an appointment request system.
 - Both apps use Netlify Database through API routes.
 - Client-created bookings and staff-created bookings sync between both apps.
 - Bookings are linked to a specific practitioner/resource.
-
-## SaaS direction
-
-The current version is still suitable for a dedicated dentist/practice database. The domain structure now keeps us ready for a SaaS expansion later, where tenant booking pages can use subdomains such as `practice-name.zipbook.app` while the owner/admin system remains separated at `admin.zipbook.app`.
-
-## Netlify custom domain setup notes
-
-In Netlify, add these domains to the same site first:
-
-```text
-zipbook.app
-www.zipbook.app
-admin.zipbook.app
-```
-
-Later, when we are ready for tenant SaaS subdomains, add:
-
-```text
-*.zipbook.app
-```
-
-Do not add the wildcard until the product is ready for tenant routing.
 
 ## Local Program Files workflow
 
@@ -101,7 +77,7 @@ npm run build
 ## Deploy
 
 ```bash
-git status && git add . && git commit -m "Booking System Ver-0.007 domain split foundation" && git push origin main
+git status && git add . && git commit -m "Booking System Ver-0.007A favicon and app icon refresh" && git push origin main
 ```
 
 ## Migration safety note
