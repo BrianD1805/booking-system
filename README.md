@@ -1,24 +1,23 @@
-# ZipBook — Ver-0.008A
+# ZipBook — Ver-0.008B
 
 From Brian Hallam at ZippyWeb.
 
 ## Current build
 
-**Ver-0.008A — ZipBook Wordmark Icon Refresh**
+**Ver-0.008B — Booking Duration Lockdown**
 
-This build keeps the existing Ver-0.008 client PWA install prompt and updates the browser favicon, client PWA icon, admin PWA icon, Apple touch icon and Open Graph sharing image to the new blue **Zip Book** wordmark artwork.
+This build keeps the existing Ver-0.008 client PWA install prompt and Ver-0.008A icon refresh, then tightens the diary display so longer bookings occupy every overlapping 30-minute diary block, not just the booking start time.
 
 ## What this build changes
 
-- Replaces the browser favicon with the new Zip Book wordmark icon.
-- Replaces the client PWA icons used by `manifest-client.json`.
-- Replaces the admin PWA icons used by `manifest-admin.json`.
-- Replaces the Apple touch icon.
-- Replaces the Open Graph image with a square 1200 × 1200 image.
-- Keeps the artwork square and preserves the bleed area around the wordmark.
-- Keeps the Ver-0.008 client install prompt in place.
-- Updates the service worker cache name to `zipbook-v0.008a`.
-- Updates the visible app version to `Ver-0.008A`.
+- Updates the admin diary slots view to detect booking overlaps by time range.
+- A 60-minute appointment now marks both half-hour diary blocks as booked/occupied.
+- Longer appointments show as continuing until their real end time in the admin visual diary.
+- Keeps the existing server-side conflict protection, which already checks full booking ranges before saving.
+- Keeps the client PWA install prompt in place.
+- Keeps the ZipBook wordmark favicon, PWA icons and Open Graph image in place.
+- Updates the service worker cache name to `zipbook-v0.008b`.
+- Updates the visible app version to `Ver-0.008B`.
 - No database migration changes in this build.
 
 ## Domain plan
@@ -80,7 +79,7 @@ npm run build
 ## Deploy
 
 ```bash
-git status && git add . && git commit -m "Booking System Ver-0.008A ZipBook wordmark icon refresh" && git push origin main
+git status && git add . && git commit -m "Booking System Ver-0.008B booking duration lockdown" && git push origin main
 ```
 
 ## Migration safety note

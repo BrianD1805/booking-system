@@ -8,6 +8,23 @@ import { useBookingDatabase } from '@/lib/useBookingDatabase';
 
 type AdminStep = 0 | 1 | 2;
 
+function timeToMinutes(time: string) {
+  const [hours, minutes] = time.split(':').map(Number);
+  return (hours * 60) + minutes;
+}
+
+function bookingOverlapsSlot(booking: { time: string; endTime: string }, slot: { time: string; endTime: string }) {
+  const bookingStart = timeToMinutes(booking.time);
+  const bookingEnd = timeToMinutes(booking.endTime);
+  const slotStart = timeToMinutes(slot.time);
+  const slotEnd = timeToMinutes(slot.endTime);
+  return bookingStart < slotEnd && slotStart < bookingEnd;
+}
+
+function bookingStartsOnSlot(booking: { time: string }, slot: { time: string }) {
+  return booking.time === slot.time;
+}
+
 export default function AdminPage() {
   const [selectedDate, setSelectedDate] = useState(getDateOffset(0));
   const [procedureId, setProcedureId] = useState('checkup');
@@ -158,14 +175,16 @@ export default function AdminPage() {
           </div>
           <div className="slot-grid admin-slot-grid">
             {diarySlots.map((slot) => {
-              const slotBookings = dateBookings.filter((booking) => booking.time === slot.time);
-              const firstBooking = slotBookings[0];
+              const overlappingBookings = dateBookings.filter((booking) => bookingOverlapsSlot(booking, slot));
+              const firstBooking = overlappingBookings[0];
+              const startsInThisSlot = firstBooking ? bookingStartsOnSlot(firstBooking, slot) : false;
               return (
-                <article key={`${slot.time}-${slot.endTime}-admin-diary`} className={`slot diary-slot-card ${slotBookings.length ? 'booked' : slot.available ? 'available' : 'unavailable'}`}>
+                <article key={`${slot.time}-${slot.endTime}-admin-diary`} className={`slot diary-slot-card ${overlappingBookings.length ? 'booked' : slot.available ? 'available' : 'unavailable'}`}>
                   <strong>{slot.time}–{slot.endTime}</strong>
-                  {slotBookings.length ? (
+                  {overlappingBookings.length ? (
                     <>
-                      <span>{slotBookings.length === 1 ? firstBooking.patientName : `${slotBookings.length} bookings`} · {slotBookings.length === 1 ? practitionerName(firstBooking.practitionerId, practitioners) : 'multiple clinicians'}</span>
+                      <span>{overlappingBookings.length === 1 ? firstBooking.patientName : `${overlappingBookings.length} bookings`} · {overlappingBookings.length === 1 ? practitionerName(firstBooking.practitionerId, practitioners) : 'multiple clinicians'}</span>
+                      <em>{startsInThisSlot ? `Booked until ${firstBooking.endTime}` : `Continues until ${firstBooking.endTime}`}</em>
                       {slot.available && <em>{slot.availablePractitioners?.length ?? 0} other clinician{(slot.availablePractitioners?.length ?? 0) === 1 ? '' : 's'} still free</em>}
                     </>
                   ) : (

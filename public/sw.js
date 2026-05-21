@@ -1,4 +1,4 @@
-const CACHE_NAME = 'zipbook-v0.008a';
+const CACHE_NAME = 'zipbook-v0.008b';
 const CORE_ASSETS = ['/', '/book', '/admin', '/widget', '/offline.html', '/favicon.ico', '/icons/icon-192.png', '/icons/icon-512.png', '/apple-touch-icon.png', '/og-image.png', '/manifest-client.json', '/manifest-admin.json'];
 
 self.addEventListener('install', (event) => {
