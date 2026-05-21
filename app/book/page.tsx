@@ -5,6 +5,7 @@ import { Header } from '@/components/Header';
 import { APP_VERSION, procedureDuration } from '@/lib/mockData';
 import { FIRST_AVAILABLE, getAvailabilityForDate, getDateOffset, getDayLabel, practitionersForProcedure } from '@/lib/availability';
 import { useBookingDatabase } from '@/lib/useBookingDatabase';
+import { ClientInstallPrompt } from './ClientInstallPrompt';
 
 const steps = ['Details', 'Treatment', 'Diary', 'Review'];
 
@@ -304,6 +305,8 @@ export default function BookPage() {
           </div>
         </div>
       </form>
+
+      <ClientInstallPrompt />
 
       <p className="footer-note">Client-facing installable app by Brian Hallam at ZippyWeb.</p>
     </main>

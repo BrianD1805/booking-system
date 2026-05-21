@@ -1,9 +1,9 @@
 {
-  "id": "https://zipbook.app/",
+  "id": "https://zipbook.app/book",
   "name": "ZipBook",
   "short_name": "ZipBook",
   "description": "Book appointments online with live availability.",
-  "start_url": "/",
+  "start_url": "/book",
   "scope": "/",
   "display": "standalone",
   "display_override": [
@@ -77,7 +77,7 @@
       "name": "Book appointment",
       "short_name": "Book",
       "description": "Open the client booking app.",
-      "url": "/",
+      "url": "/book",
       "icons": [
         {
           "src": "/icons/icon-192.png",

@@ -95,7 +95,7 @@ export type BootstrapData = {
   practitionerBlockedTimes: PractitionerBlockedTime[];
 };
 
-export const APP_VERSION = 'Ver-0.007A';
+export const APP_VERSION = 'Ver-0.008';
 
 export const fallbackProcedures: Procedure[] = [
   { id: 'checkup', name: 'Dental check-up', durationMinutes: 30, priceGuide: 'Standard consultation' },

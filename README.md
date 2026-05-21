@@ -1,27 +1,30 @@
-# ZipBook — Ver-0.007A
+# ZipBook — Ver-0.008
 
 From Brian Hallam at ZippyWeb.
 
 ## Current build
 
-**Ver-0.007A — Favicon and App Icon Refresh**
+**Ver-0.008 — Client PWA Install Prompt**
 
-This build keeps the existing Ver-0.007 domain split foundation and updates the ZipBook favicon, browser icon, PWA icons, Apple touch icon, SVG fallback icon, and Open Graph sharing image using the supplied calendar/check artwork.
+This build keeps the existing Ver-0.007 domain split foundation and Ver-0.007A favicon/app icon refresh, then adds a client-facing install prompt for the booking app.
 
 ## What this build changes
 
-- Replaces the browser favicon with the supplied ZipBook calendar/check icon.
-- Replaces all generated PWA app icon sizes used by both the client app and the admin app.
-- Replaces the Apple touch icon for iPhone/iPad home screen installs.
-- Replaces the Open Graph image used when the app is shared in WhatsApp/social previews.
-- Keeps the supplied artwork visually unchanged, only resized into the required icon dimensions.
-- Updates the service worker cache name to `zipbook-v0.007a` so browsers and installed PWAs can pick up the refreshed assets.
-- Updates the visible app version to `Ver-0.007A`.
+- Adds a tasteful **Install ZipBook** prompt to the client booking app only.
+- Uses the browser `beforeinstallprompt` event where supported, mainly Android/Chrome/Brave/Edge and compatible desktop browsers.
+- Adds a clear **Install App** button when the browser allows the native install prompt.
+- Adds a **Not now** button so clients are not repeatedly nagged after dismissing it.
+- Adds iPhone/Safari guidance: tap Share, then Add to Home Screen.
+- Hides the prompt when the app is already installed or running in standalone PWA mode.
+- Updates the client manifest start URL to `/book`, so the client PWA opens directly into the booking app rather than the landing page.
+- Updates the service worker cache name to `zipbook-v0.008`.
+- Updates the visible app version to `Ver-0.008`.
 - No database migration changes in this build.
 
 ## Domain plan
 
-- `https://zipbook.app` — client-facing booking app.
+- `https://zipbook.app` — landing page.
+- `https://zipbook.app/book` — client-facing booking app.
 - `https://admin.zipbook.app` — owner/admin diary app.
 - `https://bookings-system.netlify.app` — temporary Netlify URL / fallback during setup.
 - Future SaaS route idea: `https://practice-name.zipbook.app` for tenant booking pages.
@@ -77,7 +80,7 @@ npm run build
 ## Deploy
 
 ```bash
-git status && git add . && git commit -m "Booking System Ver-0.007A favicon and app icon refresh" && git push origin main
+git status && git add . && git commit -m "Booking System Ver-0.008 client PWA install prompt" && git push origin main
 ```
 
 ## Migration safety note
