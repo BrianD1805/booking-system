@@ -36,6 +36,10 @@ export default function BookPage() {
   const [copyStatus, setCopyStatus] = useState('');
   const [bookingOpen, setBookingOpen] = useState(false);
   const [timePickerOpen, setTimePickerOpen] = useState(false);
+  const [clientLoginOpen, setClientLoginOpen] = useState(false);
+  const [clientLoginPhone, setClientLoginPhone] = useState('');
+  const [clientLoginEmail, setClientLoginEmail] = useState('');
+  const [clientLoginNotice, setClientLoginNotice] = useState('');
   const [step, setStep] = useState<FlowStep>(0);
   const [patientName, setPatientName] = useState('');
   const [patientPhone, setPatientPhone] = useState('');
@@ -92,6 +96,10 @@ export default function BookPage() {
   function resetSelection() {
     setSelectedTime('');
     setSelectedPractitionerId('');
+  }
+
+  function handleClientLoginPreview() {
+    setClientLoginNotice('Login foundation ready. The next stage will send a one-time code by SMS or email, then show the client their own bookings.');
   }
 
   async function copyBookingDetails() {
@@ -185,6 +193,39 @@ export default function BookPage() {
             <strong>4. Review & book</strong>
           </div>
         </div>
+      </section>
+
+      <section className="client-login-card" aria-label="Client login foundation">
+        <div>
+          <p className="badge blue-badge">Client login foundation</p>
+          <h2>Book as a guest today, sign in next time.</h2>
+          <p className="mini-copy">Clients can still book without an account. The login area is now in place for the next upgrade, where they can receive a one-time code and view their own appointments.</p>
+        </div>
+        <div className="client-login-actions">
+          <button className="button primary" type="button" onClick={() => setClientLoginOpen((current) => !current)}>
+            {clientLoginOpen ? 'Hide login' : 'Client login'}
+          </button>
+          <button className="pill" type="button" onClick={() => setBookingOpen(true)}>Continue as guest</button>
+        </div>
+        {clientLoginOpen && (
+          <div className="client-login-panel">
+            <div className="grid two controls-grid">
+              <div className="form-row">
+                <label htmlFor="clientLoginPhone">Mobile number</label>
+                <input id="clientLoginPhone" value={clientLoginPhone} onChange={(event) => setClientLoginPhone(event.target.value)} placeholder="+254..." />
+              </div>
+              <div className="form-row">
+                <label htmlFor="clientLoginEmail">Email backup</label>
+                <input id="clientLoginEmail" value={clientLoginEmail} onChange={(event) => setClientLoginEmail(event.target.value)} type="email" placeholder="you@example.com" />
+              </div>
+            </div>
+            <div className="client-login-bottom">
+              <button className="button primary" type="button" onClick={handleClientLoginPreview} disabled={!clientLoginPhone.trim() && !clientLoginEmail.trim()}>Send login code</button>
+              <span>OTP delivery will be connected in the next login build.</span>
+            </div>
+            {clientLoginNotice && <p className="notice success" role="status">{clientLoginNotice}</p>}
+          </div>
+        )}
       </section>
 
       <section className="compact-dashboard">

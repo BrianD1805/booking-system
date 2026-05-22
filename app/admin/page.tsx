@@ -2,7 +2,7 @@
 
 import { FormEvent, useMemo, useState } from 'react';
 import { Header } from '@/components/Header';
-import { APP_VERSION, practitionerName, procedureName, type BookingStatus } from '@/lib/mockData';
+import { APP_VERSION, practitionerName, procedureName, type BookingStatus, type Customer } from '@/lib/mockData';
 import { FIRST_AVAILABLE, getAvailabilityForDate, getDateOffset, getDayLabel, practitionersForProcedure } from '@/lib/availability';
 import { useBookingDatabase } from '@/lib/useBookingDatabase';
 
@@ -37,6 +37,11 @@ export default function AdminPage() {
   const [patientPhone, setPatientPhone] = useState('');
   const [patientEmail, setPatientEmail] = useState('');
   const [notes, setNotes] = useState('');
+  const [customerSearch, setCustomerSearch] = useState('');
+  const [customerResults, setCustomerResults] = useState<Customer[]>([]);
+  const [customerSearching, setCustomerSearching] = useState(false);
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+  const [customerSearchMessage, setCustomerSearchMessage] = useState('');
   const [lateMessage, setLateMessage] = useState('The dentist is running around 15 minutes late. Thank you for your patience.');
   const { bootstrap, bookings, loading, saving, error, createBooking, updateBookingStatus, deleteBooking, refresh } = useBookingDatabase(selectedDate);
   const { practiceSettings, procedures, blockedDates, blockedTimes, practitioners } = bootstrap;
@@ -78,6 +83,48 @@ export default function AdminPage() {
   );
   const canSave = Boolean(selectedTime && activePractitionerId && patientName.trim() && patientPhone.trim() && patientEmail.trim());
 
+  async function handleCustomerSearch() {
+    const query = customerSearch.trim();
+    if (query.length < 2) {
+      setCustomerSearchMessage('Type at least two characters to search customers.');
+      setCustomerResults([]);
+      return;
+    }
+
+    setCustomerSearching(true);
+    setCustomerSearchMessage('');
+    try {
+      const response = await fetch(`/api/customers?query=${encodeURIComponent(query)}`, { cache: 'no-store' });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(typeof payload?.error === 'string' ? payload.error : 'Customer search failed.');
+      const results = Array.isArray(payload.customers) ? payload.customers as Customer[] : [];
+      setCustomerResults(results);
+      setCustomerSearchMessage(results.length ? '' : 'No matching customer found. Use ad-hoc patient details below.');
+    } catch (error) {
+      setCustomerSearchMessage(error instanceof Error ? error.message : 'Customer search failed.');
+    } finally {
+      setCustomerSearching(false);
+    }
+  }
+
+  function selectCustomer(customer: Customer) {
+    setSelectedCustomer(customer);
+    setPatientName(customer.fullName);
+    setPatientPhone(customer.phone);
+    setPatientEmail(customer.email);
+    setCustomerSearchMessage(`${customer.fullName} selected for this booking.`);
+  }
+
+  function clearCustomerSelection() {
+    setSelectedCustomer(null);
+    setPatientName('');
+    setPatientPhone('');
+    setPatientEmail('');
+    setCustomerSearch('');
+    setCustomerResults([]);
+    setCustomerSearchMessage('Ad-hoc patient mode selected. This booking will still create or update a customer record, but it will not create a client login account.');
+  }
+
   async function handleAdminBooking(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!canSave) return;
@@ -87,6 +134,7 @@ export default function AdminPage() {
         patientName,
         patientPhone,
         patientEmail,
+        customerId: selectedCustomer?.id,
         procedureId: activeProcedureId,
         practitionerId: activePractitionerId,
         date: selectedDate,
@@ -100,6 +148,10 @@ export default function AdminPage() {
       setPatientPhone('');
       setPatientEmail('');
       setNotes('');
+      setSelectedCustomer(null);
+      setCustomerSearch('');
+      setCustomerResults([]);
+      setCustomerSearchMessage('');
       setAdminStep(0);
       setAdminBookingOpen(false);
     } catch {
@@ -275,9 +327,42 @@ export default function AdminPage() {
 
           {adminStep === 1 && (
             <section className="flow-step">
-              <div className="form-row"><label>Patient name</label><input value={patientName} onChange={(event) => setPatientName(event.target.value)} placeholder="Patient full name" required /></div>
-              <div className="form-row"><label>Mobile</label><input value={patientPhone} onChange={(event) => setPatientPhone(event.target.value)} placeholder="+254..." required /></div>
-              <div className="form-row"><label>Email</label><input value={patientEmail} onChange={(event) => setPatientEmail(event.target.value)} type="email" placeholder="patient@example.com" required /></div>
+              <div className="customer-search-panel">
+                <div className="customer-search-head">
+                  <div>
+                    <h3>Find customer</h3>
+                    <p className="mini-copy">Search existing customers first, or book an ad-hoc patient without a client login account.</p>
+                  </div>
+                  <button className="pill" type="button" onClick={clearCustomerSelection}>Ad-hoc patient</button>
+                </div>
+                <div className="customer-search-row">
+                  <input value={customerSearch} onChange={(event) => setCustomerSearch(event.target.value)} placeholder="Search name, phone or email" />
+                  <button className="button primary" type="button" onClick={handleCustomerSearch} disabled={customerSearching}>
+                    {customerSearching ? 'Searching…' : 'Search'}
+                  </button>
+                </div>
+                {selectedCustomer && (
+                  <p className="selected-customer-pill">Selected: {selectedCustomer.fullName} · {selectedCustomer.phone}</p>
+                )}
+                {customerSearchMessage && <p className="mini-copy customer-search-message">{customerSearchMessage}</p>}
+                {customerResults.length > 0 && (
+                  <div className="customer-result-list">
+                    {customerResults.map((customer) => (
+                      <button className="customer-result" type="button" key={customer.id} onClick={() => selectCustomer(customer)}>
+                        <strong>{customer.fullName}</strong>
+                        <span>{customer.phone} · {customer.email}</span>
+                        <em>{customer.hasClientLogin ? 'Client login enabled' : 'No client login account'}</em>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="grid two controls-grid">
+                <div className="form-row"><label>Patient name</label><input value={patientName} onChange={(event) => { setPatientName(event.target.value); setSelectedCustomer(null); }} placeholder="Patient full name" required /></div>
+                <div className="form-row"><label>Mobile</label><input value={patientPhone} onChange={(event) => { setPatientPhone(event.target.value); setSelectedCustomer(null); }} placeholder="+254..." required /></div>
+              </div>
+              <div className="form-row"><label>Email</label><input value={patientEmail} onChange={(event) => { setPatientEmail(event.target.value); setSelectedCustomer(null); }} type="email" placeholder="patient@example.com" required /></div>
               <div className="form-row"><label>Notes</label><textarea value={notes} onChange={(event) => setNotes(event.target.value)} placeholder="Optional notes for the diary." /></div>
             </section>
           )}
@@ -286,7 +371,7 @@ export default function AdminPage() {
             <section className="flow-step">
               <div className="confirmation-card">
                 <h3>Confirm staff booking</h3>
-                <p>{patientName || 'Patient name required'}</p>
+                <p>{patientName || 'Patient name required'}{selectedCustomer ? ' · existing customer' : ' · ad-hoc/no-login booking'}</p>
                 <p>{procedureName(activeProcedureId, procedures)} with {practitionerName(activePractitionerId, practitioners)}</p>
                 <p>{getDayLabel(selectedDate)} at {selectedTime || 'choose a time'}</p>
               </div>

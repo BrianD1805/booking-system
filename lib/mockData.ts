@@ -38,11 +38,24 @@ export type PractitionerBlockedTime = {
 export type BookingStatus = 'confirmed' | 'rescheduled' | 'cancelled' | 'completed' | 'no_show';
 export type BookingSource = 'client' | 'admin' | 'staff';
 
+export type Customer = {
+  id: string;
+  fullName: string;
+  phone: string;
+  email: string;
+  notes?: string;
+  hasClientLogin: boolean;
+  lastSeenAt?: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
 export type Booking = {
   id: string;
   patientName: string;
   patientPhone: string;
   patientEmail: string;
+  customerId?: string;
   procedureId: string;
   practitionerId: string;
   date: string;
@@ -95,7 +108,7 @@ export type BootstrapData = {
   practitionerBlockedTimes: PractitionerBlockedTime[];
 };
 
-export const APP_VERSION = 'Ver-0.012';
+export const APP_VERSION = 'Ver-0.013A';
 
 export const fallbackProcedures: Procedure[] = [
   { id: 'checkup', name: 'Dental check-up', durationMinutes: 30, priceGuide: 'Standard consultation' },

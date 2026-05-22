@@ -29,6 +29,7 @@ export async function POST(request: NextRequest) {
       patientName: String(body.patientName),
       patientPhone: String(body.patientPhone),
       patientEmail: String(body.patientEmail),
+      customerId: body.customerId ? String(body.customerId) : undefined,
       procedureId: String(body.procedureId),
       practitionerId: String(body.practitionerId),
       date: String(body.date),

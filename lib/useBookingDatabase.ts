@@ -7,6 +7,7 @@ type BookingInput = {
   patientName: string;
   patientPhone: string;
   patientEmail: string;
+  customerId?: string;
   procedureId: string;
   practitionerId: string;
   date: string;

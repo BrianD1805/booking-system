@@ -8,6 +8,7 @@ import {
   type BookingSource,
   type BookingStatus,
   type BootstrapData,
+  type Customer,
   type PracticeSettings,
   type Practitioner,
   type PractitionerBlockedTime,
@@ -70,11 +71,24 @@ type PractitionerBlockedTimeRow = {
   reason: string;
 };
 
+type CustomerRow = {
+  id: string;
+  full_name: string;
+  phone: string;
+  email: string;
+  notes: string | null;
+  has_client_login: boolean;
+  last_seen_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
 type BookingRow = {
   id: string;
   patient_name: string;
   patient_phone: string;
   patient_email: string;
+  customer_id: string | null;
   procedure_id: string;
   practitioner_id: string;
   booking_date: string;
@@ -175,12 +189,27 @@ function mapPractitionerBlockedTime(row: PractitionerBlockedTimeRow): Practition
   };
 }
 
+function mapCustomer(row: CustomerRow): Customer {
+  return {
+    id: row.id,
+    fullName: row.full_name,
+    phone: row.phone,
+    email: row.email,
+    notes: row.notes ?? '',
+    hasClientLogin: row.has_client_login,
+    lastSeenAt: row.last_seen_at ?? undefined,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at
+  };
+}
+
 function mapBooking(row: BookingRow): Booking {
   return {
     id: row.id,
     patientName: row.patient_name,
     patientPhone: row.patient_phone,
     patientEmail: row.patient_email,
+    customerId: row.customer_id ?? undefined,
     procedureId: row.procedure_id,
     practitionerId: row.practitioner_id,
     date: normaliseDate(row.booking_date),
@@ -238,9 +267,83 @@ export async function getBootstrapData(): Promise<BootstrapData> {
 export async function getBookings(date?: string): Promise<Booking[]> {
   const database = db();
   const rows = date
-    ? await database.sql<BookingRow>`SELECT id, patient_name, patient_phone, patient_email, procedure_id, practitioner_id, booking_date::text AS booking_date, start_time::text AS start_time, end_time::text AS end_time, status, source, notes, created_at::text AS created_at, updated_at::text AS updated_at FROM bookings WHERE practice_id = ${PRACTICE_ID} AND booking_date = ${date}::date ORDER BY booking_date, start_time`
-    : await database.sql<BookingRow>`SELECT id, patient_name, patient_phone, patient_email, procedure_id, practitioner_id, booking_date::text AS booking_date, start_time::text AS start_time, end_time::text AS end_time, status, source, notes, created_at::text AS created_at, updated_at::text AS updated_at FROM bookings WHERE practice_id = ${PRACTICE_ID} ORDER BY booking_date, start_time`;
+    ? await database.sql<BookingRow>`SELECT id, patient_name, patient_phone, patient_email, customer_id, procedure_id, practitioner_id, booking_date::text AS booking_date, start_time::text AS start_time, end_time::text AS end_time, status, source, notes, created_at::text AS created_at, updated_at::text AS updated_at FROM bookings WHERE practice_id = ${PRACTICE_ID} AND booking_date = ${date}::date ORDER BY booking_date, start_time`
+    : await database.sql<BookingRow>`SELECT id, patient_name, patient_phone, patient_email, customer_id, procedure_id, practitioner_id, booking_date::text AS booking_date, start_time::text AS start_time, end_time::text AS end_time, status, source, notes, created_at::text AS created_at, updated_at::text AS updated_at FROM bookings WHERE practice_id = ${PRACTICE_ID} ORDER BY booking_date, start_time`;
   return rows.map(mapBooking);
+}
+
+export async function searchCustomers(query: string): Promise<Customer[]> {
+  const trimmed = query.trim();
+  if (trimmed.length < 2) return [];
+
+  const database = db();
+  const pattern = `%${trimmed.toLowerCase()}%`;
+  const rows = await database.sql<CustomerRow>`
+    SELECT id, full_name, phone, email, notes, has_client_login, last_seen_at::text AS last_seen_at, created_at::text AS created_at, updated_at::text AS updated_at
+    FROM customers
+    WHERE practice_id = ${PRACTICE_ID}
+      AND (
+        lower(full_name) LIKE ${pattern}
+        OR lower(email) LIKE ${pattern}
+        OR lower(phone) LIKE ${pattern}
+      )
+    ORDER BY updated_at DESC, full_name
+    LIMIT 10
+  `;
+
+  return rows.map(mapCustomer);
+}
+
+async function findCustomerById(customerId: string): Promise<Customer | null> {
+  const database = db();
+  const rows = await database.sql<CustomerRow>`
+    SELECT id, full_name, phone, email, notes, has_client_login, last_seen_at::text AS last_seen_at, created_at::text AS created_at, updated_at::text AS updated_at
+    FROM customers
+    WHERE practice_id = ${PRACTICE_ID} AND id = ${customerId}
+    LIMIT 1
+  `;
+  return rows[0] ? mapCustomer(rows[0]) : null;
+}
+
+async function findOrCreateCustomer(input: { customerId?: string; patientName: string; patientPhone: string; patientEmail: string; notes?: string }): Promise<string> {
+  const database = db();
+
+  if (input.customerId) {
+    const existing = await findCustomerById(input.customerId);
+    if (existing) {
+      await database.sql`
+        UPDATE customers
+        SET full_name = ${input.patientName}, phone = ${input.patientPhone}, email = ${input.patientEmail}, last_seen_at = NOW(), updated_at = NOW()
+        WHERE practice_id = ${PRACTICE_ID} AND id = ${input.customerId}
+      `;
+      return input.customerId;
+    }
+  }
+
+  const matchingRows = await database.sql<CustomerRow>`
+    SELECT id, full_name, phone, email, notes, has_client_login, last_seen_at::text AS last_seen_at, created_at::text AS created_at, updated_at::text AS updated_at
+    FROM customers
+    WHERE practice_id = ${PRACTICE_ID}
+      AND (phone = ${input.patientPhone} OR lower(email) = ${input.patientEmail.toLowerCase()})
+    ORDER BY updated_at DESC
+    LIMIT 1
+  `;
+
+  if (matchingRows[0]) {
+    await database.sql`
+      UPDATE customers
+      SET full_name = ${input.patientName}, phone = ${input.patientPhone}, email = ${input.patientEmail}, last_seen_at = NOW(), updated_at = NOW()
+      WHERE practice_id = ${PRACTICE_ID} AND id = ${matchingRows[0].id}
+    `;
+    return matchingRows[0].id;
+  }
+
+  const id = `cust-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  await database.sql`
+    INSERT INTO customers (id, practice_id, full_name, phone, email, notes, has_client_login, last_seen_at)
+    VALUES (${id}, ${PRACTICE_ID}, ${input.patientName}, ${input.patientPhone}, ${input.patientEmail}, ${input.notes ?? ''}, ${false}, NOW())
+  `;
+  return id;
 }
 
 async function ensurePractitionerCanTakeBooking(input: { practitionerId: string; procedureId: string; date: string; time: string; endTime: string }) {
@@ -317,6 +420,7 @@ export async function createBookingInDatabase(input: {
   patientName: string;
   patientPhone: string;
   patientEmail: string;
+  customerId?: string;
   procedureId: string;
   practitionerId: string;
   date: string;
@@ -338,20 +442,28 @@ export async function createBookingInDatabase(input: {
     endTime
   });
 
+  const customerId = await findOrCreateCustomer({
+    customerId: input.customerId,
+    patientName: input.patientName,
+    patientPhone: input.patientPhone,
+    patientEmail: input.patientEmail,
+    notes: input.notes
+  });
+
   const rows = await database.sql<BookingRow>`
     INSERT INTO bookings (
-      id, practice_id, patient_name, patient_phone, patient_email, procedure_id, practitioner_id,
+      id, practice_id, patient_name, patient_phone, patient_email, customer_id, procedure_id, practitioner_id,
       booking_date, start_time, end_time, status, source, notes
     ) VALUES (
-      ${id}, ${PRACTICE_ID}, ${input.patientName}, ${input.patientPhone}, ${input.patientEmail}, ${input.procedureId}, ${input.practitionerId},
+      ${id}, ${PRACTICE_ID}, ${input.patientName}, ${input.patientPhone}, ${input.patientEmail}, ${customerId}, ${input.procedureId}, ${input.practitionerId},
       ${input.date}, ${input.time}, ${endTime}, ${'confirmed'}, ${input.source}, ${input.notes ?? ''}
     )
-    RETURNING id, patient_name, patient_phone, patient_email, procedure_id, practitioner_id, booking_date::text AS booking_date, start_time::text AS start_time, end_time::text AS end_time, status, source, notes, created_at::text AS created_at, updated_at::text AS updated_at
+    RETURNING id, patient_name, patient_phone, patient_email, customer_id, procedure_id, practitioner_id, booking_date::text AS booking_date, start_time::text AS start_time, end_time::text AS end_time, status, source, notes, created_at::text AS created_at, updated_at::text AS updated_at
   `;
 
   await database.sql`
     INSERT INTO audit_logs (id, practice_id, action, entity_type, entity_id, source, details)
-    VALUES (${`audit-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`}, ${PRACTICE_ID}, ${'booking_created'}, ${'booking'}, ${id}, ${input.source}, ${JSON.stringify({ date: input.date, time: input.time, procedureId: input.procedureId, practitionerId: input.practitionerId })}::jsonb)
+    VALUES (${`audit-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`}, ${PRACTICE_ID}, ${'booking_created'}, ${'booking'}, ${id}, ${input.source}, ${JSON.stringify({ date: input.date, time: input.time, procedureId: input.procedureId, practitionerId: input.practitionerId, customerId })}::jsonb)
   `;
 
   return mapBooking(rows[0]);
@@ -363,7 +475,7 @@ export async function updateBookingStatusInDatabase(id: string, status: BookingS
     UPDATE bookings
     SET status = ${status}, updated_at = NOW()
     WHERE practice_id = ${PRACTICE_ID} AND id = ${id}
-    RETURNING id, patient_name, patient_phone, patient_email, procedure_id, practitioner_id, booking_date::text AS booking_date, start_time::text AS start_time, end_time::text AS end_time, status, source, notes, created_at::text AS created_at, updated_at::text AS updated_at
+    RETURNING id, patient_name, patient_phone, patient_email, customer_id, procedure_id, practitioner_id, booking_date::text AS booking_date, start_time::text AS start_time, end_time::text AS end_time, status, source, notes, created_at::text AS created_at, updated_at::text AS updated_at
   `;
 
   if (!rows[0]) throw new Error('Booking not found.');
