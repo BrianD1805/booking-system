@@ -986,3 +986,169 @@ textarea { min-height: 110px; resize: vertical; }
     width: 100%;
   }
 }
+
+
+/* Ver-0.012: compact mobile booking confirmation and client login planning baseline */
+.booking-success-page {
+  padding: 18px;
+  background: linear-gradient(180deg, #f5f9ff 0%, #eaf3ff 100%);
+}
+
+.booking-success-card {
+  width: min(680px, 100%);
+  max-height: calc(100dvh - 36px);
+  overflow: auto;
+  border-radius: 24px;
+  padding: 18px;
+}
+
+.booking-success-card .badge {
+  margin-bottom: 4px;
+}
+
+.booking-success-card h2 {
+  margin: 6px 0 6px;
+  font-size: clamp(1.65rem, 4vw, 2.4rem);
+  letter-spacing: -0.045em;
+}
+
+.success-mini-copy {
+  margin: 0;
+  font-size: 0.96rem;
+  line-height: 1.35;
+}
+
+.success-details-card {
+  gap: 10px;
+  margin: 12px 0;
+  padding: 14px;
+  border-radius: 18px;
+}
+
+.success-details-head {
+  margin-bottom: 0;
+}
+
+.success-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 12px;
+}
+
+.success-detail-grid p {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  margin: 0;
+}
+
+.success-detail-grid strong {
+  font-size: 0.76rem;
+  line-height: 1.1;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--zw-blue-deep);
+}
+
+.success-detail-grid span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: var(--ink);
+  font-size: 0.95rem;
+  line-height: 1.22;
+}
+
+.success-actions {
+  gap: 10px;
+  margin-top: 10px;
+  padding-top: 12px;
+}
+
+@media (max-width: 860px) {
+  .booking-success-page {
+    align-items: start;
+    padding: 14px;
+  }
+
+  .booking-success-card {
+    max-height: calc(100dvh - 28px);
+    padding: 14px;
+    border-radius: 22px;
+  }
+
+  .booking-success-card h2 {
+    font-size: clamp(1.45rem, 7vw, 2rem);
+  }
+
+  .success-mini-copy {
+    font-size: 0.9rem;
+  }
+
+  .success-details-card {
+    margin: 10px 0;
+    padding: 12px;
+  }
+
+  .copy-details-button {
+    min-height: 34px;
+    padding: 7px 11px;
+    font-size: 0.86rem;
+  }
+
+  .success-detail-grid {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+
+  .success-detail-grid p {
+    grid-template-columns: 96px minmax(0, 1fr);
+    align-items: start;
+    gap: 8px;
+  }
+
+  .success-detail-grid strong {
+    padding-top: 1px;
+    font-size: 0.68rem;
+  }
+
+  .success-detail-grid span {
+    font-size: 0.88rem;
+    line-height: 1.16;
+  }
+
+  .success-actions {
+    flex-direction: row;
+    align-items: stretch;
+    margin-top: 8px;
+    padding-top: 10px;
+  }
+
+  .success-actions .button,
+  .success-actions .pill {
+    width: auto;
+    flex: 1;
+    min-height: 42px;
+    padding: 10px 12px;
+    font-size: 0.92rem;
+  }
+}
+
+@media (max-width: 420px) {
+  .booking-success-page {
+    padding: 10px;
+  }
+
+  .booking-success-card {
+    max-height: calc(100dvh - 20px);
+    padding: 12px;
+    border-radius: 20px;
+  }
+
+  .success-detail-grid p {
+    grid-template-columns: 82px minmax(0, 1fr);
+  }
+
+  .success-actions {
+    gap: 8px;
+  }
+}

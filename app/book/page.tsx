@@ -361,8 +361,8 @@ export default function BookPage() {
         <section className="booking-success-page" aria-labelledby="booking-success-title" role="dialog" aria-modal="true">
           <div className="booking-success-card">
             <p className="badge blue-badge">Booking confirmed</p>
-            <h2 id="booking-success-title">Appointment booked successfully.</h2>
-            <p className="mini-copy">Copy the booking details below, or return to the home page when you are finished.</p>
+            <h2 id="booking-success-title">Appointment confirmed.</h2>
+            <p className="mini-copy success-mini-copy">Your booking details are below. Use Copy to save or share them.</p>
 
             <div className="success-details-card">
               <div className="success-details-head">
@@ -372,14 +372,16 @@ export default function BookPage() {
                   {copyStatus || 'Copy'}
                 </button>
               </div>
-              <p><strong>Patient:</strong> {successBooking.patientName}</p>
-              <p><strong>Phone:</strong> {successBooking.patientPhone}</p>
-              <p><strong>Email:</strong> {successBooking.patientEmail}</p>
-              <p><strong>Treatment:</strong> {successBooking.treatment} · {successBooking.duration} mins</p>
-              <p><strong>Date:</strong> {successBooking.dateLabel}</p>
-              <p><strong>Time:</strong> {successBooking.time}</p>
-              <p><strong>Practitioner:</strong> {successBooking.practitioner}</p>
-              <p><strong>Booking ID:</strong> {successBooking.id}</p>
+              <div className="success-detail-grid">
+                <p><strong>Patient</strong><span>{successBooking.patientName}</span></p>
+                <p><strong>Phone</strong><span>{successBooking.patientPhone}</span></p>
+                <p><strong>Email</strong><span>{successBooking.patientEmail}</span></p>
+                <p><strong>Treatment</strong><span>{successBooking.treatment} · {successBooking.duration} mins</span></p>
+                <p><strong>Date</strong><span>{successBooking.dateLabel}</span></p>
+                <p><strong>Time</strong><span>{successBooking.time}</span></p>
+                <p><strong>Practitioner</strong><span>{successBooking.practitioner}</span></p>
+                <p><strong>Booking ID</strong><span>{successBooking.id}</span></p>
+              </div>
             </div>
 
             <div className="success-actions">
