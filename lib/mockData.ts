@@ -50,6 +50,22 @@ export type Customer = {
   updatedAt: string;
 };
 
+export type ClientLoginBooking = {
+  id: string;
+  treatment: string;
+  practitioner: string;
+  date: string;
+  time: string;
+  endTime: string;
+  status: BookingStatus;
+  notes?: string;
+};
+
+export type ClientLoginProfile = {
+  customer: Customer;
+  bookings: ClientLoginBooking[];
+};
+
 export type Booking = {
   id: string;
   patientName: string;
@@ -108,7 +124,7 @@ export type BootstrapData = {
   practitionerBlockedTimes: PractitionerBlockedTime[];
 };
 
-export const APP_VERSION = 'Ver-0.013A';
+export const APP_VERSION = 'Ver-0.014';
 
 export const fallbackProcedures: Procedure[] = [
   { id: 'checkup', name: 'Dental check-up', durationMinutes: 30, priceGuide: 'Standard consultation' },

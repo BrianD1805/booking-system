@@ -2,7 +2,7 @@
 
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { Header } from '@/components/Header';
-import { APP_VERSION, procedureDuration } from '@/lib/mockData';
+import { APP_VERSION, procedureDuration, type ClientLoginProfile } from '@/lib/mockData';
 import { FIRST_AVAILABLE, getAvailabilityForDate, getDateOffset, getDayLabel, practitionersForProcedure } from '@/lib/availability';
 import { useBookingDatabase } from '@/lib/useBookingDatabase';
 import { ClientInstallPrompt } from './ClientInstallPrompt';
@@ -24,6 +24,30 @@ type BookingSuccess = {
   notes: string;
 };
 
+type LoginStage = 'request' | 'verify' | 'signed-in';
+
+type ClientCodeResponse = {
+  otpId: string;
+  channel: 'sms' | 'email';
+  destination: string;
+  expiresAt: string;
+  devCode?: string;
+  deliveryMode?: string;
+};
+
+type ClientVerifyResponse = {
+  sessionToken: string;
+  profile: ClientLoginProfile;
+};
+
+async function readJsonResponse<T>(response: Response): Promise<T> {
+  const payload = await response.json();
+  if (!response.ok) {
+    throw new Error(typeof payload?.error === 'string' ? payload.error : 'Request failed.');
+  }
+  return payload as T;
+}
+
 function todayInputValue() {
   const today = new Date();
   const offsetDate = new Date(today.getTime() - today.getTimezoneOffset() * 60000);
@@ -37,8 +61,14 @@ export default function BookPage() {
   const [bookingOpen, setBookingOpen] = useState(false);
   const [timePickerOpen, setTimePickerOpen] = useState(false);
   const [clientLoginOpen, setClientLoginOpen] = useState(false);
+  const [clientLoginStage, setClientLoginStage] = useState<LoginStage>('request');
   const [clientLoginPhone, setClientLoginPhone] = useState('');
   const [clientLoginEmail, setClientLoginEmail] = useState('');
+  const [clientOtpCode, setClientOtpCode] = useState('');
+  const [clientOtp, setClientOtp] = useState<ClientCodeResponse | null>(null);
+  const [clientSessionToken, setClientSessionToken] = useState('');
+  const [clientProfile, setClientProfile] = useState<ClientLoginProfile | null>(null);
+  const [clientLoginLoading, setClientLoginLoading] = useState(false);
   const [clientLoginNotice, setClientLoginNotice] = useState('');
   const [step, setStep] = useState<FlowStep>(0);
   const [patientName, setPatientName] = useState('');
@@ -93,13 +123,91 @@ export default function BookPage() {
     }
   }, [eligiblePractitioners, practitionerChoice]);
 
+  useEffect(() => {
+    const storedToken = window.localStorage.getItem('zipbook-client-session') ?? '';
+    if (!storedToken) return;
+
+    setClientLoginLoading(true);
+    fetch('/api/client-login/session', {
+      cache: 'no-store',
+      headers: { Authorization: `Bearer ${storedToken}` }
+    })
+      .then((response) => readJsonResponse<{ profile: ClientLoginProfile }>(response))
+      .then((payload) => {
+        setClientSessionToken(storedToken);
+        setClientProfile(payload.profile);
+        setClientLoginStage('signed-in');
+      })
+      .catch(() => {
+        window.localStorage.removeItem('zipbook-client-session');
+      })
+      .finally(() => setClientLoginLoading(false));
+  }, []);
+
   function resetSelection() {
     setSelectedTime('');
     setSelectedPractitionerId('');
   }
 
-  function handleClientLoginPreview() {
-    setClientLoginNotice('Login foundation ready. The next stage will send a one-time code by SMS or email, then show the client their own bookings.');
+  function applyClientProfile(profile: ClientLoginProfile) {
+    setClientProfile(profile);
+    setClientLoginStage('signed-in');
+    if (profile.customer.fullName && profile.customer.fullName !== 'Client user') setPatientName(profile.customer.fullName);
+    if (profile.customer.phone && !profile.customer.phone.startsWith('no-phone-')) setPatientPhone(profile.customer.phone);
+    if (profile.customer.email && !profile.customer.email.endsWith('@client-login.local')) setPatientEmail(profile.customer.email);
+  }
+
+  async function requestClientLoginCode() {
+    setClientLoginLoading(true);
+    setClientLoginNotice('');
+    try {
+      const response = await fetch('/api/client-login/request-code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone: clientLoginPhone, email: clientLoginEmail })
+      });
+      const payload = await readJsonResponse<ClientCodeResponse>(response);
+      setClientOtp(payload);
+      setClientOtpCode('');
+      setClientLoginStage('verify');
+      setClientLoginNotice(`Code prepared for ${payload.destination}. Development code: ${payload.devCode ?? 'check delivery provider'}.`);
+    } catch (error) {
+      setClientLoginNotice(error instanceof Error ? error.message : 'Could not send the login code.');
+    } finally {
+      setClientLoginLoading(false);
+    }
+  }
+
+  async function verifyClientLoginCode() {
+    if (!clientOtp) return;
+    setClientLoginLoading(true);
+    setClientLoginNotice('');
+    try {
+      const response = await fetch('/api/client-login/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ otpId: clientOtp.otpId, code: clientOtpCode })
+      });
+      const payload = await readJsonResponse<ClientVerifyResponse>(response);
+      window.localStorage.setItem('zipbook-client-session', payload.sessionToken);
+      setClientSessionToken(payload.sessionToken);
+      applyClientProfile(payload.profile);
+      setClientLoginNotice('Signed in. Your appointment details are ready below.');
+    } catch (error) {
+      setClientLoginNotice(error instanceof Error ? error.message : 'Could not verify the login code.');
+    } finally {
+      setClientLoginLoading(false);
+    }
+  }
+
+  function signOutClient() {
+    window.localStorage.removeItem('zipbook-client-session');
+    setClientSessionToken('');
+    setClientProfile(null);
+    setClientOtp(null);
+    setClientOtpCode('');
+    setClientLoginStage('request');
+    setClientLoginNotice('Signed out on this device.');
   }
 
   async function copyBookingDetails() {
@@ -124,6 +232,7 @@ export default function BookPage() {
         patientName,
         patientPhone,
         patientEmail,
+        customerId: clientProfile?.customer.id,
         procedureId: activeProcedureId,
         practitionerId: selectedPractitionerId,
         date: selectedDate,
@@ -195,35 +304,84 @@ export default function BookPage() {
         </div>
       </section>
 
-      <section className="client-login-card" aria-label="Client login foundation">
+      <section className="client-login-card" aria-label="Client OTP login">
         <div>
-          <p className="badge blue-badge">Client login foundation</p>
-          <h2>Book as a guest today, sign in next time.</h2>
-          <p className="mini-copy">Clients can still book without an account. The login area is now in place for the next upgrade, where they can receive a one-time code and view their own appointments.</p>
+          <p className="badge blue-badge">Client login · OTP foundation</p>
+          <h2>{clientProfile ? 'Signed in for quicker bookings.' : 'Sign in with a one-time code.'}</h2>
+          <p className="mini-copy">
+            {clientProfile
+              ? 'Clients can see recent appointments and book again without retyping everything.'
+              : 'Clients can still book as a guest. Login now prepares the phone/email one-time-code flow for the customer app only.'}
+          </p>
         </div>
         <div className="client-login-actions">
           <button className="button primary" type="button" onClick={() => setClientLoginOpen((current) => !current)}>
-            {clientLoginOpen ? 'Hide login' : 'Client login'}
+            {clientLoginOpen ? 'Hide login' : clientProfile ? 'My bookings' : 'Client login'}
           </button>
-          <button className="pill" type="button" onClick={() => setBookingOpen(true)}>Continue as guest</button>
+          <button className="pill" type="button" onClick={() => setBookingOpen(true)}>{clientProfile ? 'Book another appointment' : 'Continue as guest'}</button>
         </div>
         {clientLoginOpen && (
           <div className="client-login-panel">
-            <div className="grid two controls-grid">
-              <div className="form-row">
-                <label htmlFor="clientLoginPhone">Mobile number</label>
-                <input id="clientLoginPhone" value={clientLoginPhone} onChange={(event) => setClientLoginPhone(event.target.value)} placeholder="+254..." />
+            {clientLoginStage !== 'signed-in' && (
+              <>
+                <div className="grid two controls-grid">
+                  <div className="form-row">
+                    <label htmlFor="clientLoginPhone">Mobile number</label>
+                    <input id="clientLoginPhone" value={clientLoginPhone} onChange={(event) => setClientLoginPhone(event.target.value)} placeholder="+254..." />
+                  </div>
+                  <div className="form-row">
+                    <label htmlFor="clientLoginEmail">Email backup</label>
+                    <input id="clientLoginEmail" value={clientLoginEmail} onChange={(event) => setClientLoginEmail(event.target.value)} type="email" placeholder="you@example.com" />
+                  </div>
+                </div>
+                {clientLoginStage === 'verify' && (
+                  <div className="client-otp-box">
+                    <div className="form-row">
+                      <label htmlFor="clientOtpCode">Login code</label>
+                      <input id="clientOtpCode" value={clientOtpCode} onChange={(event) => setClientOtpCode(event.target.value)} inputMode="numeric" maxLength={6} placeholder="6-digit code" />
+                    </div>
+                    {clientOtp?.devCode && <p className="dev-code-pill">Development code: <strong>{clientOtp.devCode}</strong></p>}
+                  </div>
+                )}
+                <div className="client-login-bottom">
+                  {clientLoginStage === 'request' ? (
+                    <button className="button primary" type="button" onClick={requestClientLoginCode} disabled={clientLoginLoading || (!clientLoginPhone.trim() && !clientLoginEmail.trim())}>
+                      {clientLoginLoading ? 'Preparing code…' : 'Send login code'}
+                    </button>
+                  ) : (
+                    <>
+                      <button className="button primary" type="button" onClick={verifyClientLoginCode} disabled={clientLoginLoading || clientOtpCode.trim().length < 4}>
+                        {clientLoginLoading ? 'Checking code…' : 'Verify code'}
+                      </button>
+                      <button className="pill" type="button" onClick={requestClientLoginCode} disabled={clientLoginLoading}>Send again</button>
+                    </>
+                  )}
+                  <span>{clientLoginStage === 'request' ? 'SMS/email delivery provider still to be connected.' : 'Codes expire after 10 minutes.'}</span>
+                </div>
+              </>
+            )}
+
+            {clientLoginStage === 'signed-in' && clientProfile && (
+              <div className="client-profile-panel">
+                <div className="client-profile-head">
+                  <div>
+                    <strong>{clientProfile.customer.fullName === 'Client user' ? 'Client account' : clientProfile.customer.fullName}</strong>
+                    <span>{clientProfile.customer.phone} · {clientProfile.customer.email}</span>
+                  </div>
+                  <button className="pill" type="button" onClick={signOutClient}>Sign out</button>
+                </div>
+                <div className="client-booking-list">
+                  {clientProfile.bookings.length ? clientProfile.bookings.map((booking) => (
+                    <article className="client-booking-item" key={booking.id}>
+                      <strong>{booking.treatment}</strong>
+                      <span>{getDayLabel(booking.date)} · {booking.time}–{booking.endTime}</span>
+                      <em>{booking.practitioner} · {booking.status}</em>
+                    </article>
+                  )) : <p className="mini-copy">No previous appointments found for this login yet.</p>}
+                </div>
               </div>
-              <div className="form-row">
-                <label htmlFor="clientLoginEmail">Email backup</label>
-                <input id="clientLoginEmail" value={clientLoginEmail} onChange={(event) => setClientLoginEmail(event.target.value)} type="email" placeholder="you@example.com" />
-              </div>
-            </div>
-            <div className="client-login-bottom">
-              <button className="button primary" type="button" onClick={handleClientLoginPreview} disabled={!clientLoginPhone.trim() && !clientLoginEmail.trim()}>Send login code</button>
-              <span>OTP delivery will be connected in the next login build.</span>
-            </div>
-            {clientLoginNotice && <p className="notice success" role="status">{clientLoginNotice}</p>}
+            )}
+            {clientLoginNotice && <p className={clientLoginNotice.toLowerCase().includes('could not') || clientLoginNotice.toLowerCase().includes('not correct') || clientLoginNotice.toLowerCase().includes('expired') ? 'notice warning' : 'notice success'} role="status">{clientLoginNotice}</p>}
           </div>
         )}
       </section>

@@ -1,3 +1,4 @@
+import { createHash, randomBytes, randomInt } from 'crypto';
 import { getDatabase } from '@netlify/database';
 import { addMinutes } from '@/lib/availability';
 import {
@@ -8,6 +9,8 @@ import {
   type BookingSource,
   type BookingStatus,
   type BootstrapData,
+  type ClientLoginBooking,
+  type ClientLoginProfile,
   type Customer,
   type PracticeSettings,
   type Practitioner,
@@ -83,6 +86,34 @@ type CustomerRow = {
   updated_at: string;
 };
 
+type ClientLoginOtpRow = {
+  id: string;
+  customer_id: string;
+  destination: string;
+  channel: 'sms' | 'email';
+  otp_code_hash: string;
+  expires_at: string;
+  attempts: number;
+  consumed_at: string | null;
+};
+
+type ClientSessionRow = {
+  id: string;
+  customer_id: string;
+  expires_at: string;
+};
+
+type ClientBookingRow = {
+  id: string;
+  procedure_name: string | null;
+  practitioner_name: string | null;
+  booking_date: string;
+  start_time: string;
+  end_time: string;
+  status: BookingStatus;
+  notes: string | null;
+};
+
 type BookingRow = {
   id: string;
   patient_name: string;
@@ -122,6 +153,22 @@ function normaliseDate(value: string | Date) {
 
 function normaliseTime(value: string) {
   return value.slice(0, 5);
+}
+
+function cleanLoginValue(value?: string) {
+  return (value ?? '').trim();
+}
+
+function hashSecret(value: string) {
+  return createHash('sha256').update(value).digest('hex');
+}
+
+function makeOtpCode() {
+  return String(randomInt(100000, 1000000));
+}
+
+function makeToken(prefix: string) {
+  return `${prefix}-${randomBytes(24).toString('hex')}`;
 }
 
 function mapPractice(row: PracticeRow): PracticeSettings {
@@ -414,6 +461,214 @@ async function ensurePractitionerCanTakeBooking(input: { practitionerId: string;
     LIMIT 1
   `;
   if (practitionerBlocks[0]) throw new Error('The selected practitioner is blocked at this time. Please choose another available slot.');
+}
+
+
+async function findCustomerForClientLogin(input: { phone?: string; email?: string }): Promise<Customer | null> {
+  const phone = cleanLoginValue(input.phone);
+  const email = cleanLoginValue(input.email).toLowerCase();
+  if (!phone && !email) return null;
+
+  const database = db();
+  const rows = await database.sql<CustomerRow>`
+    SELECT id, full_name, phone, email, notes, has_client_login, last_seen_at::text AS last_seen_at, created_at::text AS created_at, updated_at::text AS updated_at
+    FROM customers
+    WHERE practice_id = ${PRACTICE_ID}
+      AND (
+        (${phone} <> '' AND phone = ${phone})
+        OR (${email} <> '' AND lower(email) = ${email})
+      )
+    ORDER BY last_seen_at DESC NULLS LAST, updated_at DESC
+    LIMIT 1
+  `;
+  return rows[0] ? mapCustomer(rows[0]) : null;
+}
+
+async function ensureClientLoginCustomer(input: { phone?: string; email?: string }): Promise<Customer> {
+  const database = db();
+  const phone = cleanLoginValue(input.phone);
+  const email = cleanLoginValue(input.email).toLowerCase();
+  const existing = await findCustomerForClientLogin({ phone, email });
+
+  if (existing) {
+    const rows = await database.sql<CustomerRow>`
+      UPDATE customers
+      SET phone = CASE WHEN ${phone} <> '' THEN ${phone} ELSE phone END,
+          email = CASE WHEN ${email} <> '' THEN ${email} ELSE email END,
+          has_client_login = TRUE,
+          last_seen_at = NOW(),
+          updated_at = NOW()
+      WHERE practice_id = ${PRACTICE_ID} AND id = ${existing.id}
+      RETURNING id, full_name, phone, email, notes, has_client_login, last_seen_at::text AS last_seen_at, created_at::text AS created_at, updated_at::text AS updated_at
+    `;
+    return mapCustomer(rows[0]);
+  }
+
+  const id = `cust-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  const safePhone = phone || `no-phone-${id}`;
+  const safeEmail = email || `${id}@client-login.local`;
+  const rows = await database.sql<CustomerRow>`
+    INSERT INTO customers (id, practice_id, full_name, phone, email, notes, has_client_login, last_seen_at)
+    VALUES (${id}, ${PRACTICE_ID}, ${'Client user'}, ${safePhone}, ${safeEmail}, ${'Created from client OTP login foundation.'}, TRUE, NOW())
+    RETURNING id, full_name, phone, email, notes, has_client_login, last_seen_at::text AS last_seen_at, created_at::text AS created_at, updated_at::text AS updated_at
+  `;
+  return mapCustomer(rows[0]);
+}
+
+async function ensureClientAccount(customer: Customer, input: { phone?: string; email?: string }) {
+  const database = db();
+  const phone = cleanLoginValue(input.phone) || customer.phone;
+  const email = cleanLoginValue(input.email).toLowerCase() || customer.email.toLowerCase();
+  const existing = await database.sql<{ id: string }>`
+    SELECT id
+    FROM client_accounts
+    WHERE practice_id = ${PRACTICE_ID}
+      AND (customer_id = ${customer.id} OR login_phone = ${phone} OR lower(login_email) = ${email})
+    LIMIT 1
+  `;
+
+  if (existing[0]) {
+    await database.sql`
+      UPDATE client_accounts
+      SET customer_id = ${customer.id}, login_phone = ${phone}, login_email = ${email}, otp_enabled = TRUE, updated_at = NOW()
+      WHERE id = ${existing[0].id}
+    `;
+    return existing[0].id;
+  }
+
+  const id = `acct-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  await database.sql`
+    INSERT INTO client_accounts (id, customer_id, practice_id, login_phone, login_email, otp_enabled)
+    VALUES (${id}, ${customer.id}, ${PRACTICE_ID}, ${phone}, ${email}, TRUE)
+  `;
+  return id;
+}
+
+export async function requestClientLoginOtp(input: { phone?: string; email?: string }): Promise<{ otpId: string; channel: 'sms' | 'email'; destination: string; expiresAt: string; devCode: string }> {
+  const phone = cleanLoginValue(input.phone);
+  const email = cleanLoginValue(input.email).toLowerCase();
+  if (!phone && !email) throw new Error('Enter a mobile number or email address first.');
+
+  const customer = await ensureClientLoginCustomer({ phone, email });
+  await ensureClientAccount(customer, { phone, email });
+
+  const otpId = `otp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  const code = makeOtpCode();
+  const channel: 'sms' | 'email' = phone ? 'sms' : 'email';
+  const destination = phone || email;
+  const database = db();
+
+  await database.sql`
+    INSERT INTO client_login_otps (id, practice_id, customer_id, destination, channel, otp_code_hash, expires_at)
+    VALUES (${otpId}, ${PRACTICE_ID}, ${customer.id}, ${destination}, ${channel}, ${hashSecret(`${otpId}:${code}`)}, NOW() + INTERVAL '10 minutes')
+  `;
+
+  await database.sql`
+    INSERT INTO audit_logs (id, practice_id, action, entity_type, entity_id, source, details)
+    VALUES (${`audit-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`}, ${PRACTICE_ID}, ${'client_login_otp_requested'}, ${'customer'}, ${customer.id}, ${'client'}, ${JSON.stringify({ channel, destination })}::jsonb)
+  `;
+
+  const rows = await database.sql<{ expires_at: string }>`SELECT expires_at::text AS expires_at FROM client_login_otps WHERE id = ${otpId} LIMIT 1`;
+  return { otpId, channel, destination, expiresAt: rows[0]?.expires_at ?? '', devCode: code };
+}
+
+async function getClientBookingsForCustomer(customerId: string): Promise<ClientLoginBooking[]> {
+  const database = db();
+  const rows = await database.sql<ClientBookingRow>`
+    SELECT b.id,
+           p.name AS procedure_name,
+           pr.name AS practitioner_name,
+           b.booking_date::text AS booking_date,
+           b.start_time::text AS start_time,
+           b.end_time::text AS end_time,
+           b.status,
+           b.notes
+    FROM bookings b
+    LEFT JOIN procedures p ON p.id = b.procedure_id
+    LEFT JOIN practitioners pr ON pr.id = b.practitioner_id
+    WHERE b.practice_id = ${PRACTICE_ID} AND b.customer_id = ${customerId}
+    ORDER BY b.booking_date DESC, b.start_time DESC
+    LIMIT 20
+  `;
+
+  return rows.map((row) => ({
+    id: row.id,
+    treatment: row.procedure_name ?? 'Appointment',
+    practitioner: row.practitioner_name ?? 'Practitioner',
+    date: normaliseDate(row.booking_date),
+    time: normaliseTime(row.start_time),
+    endTime: normaliseTime(row.end_time),
+    status: row.status,
+    notes: row.notes ?? ''
+  }));
+}
+
+async function getClientProfile(customerId: string): Promise<ClientLoginProfile> {
+  const customer = await findCustomerById(customerId);
+  if (!customer) throw new Error('Client account not found.');
+  const bookings = await getClientBookingsForCustomer(customer.id);
+  return { customer, bookings };
+}
+
+export async function verifyClientLoginOtp(input: { otpId: string; code: string }): Promise<{ sessionToken: string; profile: ClientLoginProfile }> {
+  const otpId = cleanLoginValue(input.otpId);
+  const code = cleanLoginValue(input.code);
+  if (!otpId || !code) throw new Error('Enter the login code.');
+
+  const database = db();
+  const rows = await database.sql<ClientLoginOtpRow>`
+    SELECT id, customer_id, destination, channel, otp_code_hash, expires_at::text AS expires_at, attempts, consumed_at::text AS consumed_at
+    FROM client_login_otps
+    WHERE practice_id = ${PRACTICE_ID} AND id = ${otpId}
+    LIMIT 1
+  `;
+  const otp = rows[0];
+  if (!otp || otp.consumed_at) throw new Error('This login code is no longer valid. Please request a new one.');
+  if (new Date(otp.expires_at).getTime() < Date.now()) throw new Error('This login code has expired. Please request a new one.');
+  if (otp.attempts >= 5) throw new Error('Too many incorrect attempts. Please request a new login code.');
+
+  if (hashSecret(`${otp.id}:${code}`) !== otp.otp_code_hash) {
+    await database.sql`UPDATE client_login_otps SET attempts = attempts + 1 WHERE id = ${otp.id}`;
+    throw new Error('That code was not correct. Please check it and try again.');
+  }
+
+  await database.sql`UPDATE client_login_otps SET consumed_at = NOW(), attempts = attempts + 1 WHERE id = ${otp.id}`;
+  await database.sql`
+    UPDATE client_accounts
+    SET verified_at = COALESCE(verified_at, NOW()), last_login_at = NOW(), updated_at = NOW()
+    WHERE practice_id = ${PRACTICE_ID} AND customer_id = ${otp.customer_id}
+  `;
+  await database.sql`UPDATE customers SET has_client_login = TRUE, last_seen_at = NOW(), updated_at = NOW() WHERE practice_id = ${PRACTICE_ID} AND id = ${otp.customer_id}`;
+
+  const sessionToken = makeToken('client');
+  const sessionId = `sess-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  await database.sql`
+    INSERT INTO client_sessions (id, practice_id, customer_id, session_token_hash, expires_at)
+    VALUES (${sessionId}, ${PRACTICE_ID}, ${otp.customer_id}, ${hashSecret(sessionToken)}, NOW() + INTERVAL '30 days')
+  `;
+
+  const profile = await getClientProfile(otp.customer_id);
+  return { sessionToken, profile };
+}
+
+export async function getClientProfileBySession(sessionToken: string): Promise<ClientLoginProfile> {
+  const token = cleanLoginValue(sessionToken);
+  if (!token) throw new Error('Client session token missing.');
+
+  const database = db();
+  const rows = await database.sql<ClientSessionRow>`
+    SELECT id, customer_id, expires_at::text AS expires_at
+    FROM client_sessions
+    WHERE practice_id = ${PRACTICE_ID}
+      AND session_token_hash = ${hashSecret(token)}
+      AND revoked_at IS NULL
+    LIMIT 1
+  `;
+  const session = rows[0];
+  if (!session || new Date(session.expires_at).getTime() < Date.now()) throw new Error('Client session expired. Please sign in again.');
+
+  await database.sql`UPDATE client_sessions SET last_seen_at = NOW() WHERE id = ${session.id}`;
+  return getClientProfile(session.customer_id);
 }
 
 export async function createBookingInDatabase(input: {
