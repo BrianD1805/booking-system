@@ -160,9 +160,32 @@ function cleanLoginValue(value?: string) {
   return (value ?? '').trim();
 }
 
+function normaliseDialCode(value?: string) {
+  const digits = cleanLoginValue(value).replace(/\D/g, '');
+  return digits ? `+${digits}` : '';
+}
+
 function normaliseInternationalPhone(value?: string) {
   const cleaned = cleanLoginValue(value).replace(/[\s().-]/g, '');
+  if (!cleaned) return '';
+  if (cleaned.startsWith('+')) return `+${cleaned.replace(/\D/g, '')}`;
   return cleaned;
+}
+
+function normaliseClientLoginPhone(input: { phone?: string; localPhone?: string; countryDialCode?: string }) {
+  const directPhone = normaliseInternationalPhone(input.phone);
+  if (directPhone.startsWith('+')) return directPhone;
+
+  const countryDialCode = normaliseDialCode(input.countryDialCode);
+  const localSource = cleanLoginValue(input.localPhone) || directPhone;
+  if (!countryDialCode || !localSource) return directPhone;
+
+  const countryDigits = countryDialCode.replace(/\D/g, '');
+  let digits = localSource.replace(/\D/g, '');
+  if (digits.startsWith(countryDigits)) return `+${digits}`;
+
+  digits = digits.replace(/^0+/, '');
+  return `${countryDialCode}${digits}`;
 }
 
 function isValidInternationalPhone(value: string) {
@@ -482,8 +505,8 @@ async function ensurePractitionerCanTakeBooking(input: { practitionerId: string;
 }
 
 
-async function findCustomerForClientLogin(input: { phone?: string }): Promise<Customer | null> {
-  const phone = normaliseInternationalPhone(input.phone);
+async function findCustomerForClientLogin(input: { phone?: string; localPhone?: string; countryDialCode?: string }): Promise<Customer | null> {
+  const phone = normaliseClientLoginPhone(input);
   if (!phone) return null;
 
   const database = db();
@@ -498,9 +521,9 @@ async function findCustomerForClientLogin(input: { phone?: string }): Promise<Cu
   return rows[0] ? mapCustomer(rows[0]) : null;
 }
 
-async function ensureClientLoginCustomer(input: { phone: string; email: string }): Promise<Customer> {
+async function ensureClientLoginCustomer(input: { phone: string; localPhone?: string; countryDialCode?: string; email: string }): Promise<Customer> {
   const database = db();
-  const phone = normaliseInternationalPhone(input.phone);
+  const phone = normaliseClientLoginPhone(input);
   const email = normaliseEmail(input.email);
   const existing = await findCustomerForClientLogin({ phone });
 
@@ -528,9 +551,9 @@ async function ensureClientLoginCustomer(input: { phone: string; email: string }
   return mapCustomer(rows[0]);
 }
 
-async function ensureClientAccount(customer: Customer, input: { phone: string; email: string }) {
+async function ensureClientAccount(customer: Customer, input: { phone: string; localPhone?: string; countryDialCode?: string; email: string }) {
   const database = db();
-  const phone = normaliseInternationalPhone(input.phone);
+  const phone = normaliseClientLoginPhone(input);
   const email = normaliseEmail(input.email) || customer.email.toLowerCase();
   const existing = await database.sql<{ id: string }>`
     SELECT id
@@ -557,16 +580,16 @@ async function ensureClientAccount(customer: Customer, input: { phone: string; e
   return id;
 }
 
-export async function requestClientLoginOtp(input: { phone?: string; email?: string }): Promise<{ otpId: string; channel: 'sms' | 'email'; destination: string; accountPhone: string; expiresAt: string; deliveryMessage: string; deliveryMode: string; deliveryProvider: string; deliveryReady: boolean }> {
-  const phone = normaliseInternationalPhone(input.phone);
+export async function requestClientLoginOtp(input: { phone?: string; localPhone?: string; countryDialCode?: string; email?: string }): Promise<{ otpId: string; channel: 'sms' | 'email'; destination: string; accountPhone: string; expiresAt: string; deliveryMessage: string; deliveryMode: string; deliveryProvider: string; deliveryReady: boolean }> {
+  const phone = normaliseClientLoginPhone(input);
   const email = normaliseEmail(input.email);
-  if (!phone) throw new Error('Enter your mobile number with the full international code, for example +254712345678.');
-  if (!isValidInternationalPhone(phone)) throw new Error('Use the full international mobile number format, for example +254712345678.');
+  if (!phone) throw new Error('Select a country and enter your mobile number.');
+  if (!isValidInternationalPhone(phone)) throw new Error('Enter a valid mobile number. ZipBook stores it as a full international number, for example +254712345678.');
   if (!email) throw new Error('Enter your email address so we can send your login code. SMS delivery will be connected next.');
   if (!isValidEmail(email)) throw new Error('Enter a valid email address for your login code.');
 
-  const customer = await ensureClientLoginCustomer({ phone, email });
-  await ensureClientAccount(customer, { phone, email });
+  const customer = await ensureClientLoginCustomer({ ...input, phone, email });
+  await ensureClientAccount(customer, { ...input, phone, email });
 
   const otpId = `otp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   const code = makeOtpCode();

@@ -24,6 +24,130 @@ type BookingSuccess = {
   notes: string;
 };
 
+
+type PhoneCountry = {
+  name: string;
+  iso: string;
+  dialCode: string;
+};
+
+const PHONE_COUNTRIES: PhoneCountry[] = [
+  { name: 'Kenya', iso: 'KE', dialCode: '+254' },
+  { name: 'United Kingdom', iso: 'GB', dialCode: '+44' },
+  { name: 'South Africa', iso: 'ZA', dialCode: '+27' },
+  { name: 'United States', iso: 'US', dialCode: '+1' },
+  { name: 'Canada', iso: 'CA', dialCode: '+1' },
+  { name: 'Ireland', iso: 'IE', dialCode: '+353' },
+  { name: 'Australia', iso: 'AU', dialCode: '+61' },
+  { name: 'New Zealand', iso: 'NZ', dialCode: '+64' },
+  { name: 'United Arab Emirates', iso: 'AE', dialCode: '+971' },
+  { name: 'Afghanistan', iso: 'AF', dialCode: '+93' },
+  { name: 'Albania', iso: 'AL', dialCode: '+355' },
+  { name: 'Algeria', iso: 'DZ', dialCode: '+213' },
+  { name: 'Andorra', iso: 'AD', dialCode: '+376' },
+  { name: 'Angola', iso: 'AO', dialCode: '+244' },
+  { name: 'Argentina', iso: 'AR', dialCode: '+54' },
+  { name: 'Austria', iso: 'AT', dialCode: '+43' },
+  { name: 'Bahamas', iso: 'BS', dialCode: '+1' },
+  { name: 'Bahrain', iso: 'BH', dialCode: '+973' },
+  { name: 'Bangladesh', iso: 'BD', dialCode: '+880' },
+  { name: 'Belgium', iso: 'BE', dialCode: '+32' },
+  { name: 'Botswana', iso: 'BW', dialCode: '+267' },
+  { name: 'Brazil', iso: 'BR', dialCode: '+55' },
+  { name: 'Bulgaria', iso: 'BG', dialCode: '+359' },
+  { name: 'Burundi', iso: 'BI', dialCode: '+257' },
+  { name: 'Cameroon', iso: 'CM', dialCode: '+237' },
+  { name: 'China', iso: 'CN', dialCode: '+86' },
+  { name: 'Croatia', iso: 'HR', dialCode: '+385' },
+  { name: 'Cyprus', iso: 'CY', dialCode: '+357' },
+  { name: 'Czechia', iso: 'CZ', dialCode: '+420' },
+  { name: 'Denmark', iso: 'DK', dialCode: '+45' },
+  { name: 'Egypt', iso: 'EG', dialCode: '+20' },
+  { name: 'Ethiopia', iso: 'ET', dialCode: '+251' },
+  { name: 'Finland', iso: 'FI', dialCode: '+358' },
+  { name: 'France', iso: 'FR', dialCode: '+33' },
+  { name: 'Germany', iso: 'DE', dialCode: '+49' },
+  { name: 'Ghana', iso: 'GH', dialCode: '+233' },
+  { name: 'Greece', iso: 'GR', dialCode: '+30' },
+  { name: 'Hong Kong', iso: 'HK', dialCode: '+852' },
+  { name: 'India', iso: 'IN', dialCode: '+91' },
+  { name: 'Indonesia', iso: 'ID', dialCode: '+62' },
+  { name: 'Israel', iso: 'IL', dialCode: '+972' },
+  { name: 'Italy', iso: 'IT', dialCode: '+39' },
+  { name: 'Japan', iso: 'JP', dialCode: '+81' },
+  { name: 'Kuwait', iso: 'KW', dialCode: '+965' },
+  { name: 'Malawi', iso: 'MW', dialCode: '+265' },
+  { name: 'Malaysia', iso: 'MY', dialCode: '+60' },
+  { name: 'Mauritius', iso: 'MU', dialCode: '+230' },
+  { name: 'Mexico', iso: 'MX', dialCode: '+52' },
+  { name: 'Morocco', iso: 'MA', dialCode: '+212' },
+  { name: 'Mozambique', iso: 'MZ', dialCode: '+258' },
+  { name: 'Namibia', iso: 'NA', dialCode: '+264' },
+  { name: 'Netherlands', iso: 'NL', dialCode: '+31' },
+  { name: 'Nigeria', iso: 'NG', dialCode: '+234' },
+  { name: 'Norway', iso: 'NO', dialCode: '+47' },
+  { name: 'Oman', iso: 'OM', dialCode: '+968' },
+  { name: 'Pakistan', iso: 'PK', dialCode: '+92' },
+  { name: 'Philippines', iso: 'PH', dialCode: '+63' },
+  { name: 'Poland', iso: 'PL', dialCode: '+48' },
+  { name: 'Portugal', iso: 'PT', dialCode: '+351' },
+  { name: 'Qatar', iso: 'QA', dialCode: '+974' },
+  { name: 'Romania', iso: 'RO', dialCode: '+40' },
+  { name: 'Rwanda', iso: 'RW', dialCode: '+250' },
+  { name: 'Saudi Arabia', iso: 'SA', dialCode: '+966' },
+  { name: 'Singapore', iso: 'SG', dialCode: '+65' },
+  { name: 'Spain', iso: 'ES', dialCode: '+34' },
+  { name: 'Sweden', iso: 'SE', dialCode: '+46' },
+  { name: 'Switzerland', iso: 'CH', dialCode: '+41' },
+  { name: 'Tanzania', iso: 'TZ', dialCode: '+255' },
+  { name: 'Thailand', iso: 'TH', dialCode: '+66' },
+  { name: 'Turkey', iso: 'TR', dialCode: '+90' },
+  { name: 'Uganda', iso: 'UG', dialCode: '+256' },
+  { name: 'Zambia', iso: 'ZM', dialCode: '+260' },
+  { name: 'Zimbabwe', iso: 'ZW', dialCode: '+263' }
+];
+
+const DEFAULT_PHONE_COUNTRY = PHONE_COUNTRIES[0];
+
+function phoneCountryLabel(country: PhoneCountry) {
+  return `${country.name} (${country.dialCode})`;
+}
+
+function findPhoneCountry(value: string) {
+  const clean = value.trim().toLowerCase();
+  return PHONE_COUNTRIES.find((country) =>
+    phoneCountryLabel(country).toLowerCase() === clean
+    || country.name.toLowerCase() === clean
+    || country.iso.toLowerCase() === clean
+    || country.dialCode === value.trim()
+  ) ?? null;
+}
+
+function buildInternationalPhone(country: PhoneCountry | null, localValue: string) {
+  const trimmed = localValue.trim();
+  if (!trimmed) return '';
+
+  if (trimmed.startsWith('+')) {
+    return `+${trimmed.replace(/\D/g, '')}`;
+  }
+
+  if (!country) return '';
+
+  let digits = trimmed.replace(/\D/g, '');
+  const countryDigits = country.dialCode.replace(/\D/g, '');
+  if (digits.startsWith(countryDigits)) {
+    return `+${digits}`;
+  }
+
+  digits = digits.replace(/^0+/, '');
+  return `${country.dialCode}${digits}`;
+}
+
+function previewPhone(country: PhoneCountry | null, localValue: string) {
+  const full = buildInternationalPhone(country, localValue);
+  return full || 'Select country and enter local number';
+}
+
 type LoginStage = 'request' | 'verify' | 'signed-in';
 
 type ClientCodeResponse = {
@@ -65,6 +189,7 @@ export default function BookPage() {
   const [timePickerOpen, setTimePickerOpen] = useState(false);
   const [clientLoginOpen, setClientLoginOpen] = useState(false);
   const [clientLoginStage, setClientLoginStage] = useState<LoginStage>('request');
+  const [clientLoginCountryInput, setClientLoginCountryInput] = useState(phoneCountryLabel(DEFAULT_PHONE_COUNTRY));
   const [clientLoginPhone, setClientLoginPhone] = useState('');
   const [clientLoginEmail, setClientLoginEmail] = useState('');
   const [clientOtpCode, setClientOtpCode] = useState('');
@@ -104,6 +229,9 @@ export default function BookPage() {
   );
   const availableSlots = slots.filter((slot) => slot.available);
   const selectedPractitioner = practitioners.find((item) => item.id === selectedPractitionerId);
+  const selectedLoginCountry = findPhoneCountry(clientLoginCountryInput);
+  const clientLoginFullPhone = buildInternationalPhone(selectedLoginCountry, clientLoginPhone);
+  const canRequestClientCode = Boolean(selectedLoginCountry && clientLoginFullPhone && clientLoginEmail.trim());
   const canGoToTreatment = patientName.trim() && patientPhone.trim() && patientEmail.trim();
   const canGoToDiary = Boolean(activeProcedureId && practitionerChoice);
   const canConfirm = Boolean(selectedTime && selectedPractitionerId);
@@ -167,7 +295,14 @@ export default function BookPage() {
       const response = await fetch('/api/client-login/request-code', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone: clientLoginPhone, email: clientLoginEmail })
+        body: JSON.stringify({
+          phone: clientLoginFullPhone,
+          localPhone: clientLoginPhone,
+          countryName: selectedLoginCountry?.name,
+          countryIso: selectedLoginCountry?.iso,
+          countryDialCode: selectedLoginCountry?.dialCode,
+          email: clientLoginEmail
+        })
       });
       const payload = await readJsonResponse<ClientCodeResponse>(response);
       setClientOtp(payload);
@@ -314,7 +449,7 @@ export default function BookPage() {
           <p className="mini-copy">
             {clientProfile
               ? 'Clients can see recent appointments and book again without retyping everything.'
-              : 'Clients can still book as a guest. Your mobile number is the account ID, and the login code is sent by email for now.'}
+              : 'Clients can still book as a guest. Your full international mobile number is the account ID, and the login code is sent by email for now.'}
           </p>
         </div>
         <div className="client-login-actions">
@@ -329,14 +464,29 @@ export default function BookPage() {
               <>
                 <div className="grid two controls-grid">
                   <div className="form-row">
-                    <label htmlFor="clientLoginPhone">Mobile number with country code</label>
-                    <input id="clientLoginPhone" value={clientLoginPhone} onChange={(event) => setClientLoginPhone(event.target.value)} inputMode="tel" autoComplete="tel" placeholder="+254712345678" />
-                    <small>Used as your unique client account ID.</small>
+                    <label htmlFor="clientLoginCountry">Country</label>
+                    <input
+                      id="clientLoginCountry"
+                      list="zipbook-country-options"
+                      value={clientLoginCountryInput}
+                      onChange={(event) => setClientLoginCountryInput(event.target.value)}
+                      autoComplete="country-name"
+                      placeholder="Search country"
+                    />
+                    <datalist id="zipbook-country-options">
+                      {PHONE_COUNTRIES.map((country) => <option key={`${country.iso}-${country.dialCode}`} value={phoneCountryLabel(country)} />)}
+                    </datalist>
+                    <small>Search and select the country first, this sets the international dialling code.</small>
                   </div>
                   <div className="form-row">
+                    <label htmlFor="clientLoginPhone">Mobile number</label>
+                    <input id="clientLoginPhone" value={clientLoginPhone} onChange={(event) => setClientLoginPhone(event.target.value)} inputMode="tel" autoComplete="tel-national" placeholder="0712345678" />
+                    <small>Type the local number. If it starts with 0, ZipBook drops the 0 and stores {previewPhone(selectedLoginCountry, clientLoginPhone)}.</small>
+                  </div>
+                  <div className="form-row full-width-row">
                     <label htmlFor="clientLoginEmail">Email for login code</label>
                     <input id="clientLoginEmail" value={clientLoginEmail} onChange={(event) => setClientLoginEmail(event.target.value)} type="email" autoComplete="email" placeholder="you@example.com" />
-                    <small>We will email the one-time code before SMS is connected.</small>
+                    <small>We will email the one-time code before SMS is connected. The full international mobile number is the unique account ID.</small>
                   </div>
                 </div>
                 {clientLoginStage === 'verify' && (
@@ -350,7 +500,7 @@ export default function BookPage() {
                 )}
                 <div className="client-login-bottom">
                   {clientLoginStage === 'request' ? (
-                    <button className="button primary" type="button" onClick={requestClientLoginCode} disabled={clientLoginLoading || !clientLoginPhone.trim() || !clientLoginEmail.trim()}>
+                    <button className="button primary" type="button" onClick={requestClientLoginCode} disabled={clientLoginLoading || !canRequestClientCode}>
                       {clientLoginLoading ? 'Sending code…' : 'Email login code'}
                     </button>
                   ) : (
@@ -361,7 +511,7 @@ export default function BookPage() {
                       <button className="pill" type="button" onClick={requestClientLoginCode} disabled={clientLoginLoading}>Send again</button>
                     </>
                   )}
-                  <span>{clientLoginStage === 'request' ? 'Use your full international mobile number. Email delivery is the first live OTP channel.' : 'Codes expire after 10 minutes.'}</span>
+                  <span>{clientLoginStage === 'request' ? 'Select the country, then type the local mobile number. ZipBook stores the full international number.' : 'Codes expire after 10 minutes.'}</span>
                 </div>
               </>
             )}

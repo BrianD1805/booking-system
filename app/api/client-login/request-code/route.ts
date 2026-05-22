@@ -8,6 +8,8 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const result = await requestClientLoginOtp({
       phone: typeof body?.phone === 'string' ? body.phone : '',
+      localPhone: typeof body?.localPhone === 'string' ? body.localPhone : '',
+      countryDialCode: typeof body?.countryDialCode === 'string' ? body.countryDialCode : '',
       email: typeof body?.email === 'string' ? body.email : ''
     });
 
