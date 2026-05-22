@@ -17,8 +17,10 @@ export async function POST(request: NextRequest) {
       channel: result.channel,
       destination: result.destination,
       expiresAt: result.expiresAt,
-      devCode: result.devCode,
-      deliveryMode: 'development-preview'
+      deliveryMessage: result.deliveryMessage,
+      deliveryMode: result.deliveryMode,
+      deliveryProvider: result.deliveryProvider,
+      deliveryReady: result.deliveryReady
     });
   } catch (error) {
     return NextResponse.json({

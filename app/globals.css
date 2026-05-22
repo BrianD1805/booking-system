@@ -1306,7 +1306,7 @@ textarea { min-height: 110px; resize: vertical; }
   }
 }
 
-/* Ver-0.014: client OTP login foundation */
+/* Ver-0.016: client OTP delivery readiness */
 .client-otp-box {
   margin-top: 12px;
   padding: 14px;
@@ -1315,7 +1315,7 @@ textarea { min-height: 110px; resize: vertical; }
   background: #f8fbff;
 }
 
-.dev-code-pill {
+.delivery-note-pill {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -1389,4 +1389,11 @@ textarea { min-height: 110px; resize: vertical; }
     flex-direction: column;
     align-items: stretch;
   }
+}
+
+/* Ver-0.016: email OTP delivery and phone account identifier polish */
+.form-row small {
+  color: var(--muted);
+  font-size: 0.82rem;
+  line-height: 1.35;
 }

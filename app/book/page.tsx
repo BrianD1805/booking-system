@@ -30,9 +30,12 @@ type ClientCodeResponse = {
   otpId: string;
   channel: 'sms' | 'email';
   destination: string;
+  accountPhone?: string;
   expiresAt: string;
-  devCode?: string;
+  deliveryMessage?: string;
   deliveryMode?: string;
+  deliveryProvider?: string;
+  deliveryReady?: boolean;
 };
 
 type ClientVerifyResponse = {
@@ -170,7 +173,7 @@ export default function BookPage() {
       setClientOtp(payload);
       setClientOtpCode('');
       setClientLoginStage('verify');
-      setClientLoginNotice(`Code prepared for ${payload.destination}. Development code: ${payload.devCode ?? 'check delivery provider'}.`);
+      setClientLoginNotice(payload.deliveryMessage ?? `We have sent a login code to ${payload.destination}.`);
     } catch (error) {
       setClientLoginNotice(error instanceof Error ? error.message : 'Could not send the login code.');
     } finally {
@@ -306,12 +309,12 @@ export default function BookPage() {
 
       <section className="client-login-card" aria-label="Client OTP login">
         <div>
-          <p className="badge blue-badge">Client login · OTP foundation</p>
+          <p className="badge blue-badge">Client login · email OTP ready</p>
           <h2>{clientProfile ? 'Signed in for quicker bookings.' : 'Sign in with a one-time code.'}</h2>
           <p className="mini-copy">
             {clientProfile
               ? 'Clients can see recent appointments and book again without retyping everything.'
-              : 'Clients can still book as a guest. Login now prepares the phone/email one-time-code flow for the customer app only.'}
+              : 'Clients can still book as a guest. Your mobile number is the account ID, and the login code is sent by email for now.'}
           </p>
         </div>
         <div className="client-login-actions">
@@ -326,12 +329,14 @@ export default function BookPage() {
               <>
                 <div className="grid two controls-grid">
                   <div className="form-row">
-                    <label htmlFor="clientLoginPhone">Mobile number</label>
-                    <input id="clientLoginPhone" value={clientLoginPhone} onChange={(event) => setClientLoginPhone(event.target.value)} placeholder="+254..." />
+                    <label htmlFor="clientLoginPhone">Mobile number with country code</label>
+                    <input id="clientLoginPhone" value={clientLoginPhone} onChange={(event) => setClientLoginPhone(event.target.value)} inputMode="tel" autoComplete="tel" placeholder="+254712345678" />
+                    <small>Used as your unique client account ID.</small>
                   </div>
                   <div className="form-row">
-                    <label htmlFor="clientLoginEmail">Email backup</label>
-                    <input id="clientLoginEmail" value={clientLoginEmail} onChange={(event) => setClientLoginEmail(event.target.value)} type="email" placeholder="you@example.com" />
+                    <label htmlFor="clientLoginEmail">Email for login code</label>
+                    <input id="clientLoginEmail" value={clientLoginEmail} onChange={(event) => setClientLoginEmail(event.target.value)} type="email" autoComplete="email" placeholder="you@example.com" />
+                    <small>We will email the one-time code before SMS is connected.</small>
                   </div>
                 </div>
                 {clientLoginStage === 'verify' && (
@@ -340,13 +345,13 @@ export default function BookPage() {
                       <label htmlFor="clientOtpCode">Login code</label>
                       <input id="clientOtpCode" value={clientOtpCode} onChange={(event) => setClientOtpCode(event.target.value)} inputMode="numeric" maxLength={6} placeholder="6-digit code" />
                     </div>
-                    {clientOtp?.devCode && <p className="dev-code-pill">Development code: <strong>{clientOtp.devCode}</strong></p>}
+                    {clientOtp?.deliveryMode === 'server-console-preview' && <p className="delivery-note-pill">Local testing without email settings: check the Netlify dev terminal for the login code.</p>}
                   </div>
                 )}
                 <div className="client-login-bottom">
                   {clientLoginStage === 'request' ? (
-                    <button className="button primary" type="button" onClick={requestClientLoginCode} disabled={clientLoginLoading || (!clientLoginPhone.trim() && !clientLoginEmail.trim())}>
-                      {clientLoginLoading ? 'Preparing code…' : 'Send login code'}
+                    <button className="button primary" type="button" onClick={requestClientLoginCode} disabled={clientLoginLoading || !clientLoginPhone.trim() || !clientLoginEmail.trim()}>
+                      {clientLoginLoading ? 'Sending code…' : 'Email login code'}
                     </button>
                   ) : (
                     <>
@@ -356,7 +361,7 @@ export default function BookPage() {
                       <button className="pill" type="button" onClick={requestClientLoginCode} disabled={clientLoginLoading}>Send again</button>
                     </>
                   )}
-                  <span>{clientLoginStage === 'request' ? 'SMS/email delivery provider still to be connected.' : 'Codes expire after 10 minutes.'}</span>
+                  <span>{clientLoginStage === 'request' ? 'Use your full international mobile number. Email delivery is the first live OTP channel.' : 'Codes expire after 10 minutes.'}</span>
                 </div>
               </>
             )}
@@ -366,7 +371,7 @@ export default function BookPage() {
                 <div className="client-profile-head">
                   <div>
                     <strong>{clientProfile.customer.fullName === 'Client user' ? 'Client account' : clientProfile.customer.fullName}</strong>
-                    <span>{clientProfile.customer.phone} · {clientProfile.customer.email}</span>
+                    <span>Account ID: {clientProfile.customer.phone} · {clientProfile.customer.email}</span>
                   </div>
                   <button className="pill" type="button" onClick={signOutClient}>Sign out</button>
                 </div>
@@ -411,7 +416,7 @@ export default function BookPage() {
               </div>
               <div className="form-row">
                 <label htmlFor="patientPhone">Mobile number</label>
-                <input id="patientPhone" value={patientPhone} onChange={(event) => setPatientPhone(event.target.value)} placeholder="+254..." required />
+                <input id="patientPhone" value={patientPhone} onChange={(event) => setPatientPhone(event.target.value)} inputMode="tel" autoComplete="tel" placeholder="+254712345678" required />
               </div>
               <div className="form-row">
                 <label htmlFor="patientEmail">Email address</label>

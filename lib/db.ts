@@ -1,5 +1,6 @@
 import { createHash, randomBytes, randomInt } from 'crypto';
 import { getDatabase } from '@netlify/database';
+import { deliverClientOtp } from './otpDelivery';
 import { addMinutes } from '@/lib/availability';
 import {
   procedureDuration,
@@ -157,6 +158,23 @@ function normaliseTime(value: string) {
 
 function cleanLoginValue(value?: string) {
   return (value ?? '').trim();
+}
+
+function normaliseInternationalPhone(value?: string) {
+  const cleaned = cleanLoginValue(value).replace(/[\s().-]/g, '');
+  return cleaned;
+}
+
+function isValidInternationalPhone(value: string) {
+  return /^\+[1-9]\d{7,14}$/.test(value);
+}
+
+function normaliseEmail(value?: string) {
+  return cleanLoginValue(value).toLowerCase();
+}
+
+function isValidEmail(value: string) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 }
 
 function hashSecret(value: string) {
@@ -464,36 +482,32 @@ async function ensurePractitionerCanTakeBooking(input: { practitionerId: string;
 }
 
 
-async function findCustomerForClientLogin(input: { phone?: string; email?: string }): Promise<Customer | null> {
-  const phone = cleanLoginValue(input.phone);
-  const email = cleanLoginValue(input.email).toLowerCase();
-  if (!phone && !email) return null;
+async function findCustomerForClientLogin(input: { phone?: string }): Promise<Customer | null> {
+  const phone = normaliseInternationalPhone(input.phone);
+  if (!phone) return null;
 
   const database = db();
   const rows = await database.sql<CustomerRow>`
     SELECT id, full_name, phone, email, notes, has_client_login, last_seen_at::text AS last_seen_at, created_at::text AS created_at, updated_at::text AS updated_at
     FROM customers
     WHERE practice_id = ${PRACTICE_ID}
-      AND (
-        (${phone} <> '' AND phone = ${phone})
-        OR (${email} <> '' AND lower(email) = ${email})
-      )
+      AND phone = ${phone}
     ORDER BY last_seen_at DESC NULLS LAST, updated_at DESC
     LIMIT 1
   `;
   return rows[0] ? mapCustomer(rows[0]) : null;
 }
 
-async function ensureClientLoginCustomer(input: { phone?: string; email?: string }): Promise<Customer> {
+async function ensureClientLoginCustomer(input: { phone: string; email: string }): Promise<Customer> {
   const database = db();
-  const phone = cleanLoginValue(input.phone);
-  const email = cleanLoginValue(input.email).toLowerCase();
-  const existing = await findCustomerForClientLogin({ phone, email });
+  const phone = normaliseInternationalPhone(input.phone);
+  const email = normaliseEmail(input.email);
+  const existing = await findCustomerForClientLogin({ phone });
 
   if (existing) {
     const rows = await database.sql<CustomerRow>`
       UPDATE customers
-      SET phone = CASE WHEN ${phone} <> '' THEN ${phone} ELSE phone END,
+      SET phone = ${phone},
           email = CASE WHEN ${email} <> '' THEN ${email} ELSE email END,
           has_client_login = TRUE,
           last_seen_at = NOW(),
@@ -505,25 +519,24 @@ async function ensureClientLoginCustomer(input: { phone?: string; email?: string
   }
 
   const id = `cust-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-  const safePhone = phone || `no-phone-${id}`;
   const safeEmail = email || `${id}@client-login.local`;
   const rows = await database.sql<CustomerRow>`
     INSERT INTO customers (id, practice_id, full_name, phone, email, notes, has_client_login, last_seen_at)
-    VALUES (${id}, ${PRACTICE_ID}, ${'Client user'}, ${safePhone}, ${safeEmail}, ${'Created from client OTP login foundation.'}, TRUE, NOW())
+    VALUES (${id}, ${PRACTICE_ID}, ${'Client user'}, ${phone}, ${safeEmail}, ${'Created from client phone account identifier.'}, TRUE, NOW())
     RETURNING id, full_name, phone, email, notes, has_client_login, last_seen_at::text AS last_seen_at, created_at::text AS created_at, updated_at::text AS updated_at
   `;
   return mapCustomer(rows[0]);
 }
 
-async function ensureClientAccount(customer: Customer, input: { phone?: string; email?: string }) {
+async function ensureClientAccount(customer: Customer, input: { phone: string; email: string }) {
   const database = db();
-  const phone = cleanLoginValue(input.phone) || customer.phone;
-  const email = cleanLoginValue(input.email).toLowerCase() || customer.email.toLowerCase();
+  const phone = normaliseInternationalPhone(input.phone);
+  const email = normaliseEmail(input.email) || customer.email.toLowerCase();
   const existing = await database.sql<{ id: string }>`
     SELECT id
     FROM client_accounts
     WHERE practice_id = ${PRACTICE_ID}
-      AND (customer_id = ${customer.id} OR login_phone = ${phone} OR lower(login_email) = ${email})
+      AND (customer_id = ${customer.id} OR login_phone = ${phone})
     LIMIT 1
   `;
 
@@ -544,18 +557,21 @@ async function ensureClientAccount(customer: Customer, input: { phone?: string; 
   return id;
 }
 
-export async function requestClientLoginOtp(input: { phone?: string; email?: string }): Promise<{ otpId: string; channel: 'sms' | 'email'; destination: string; expiresAt: string; devCode: string }> {
-  const phone = cleanLoginValue(input.phone);
-  const email = cleanLoginValue(input.email).toLowerCase();
-  if (!phone && !email) throw new Error('Enter a mobile number or email address first.');
+export async function requestClientLoginOtp(input: { phone?: string; email?: string }): Promise<{ otpId: string; channel: 'sms' | 'email'; destination: string; accountPhone: string; expiresAt: string; deliveryMessage: string; deliveryMode: string; deliveryProvider: string; deliveryReady: boolean }> {
+  const phone = normaliseInternationalPhone(input.phone);
+  const email = normaliseEmail(input.email);
+  if (!phone) throw new Error('Enter your mobile number with the full international code, for example +254712345678.');
+  if (!isValidInternationalPhone(phone)) throw new Error('Use the full international mobile number format, for example +254712345678.');
+  if (!email) throw new Error('Enter your email address so we can send your login code. SMS delivery will be connected next.');
+  if (!isValidEmail(email)) throw new Error('Enter a valid email address for your login code.');
 
   const customer = await ensureClientLoginCustomer({ phone, email });
   await ensureClientAccount(customer, { phone, email });
 
   const otpId = `otp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   const code = makeOtpCode();
-  const channel: 'sms' | 'email' = phone ? 'sms' : 'email';
-  const destination = phone || email;
+  const channel: 'sms' | 'email' = 'email';
+  const destination = email;
   const database = db();
 
   await database.sql`
@@ -563,13 +579,25 @@ export async function requestClientLoginOtp(input: { phone?: string; email?: str
     VALUES (${otpId}, ${PRACTICE_ID}, ${customer.id}, ${destination}, ${channel}, ${hashSecret(`${otpId}:${code}`)}, NOW() + INTERVAL '10 minutes')
   `;
 
+  const delivery = await deliverClientOtp({ channel, destination, code, otpId });
+
   await database.sql`
     INSERT INTO audit_logs (id, practice_id, action, entity_type, entity_id, source, details)
-    VALUES (${`audit-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`}, ${PRACTICE_ID}, ${'client_login_otp_requested'}, ${'customer'}, ${customer.id}, ${'client'}, ${JSON.stringify({ channel, destination })}::jsonb)
+    VALUES (${`audit-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`}, ${PRACTICE_ID}, ${'client_login_otp_requested'}, ${'customer'}, ${customer.id}, ${'client'}, ${JSON.stringify({ channel, destination, accountPhone: phone, deliveryMode: delivery.mode, deliveryProvider: delivery.provider, deliveryReady: delivery.delivered })}::jsonb)
   `;
 
   const rows = await database.sql<{ expires_at: string }>`SELECT expires_at::text AS expires_at FROM client_login_otps WHERE id = ${otpId} LIMIT 1`;
-  return { otpId, channel, destination, expiresAt: rows[0]?.expires_at ?? '', devCode: code };
+  return {
+    otpId,
+    channel,
+    destination,
+    accountPhone: phone,
+    expiresAt: rows[0]?.expires_at ?? '',
+    deliveryMessage: delivery.message,
+    deliveryMode: delivery.mode,
+    deliveryProvider: delivery.provider,
+    deliveryReady: delivery.delivered
+  };
 }
 
 async function getClientBookingsForCustomer(customerId: string): Promise<ClientLoginBooking[]> {
