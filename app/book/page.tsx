@@ -789,27 +789,31 @@ export default function BookPage() {
       {successBooking && (
         <section className="booking-success-page" aria-labelledby="booking-success-title" role="dialog" aria-modal="true">
           <div className="booking-success-card">
-            <p className="badge blue-badge">Booking confirmed</p>
-            <h2 id="booking-success-title">Appointment confirmed.</h2>
-            <p className="mini-copy success-mini-copy">Your booking details are below. Use Copy to save or share them.</p>
+            <div className="booking-success-head">
+              <p className="badge blue-badge">Booking confirmed</p>
+              <h2 id="booking-success-title">Appointment confirmed.</h2>
+              <p className="mini-copy success-mini-copy">Your booking details are below. Use Copy to save or share them.</p>
+            </div>
 
-            <div className="success-details-card">
-              <div className="success-details-head">
-                <strong>Booking details</strong>
-                <button className="copy-details-button" type="button" onClick={copyBookingDetails} aria-label="Copy booking details">
-                  <span aria-hidden="true">⧉</span>
-                  {copyStatus || 'Copy'}
-                </button>
-              </div>
-              <div className="success-detail-grid">
-                <p><strong>Patient</strong><span>{successBooking.patientName}</span></p>
-                <p><strong>Phone</strong><span>{successBooking.patientPhone}</span></p>
-                <p><strong>Email</strong><span>{successBooking.patientEmail}</span></p>
-                <p><strong>Treatment</strong><span>{successBooking.treatment} · {successBooking.duration} mins</span></p>
-                <p><strong>Date</strong><span>{successBooking.dateLabel}</span></p>
-                <p><strong>Time</strong><span>{successBooking.time}</span></p>
-                <p><strong>Practitioner</strong><span>{successBooking.practitioner}</span></p>
-                <p><strong>Booking ID</strong><span>{successBooking.id}</span></p>
+            <div className="booking-success-body">
+              <div className="success-details-card">
+                <div className="success-details-head">
+                  <strong>Booking details</strong>
+                  <button className="copy-details-button" type="button" onClick={copyBookingDetails} aria-label="Copy booking details">
+                    <span aria-hidden="true">⧉</span>
+                    {copyStatus || 'Copy'}
+                  </button>
+                </div>
+                <div className="success-detail-grid">
+                  <p><strong>Patient</strong><span>{successBooking.patientName}</span></p>
+                  <p><strong>Phone</strong><span>{successBooking.patientPhone}</span></p>
+                  <p><strong>Email</strong><span>{successBooking.patientEmail}</span></p>
+                  <p><strong>Treatment</strong><span>{successBooking.treatment} · {successBooking.duration} mins</span></p>
+                  <p><strong>Date</strong><span>{successBooking.dateLabel}</span></p>
+                  <p><strong>Time</strong><span>{successBooking.time}</span></p>
+                  <p><strong>Practitioner</strong><span>{successBooking.practitioner}</span></p>
+                  <p><strong>Booking ID</strong><span>{successBooking.id}</span></p>
+                </div>
               </div>
             </div>
 

@@ -1935,3 +1935,264 @@ textarea { min-height: 110px; resize: vertical; }
     border-radius: 26px;
   }
 }
+
+/* Ver-0.021: premium popup polish across client app popups */
+.booking-workflow,
+.time-picker-popup,
+.booking-success-page,
+.client-auth-popup {
+  display: grid;
+  place-items: center;
+  align-items: center;
+  justify-items: center;
+  padding: clamp(16px, 3vw, 28px);
+}
+
+.client-auth-popup {
+  z-index: 1400;
+  background: rgba(10, 24, 42, 0.38);
+  backdrop-filter: blur(12px);
+}
+
+.workflow-card,
+.time-picker-card,
+.booking-success-card,
+.client-auth-card {
+  width: min(100%, 980px);
+  max-height: calc(100dvh - clamp(32px, 6vw, 56px));
+  border: 1px solid rgba(51, 102, 153, 0.14);
+  border-radius: 30px;
+  background: #ffffff;
+  box-shadow: 0 30px 90px rgba(10, 24, 42, 0.18);
+  overflow: hidden;
+}
+
+.client-auth-card,
+.booking-success-card {
+  width: min(100%, 660px);
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  padding: 0;
+}
+
+.workflow-head,
+.time-picker-head,
+.client-auth-head,
+.booking-success-head {
+  position: sticky;
+  top: 0;
+  z-index: 8;
+  padding: clamp(18px, 3vw, 26px) clamp(18px, 3vw, 28px) clamp(14px, 2vw, 18px);
+  border-bottom: 1px solid rgba(51, 102, 153, 0.1);
+  background: linear-gradient(180deg, #ffffff 0%, rgba(255,255,255,0.96) 100%);
+  box-shadow: 0 12px 24px rgba(10, 24, 42, 0.04);
+}
+
+.workflow-head h2,
+.time-picker-head h2,
+.client-auth-head h2,
+.booking-success-head h2 {
+  margin-bottom: 0;
+}
+
+.flow-step,
+.time-picker-slots,
+.booking-success-body,
+.client-profile-panel,
+.client-auth-card > .auth-tabs,
+.client-auth-card > .grid,
+.client-auth-card > .client-otp-box,
+.client-auth-card > .notice {
+  min-height: 0;
+  overflow: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(51, 102, 153, 0.38) rgba(219, 234, 254, 0.55);
+}
+
+.flow-step::-webkit-scrollbar,
+.time-picker-slots::-webkit-scrollbar,
+.booking-success-body::-webkit-scrollbar,
+.client-auth-card::-webkit-scrollbar,
+.client-profile-panel::-webkit-scrollbar {
+  width: 10px;
+  display: block;
+}
+
+.flow-step::-webkit-scrollbar-track,
+.time-picker-slots::-webkit-scrollbar-track,
+.booking-success-body::-webkit-scrollbar-track,
+.client-auth-card::-webkit-scrollbar-track,
+.client-profile-panel::-webkit-scrollbar-track {
+  background: rgba(219, 234, 254, 0.55);
+  border-radius: 999px;
+}
+
+.flow-step::-webkit-scrollbar-thumb,
+.time-picker-slots::-webkit-scrollbar-thumb,
+.booking-success-body::-webkit-scrollbar-thumb,
+.client-auth-card::-webkit-scrollbar-thumb,
+.client-profile-panel::-webkit-scrollbar-thumb {
+  background: rgba(51, 102, 153, 0.38);
+  border-radius: 999px;
+  border: 2px solid rgba(219, 234, 254, 0.55);
+}
+
+.flow-step {
+  padding: clamp(20px, 3vw, 28px) clamp(18px, 3vw, 28px) clamp(28px, 4vw, 38px);
+}
+
+.time-picker-slots,
+.booking-success-body {
+  padding: clamp(18px, 3vw, 26px) clamp(18px, 3vw, 28px) clamp(30px, 5vw, 44px);
+}
+
+.client-auth-card > .auth-tabs,
+.client-auth-card > .grid,
+.client-auth-card > .client-otp-box,
+.client-profile-panel,
+.client-auth-card > .notice {
+  margin-left: clamp(18px, 3vw, 28px);
+  margin-right: clamp(18px, 3vw, 28px);
+}
+
+.client-auth-card > .auth-tabs {
+  margin-top: clamp(18px, 3vw, 24px);
+  overflow: visible;
+}
+
+.client-auth-card > .grid,
+.client-auth-card > .client-otp-box,
+.client-profile-panel {
+  padding-bottom: clamp(24px, 4vw, 36px);
+}
+
+.client-auth-bottom,
+.workflow-actions,
+.time-picker-actions,
+.success-actions {
+  position: sticky;
+  bottom: 0;
+  z-index: 9;
+  margin-top: 0;
+  padding: clamp(14px, 2.5vw, 18px) clamp(18px, 3vw, 28px) calc(clamp(16px, 2.5vw, 20px) + env(safe-area-inset-bottom));
+  border-top: 1px solid rgba(51, 102, 153, 0.12);
+  background: linear-gradient(180deg, rgba(255,255,255,0.94) 0%, #ffffff 100%);
+  box-shadow: 0 -12px 24px rgba(10, 24, 42, 0.05);
+}
+
+.workflow-actions,
+.time-picker-actions,
+.success-actions,
+.client-auth-bottom {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.workflow-actions .button,
+.workflow-actions .pill,
+.time-picker-actions .button,
+.time-picker-actions .pill,
+.success-actions .button,
+.success-actions .pill,
+.client-auth-bottom .button,
+.client-auth-bottom .pill {
+  min-height: 44px;
+}
+
+.booking-inline-warning {
+  margin: clamp(16px, 2.5vw, 20px) clamp(18px, 3vw, 28px) 0;
+}
+
+.success-details-card {
+  margin: 0;
+}
+
+@media (max-width: 860px) {
+  .booking-workflow,
+  .time-picker-popup,
+  .booking-success-page,
+  .client-auth-popup {
+    min-height: 100dvh;
+    padding: 14px;
+    align-items: center;
+  }
+
+  .workflow-card,
+  .time-picker-card,
+  .booking-success-card,
+  .client-auth-card {
+    width: 100%;
+    max-height: calc(100dvh - 28px);
+    border-radius: 26px;
+  }
+
+  .flow-step,
+  .time-picker-slots,
+  .booking-success-body {
+    padding: 18px 18px 30px;
+  }
+
+  .workflow-head,
+  .time-picker-head,
+  .client-auth-head,
+  .booking-success-head {
+    padding: 18px 18px 14px;
+  }
+
+  .workflow-actions,
+  .time-picker-actions,
+  .success-actions,
+  .client-auth-bottom {
+    padding: 14px 18px calc(16px + env(safe-area-inset-bottom));
+  }
+
+  .success-actions {
+    flex-direction: row;
+  }
+
+  .client-auth-popup {
+    align-items: center;
+  }
+
+  .client-auth-card > .auth-tabs,
+  .client-auth-card > .grid,
+  .client-auth-card > .client-otp-box,
+  .client-profile-panel,
+  .client-auth-card > .notice {
+    margin-left: 18px;
+    margin-right: 18px;
+  }
+}
+
+@media (max-width: 440px) {
+  .booking-workflow,
+  .time-picker-popup,
+  .booking-success-page,
+  .client-auth-popup {
+    padding: 10px;
+  }
+
+  .workflow-card,
+  .time-picker-card,
+  .booking-success-card,
+  .client-auth-card {
+    max-height: calc(100dvh - 20px);
+    border-radius: 22px;
+  }
+
+  .workflow-actions,
+  .time-picker-actions,
+  .success-actions,
+  .client-auth-bottom {
+    gap: 8px;
+  }
+}
+
+/* Ver-0.021 auth popup scroll safeguard */
+.client-auth-card {
+  overflow: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(51, 102, 153, 0.38) rgba(219, 234, 254, 0.55);
+}
