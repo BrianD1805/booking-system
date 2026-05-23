@@ -115,9 +115,12 @@ export default function AdminDataPage() {
       });
       const payload = await response.json();
       if (!response.ok) throw new Error(typeof payload?.error === 'string' ? payload.error : 'Could not set password.');
+      const customer = payload.customer as AdminCustomer;
       setNewPassword('');
-      setSelectedCustomer(payload.customer as AdminCustomer);
-      setMessage('Password set for client login. Ask the client to change it once password-change is available.');
+      setSelectedCustomer(customer);
+      setEditingCustomer({ id: customer.id, fullName: customer.fullName, phone: customer.phone, email: customer.email, notes: customer.notes ?? '' });
+      setCustomers((current) => current.map((item) => item.id === customer.id ? customer : item));
+      setMessage(`Password saved for ${customer.fullName}. Status: password set.`);
       await loadCustomers(query);
     } catch (passwordError) {
       setError(passwordError instanceof Error ? passwordError.message : 'Could not set password.');
@@ -239,11 +242,11 @@ export default function AdminDataPage() {
               <div className="admin-data-divider" />
 
               <div className="form-row">
-                <label htmlFor="newPassword">Set temporary client password</label>
-                <input id="newPassword" type="password" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} placeholder="Minimum 6 characters" />
-                <p className="micro-copy">This is useful for accounts created before password login existed.</p>
+                <label htmlFor="newPassword">Set / reset client password</label>
+                <input id="newPassword" type="password" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} placeholder="Minimum 6 characters" autoComplete="new-password" />
+                <p className="micro-copy">Current status: <strong>{selectedCustomer?.passwordSet ? 'Password set' : 'No password yet'}</strong>. The customer phone will be stored as the login number.</p>
               </div>
-              <button className="pill" type="button" onClick={setPassword} disabled={loading || newPassword.length < 6}>Set password</button>
+              <button className="button primary" type="button" onClick={setPassword} disabled={loading || newPassword.length < 6}>{loading ? 'Saving...' : selectedCustomer?.passwordSet ? 'Reset password' : 'Save password'}</button>
 
               <div className="admin-data-divider" />
 

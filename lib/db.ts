@@ -396,10 +396,16 @@ export async function listAdminDataCustomers(query?: string): Promise<AdminDataC
              ca.login_phone, ca.login_email, ca.verified_at::text AS verified_at, (ca.password_hash IS NOT NULL AND ca.password_hash <> '') AS password_set,
              COUNT(b.id)::int AS booking_count, MAX(b.booking_date)::text AS latest_booking_date
       FROM customers c
-      LEFT JOIN client_accounts ca ON ca.customer_id = c.id
+      LEFT JOIN LATERAL (
+        SELECT login_phone, login_email, verified_at, password_hash, updated_at, created_at
+        FROM client_accounts
+        WHERE practice_id = c.practice_id AND customer_id = c.id
+        ORDER BY (password_hash IS NOT NULL AND password_hash <> '') DESC, updated_at DESC, created_at DESC
+        LIMIT 1
+      ) ca ON TRUE
       LEFT JOIN bookings b ON b.customer_id = c.id
       WHERE c.practice_id = ${PRACTICE_ID}
-        AND (lower(c.full_name) LIKE ${pattern} OR lower(c.phone) LIKE ${pattern} OR lower(c.email) LIKE ${pattern})
+        AND (lower(c.full_name) LIKE ${pattern} OR lower(c.phone) LIKE ${pattern} OR lower(c.email) LIKE ${pattern} OR lower(ca.login_phone) LIKE ${pattern} OR lower(ca.login_email) LIKE ${pattern})
       GROUP BY c.id, c.full_name, c.phone, c.email, c.notes, c.has_client_login, c.last_seen_at, c.created_at, c.updated_at, ca.login_phone, ca.login_email, ca.verified_at, ca.password_hash
       ORDER BY c.updated_at DESC, c.created_at DESC
       LIMIT 50
@@ -409,7 +415,13 @@ export async function listAdminDataCustomers(query?: string): Promise<AdminDataC
              ca.login_phone, ca.login_email, ca.verified_at::text AS verified_at, (ca.password_hash IS NOT NULL AND ca.password_hash <> '') AS password_set,
              COUNT(b.id)::int AS booking_count, MAX(b.booking_date)::text AS latest_booking_date
       FROM customers c
-      LEFT JOIN client_accounts ca ON ca.customer_id = c.id
+      LEFT JOIN LATERAL (
+        SELECT login_phone, login_email, verified_at, password_hash, updated_at, created_at
+        FROM client_accounts
+        WHERE practice_id = c.practice_id AND customer_id = c.id
+        ORDER BY (password_hash IS NOT NULL AND password_hash <> '') DESC, updated_at DESC, created_at DESC
+        LIMIT 1
+      ) ca ON TRUE
       LEFT JOIN bookings b ON b.customer_id = c.id
       WHERE c.practice_id = ${PRACTICE_ID}
       GROUP BY c.id, c.full_name, c.phone, c.email, c.notes, c.has_client_login, c.last_seen_at, c.created_at, c.updated_at, ca.login_phone, ca.login_email, ca.verified_at, ca.password_hash
@@ -427,7 +439,13 @@ async function getAdminDataCustomerById(customerId: string): Promise<AdminDataCu
            ca.login_phone, ca.login_email, ca.verified_at::text AS verified_at, (ca.password_hash IS NOT NULL AND ca.password_hash <> '') AS password_set,
            COUNT(b.id)::int AS booking_count, MAX(b.booking_date)::text AS latest_booking_date
     FROM customers c
-    LEFT JOIN client_accounts ca ON ca.customer_id = c.id
+    LEFT JOIN LATERAL (
+      SELECT login_phone, login_email, verified_at, password_hash, updated_at, created_at
+      FROM client_accounts
+      WHERE practice_id = c.practice_id AND customer_id = c.id
+      ORDER BY (password_hash IS NOT NULL AND password_hash <> '') DESC, updated_at DESC, created_at DESC
+      LIMIT 1
+    ) ca ON TRUE
     LEFT JOIN bookings b ON b.customer_id = c.id
     WHERE c.practice_id = ${PRACTICE_ID} AND c.id = ${customerId}
     GROUP BY c.id, c.full_name, c.phone, c.email, c.notes, c.has_client_login, c.last_seen_at, c.created_at, c.updated_at, ca.login_phone, ca.login_email, ca.verified_at, ca.password_hash
@@ -469,8 +487,21 @@ export async function setAdminDataCustomerPassword(input: { customerId: string; 
   const customer = await findCustomerById(input.customerId);
   if (!customer) throw new Error('Customer not found.');
 
-  const existing = await database.sql<{ id: string }>`
-    SELECT id FROM client_accounts WHERE practice_id = ${PRACTICE_ID} AND customer_id = ${input.customerId} LIMIT 1
+  const loginPhone = normaliseClientLoginPhone({ phone: customer.phone });
+  if (!isValidInternationalPhone(loginPhone)) {
+    throw new Error('Before setting a password, save the customer phone as a full international number, for example +254701600529.');
+  }
+
+  const loginEmail = normaliseEmail(customer.email);
+  if (!isValidEmail(loginEmail)) throw new Error('Before setting a password, save a valid customer email address.');
+
+  const existing = await database.sql<{ id: string; customer_id: string }>`
+    SELECT id, customer_id
+    FROM client_accounts
+    WHERE practice_id = ${PRACTICE_ID}
+      AND (customer_id = ${customer.id} OR login_phone = ${loginPhone})
+    ORDER BY (customer_id = ${customer.id}) DESC, updated_at DESC, created_at DESC
+    LIMIT 1
   `;
   const accountId = existing[0]?.id ?? `acct-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   const passwordHash = hashClientPassword(accountId, password);
@@ -478,21 +509,25 @@ export async function setAdminDataCustomerPassword(input: { customerId: string; 
   if (existing[0]) {
     await database.sql`
       UPDATE client_accounts
-      SET login_phone = ${customer.phone}, login_email = ${customer.email.toLowerCase()}, password_hash = ${passwordHash}, verified_at = COALESCE(verified_at, NOW()), otp_enabled = FALSE, updated_at = NOW()
-      WHERE id = ${accountId}
+      SET customer_id = ${customer.id}, login_phone = ${loginPhone}, login_email = ${loginEmail}, password_hash = ${passwordHash}, verified_at = COALESCE(verified_at, NOW()), phone_verified_at = COALESCE(phone_verified_at, verified_at, NOW()), otp_enabled = FALSE, updated_at = NOW()
+      WHERE practice_id = ${PRACTICE_ID} AND id = ${accountId}
     `;
   } else {
     await database.sql`
-      INSERT INTO client_accounts (id, customer_id, practice_id, login_phone, login_email, password_hash, verified_at, otp_enabled)
-      VALUES (${accountId}, ${customer.id}, ${PRACTICE_ID}, ${customer.phone}, ${customer.email.toLowerCase()}, ${passwordHash}, NOW(), FALSE)
+      INSERT INTO client_accounts (id, customer_id, practice_id, login_phone, login_email, password_hash, verified_at, phone_verified_at, otp_enabled)
+      VALUES (${accountId}, ${customer.id}, ${PRACTICE_ID}, ${loginPhone}, ${loginEmail}, ${passwordHash}, NOW(), NOW(), FALSE)
     `;
   }
 
   await database.sql`
-    UPDATE customers SET has_client_login = TRUE, updated_at = NOW() WHERE practice_id = ${PRACTICE_ID} AND id = ${customer.id}
+    UPDATE customers
+    SET phone = ${loginPhone}, email = ${loginEmail}, has_client_login = TRUE, updated_at = NOW()
+    WHERE practice_id = ${PRACTICE_ID} AND id = ${customer.id}
   `;
 
-  return await getAdminDataCustomerById(customer.id) ?? { ...customer, hasClientLogin: true, passwordSet: true, bookingCount: 0 };
+  const updatedCustomer = await getAdminDataCustomerById(customer.id);
+  if (!updatedCustomer?.passwordSet) throw new Error('Password update did not verify. Please reload the customer and try again.');
+  return updatedCustomer;
 }
 
 export async function deleteAdminDataCustomerAndBookings(customerId: string): Promise<{ deletedSessions: number; deletedOtps: number; deletedBookings: number; deletedAccounts: number; deletedCustomers: number }> {
