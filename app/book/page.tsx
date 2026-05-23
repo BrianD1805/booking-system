@@ -148,7 +148,7 @@ function previewPhone(country: PhoneCountry | null, localValue: string) {
   return full || 'Select country and enter local number';
 }
 
-type LoginStage = 'request' | 'verify' | 'signed-in';
+type LoginStage = 'login' | 'signup' | 'verify-signup' | 'signed-in';
 
 type ClientCodeResponse = {
   otpId: string;
@@ -188,10 +188,11 @@ export default function BookPage() {
   const [bookingOpen, setBookingOpen] = useState(false);
   const [timePickerOpen, setTimePickerOpen] = useState(false);
   const [clientLoginOpen, setClientLoginOpen] = useState(false);
-  const [clientLoginStage, setClientLoginStage] = useState<LoginStage>('request');
+  const [clientLoginStage, setClientLoginStage] = useState<LoginStage>('login');
   const [clientLoginCountryInput, setClientLoginCountryInput] = useState(phoneCountryLabel(DEFAULT_PHONE_COUNTRY));
   const [clientLoginPhone, setClientLoginPhone] = useState('');
   const [clientLoginEmail, setClientLoginEmail] = useState('');
+  const [clientPassword, setClientPassword] = useState('');
   const [clientOtpCode, setClientOtpCode] = useState('');
   const [clientOtp, setClientOtp] = useState<ClientCodeResponse | null>(null);
   const [clientSessionToken, setClientSessionToken] = useState('');
@@ -231,7 +232,8 @@ export default function BookPage() {
   const selectedPractitioner = practitioners.find((item) => item.id === selectedPractitionerId);
   const selectedLoginCountry = findPhoneCountry(clientLoginCountryInput);
   const clientLoginFullPhone = buildInternationalPhone(selectedLoginCountry, clientLoginPhone);
-  const canRequestClientCode = Boolean(selectedLoginCountry && clientLoginFullPhone && clientLoginEmail.trim());
+  const canSignInClient = Boolean(selectedLoginCountry && clientLoginFullPhone && clientPassword.trim());
+  const canStartClientSignup = Boolean(selectedLoginCountry && clientLoginFullPhone && clientLoginEmail.trim() && clientPassword.length >= 6);
   const canGoToTreatment = patientName.trim() && patientPhone.trim() && patientEmail.trim();
   const canGoToDiary = Boolean(activeProcedureId && practitionerChoice);
   const canConfirm = Boolean(selectedTime && selectedPractitionerId);
@@ -288,11 +290,11 @@ export default function BookPage() {
     if (profile.customer.email && !profile.customer.email.endsWith('@client-login.local')) setPatientEmail(profile.customer.email);
   }
 
-  async function requestClientLoginCode() {
+  async function requestClientSignupCode() {
     setClientLoginLoading(true);
     setClientLoginNotice('');
     try {
-      const response = await fetch('/api/client-login/request-code', {
+      const response = await fetch('/api/client-login/sign-up/request-code', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -301,27 +303,28 @@ export default function BookPage() {
           countryName: selectedLoginCountry?.name,
           countryIso: selectedLoginCountry?.iso,
           countryDialCode: selectedLoginCountry?.dialCode,
-          email: clientLoginEmail
+          email: clientLoginEmail,
+          password: clientPassword
         })
       });
       const payload = await readJsonResponse<ClientCodeResponse>(response);
       setClientOtp(payload);
       setClientOtpCode('');
-      setClientLoginStage('verify');
-      setClientLoginNotice(payload.deliveryMessage ?? `We have sent a login code to ${payload.destination}.`);
+      setClientLoginStage('verify-signup');
+      setClientLoginNotice(payload.deliveryMessage ?? `We have sent a sign-up code to ${payload.destination}.`);
     } catch (error) {
-      setClientLoginNotice(error instanceof Error ? error.message : 'Could not send the login code.');
+      setClientLoginNotice(error instanceof Error ? error.message : 'Could not send the sign-up code.');
     } finally {
       setClientLoginLoading(false);
     }
   }
 
-  async function verifyClientLoginCode() {
+  async function verifyClientSignupCode() {
     if (!clientOtp) return;
     setClientLoginLoading(true);
     setClientLoginNotice('');
     try {
-      const response = await fetch('/api/client-login/verify', {
+      const response = await fetch('/api/client-login/sign-up/verify', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ otpId: clientOtp.otpId, code: clientOtpCode })
@@ -330,9 +333,37 @@ export default function BookPage() {
       window.localStorage.setItem('zipbook-client-session', payload.sessionToken);
       setClientSessionToken(payload.sessionToken);
       applyClientProfile(payload.profile);
-      setClientLoginNotice('Signed in. Your appointment details are ready below.');
+      setClientLoginNotice('Signed up and signed in. You can now book more quickly next time.');
     } catch (error) {
-      setClientLoginNotice(error instanceof Error ? error.message : 'Could not verify the login code.');
+      setClientLoginNotice(error instanceof Error ? error.message : 'Could not verify the sign-up code.');
+    } finally {
+      setClientLoginLoading(false);
+    }
+  }
+
+  async function signInClient() {
+    setClientLoginLoading(true);
+    setClientLoginNotice('');
+    try {
+      const response = await fetch('/api/client-login/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          phone: clientLoginFullPhone,
+          localPhone: clientLoginPhone,
+          countryName: selectedLoginCountry?.name,
+          countryIso: selectedLoginCountry?.iso,
+          countryDialCode: selectedLoginCountry?.dialCode,
+          password: clientPassword
+        })
+      });
+      const payload = await readJsonResponse<ClientVerifyResponse>(response);
+      window.localStorage.setItem('zipbook-client-session', payload.sessionToken);
+      setClientSessionToken(payload.sessionToken);
+      applyClientProfile(payload.profile);
+      setClientLoginNotice('Signed in.');
+    } catch (error) {
+      setClientLoginNotice(error instanceof Error ? error.message : 'Could not sign in.');
     } finally {
       setClientLoginLoading(false);
     }
@@ -344,7 +375,7 @@ export default function BookPage() {
     setClientProfile(null);
     setClientOtp(null);
     setClientOtpCode('');
-    setClientLoginStage('request');
+    setClientLoginStage('login');
     setClientLoginNotice('Signed out on this device.');
   }
 
@@ -405,113 +436,127 @@ export default function BookPage() {
     <main className="shell fresh-shell">
       <Header area="client" />
 
-      <section className="focus-hero">
+      <section className="focus-hero client-welcome-hero">
         <div>
-          <p className="badge blue-badge">Client booking app · {APP_VERSION}</p>
-          <h1 className="hero-title clean-title">Book your dental appointment.</h1>
+          <p className="badge blue-badge">ZipBook · {APP_VERSION}</p>
+          <h1 className="hero-title clean-title">Book your appointment.</h1>
           <p className="hero-copy tight-copy">
-            A simple step-by-step booking flow. Patients enter their details, choose the treatment, browse real available times, review a clear summary, then book a live appointment.
+            Sign in for quicker booking, sign up once to verify your mobile number, or book an appointment now.
           </p>
-          <div className="quick-summary">
-            <span>Live diary</span>
-            <span>Practitioner-aware</span>
-            <span>Conflict protected</span>
+          <div className="client-primary-actions">
+            <button className="button primary large-cta" type="button" onClick={() => { setClientLoginOpen(true); setClientLoginStage(clientProfile ? 'signed-in' : 'login'); }}>
+              {clientProfile ? 'My account' : 'Login / Sign up'}
+            </button>
+            <button className="button orange large-cta" type="button" onClick={() => setBookingOpen(true)}>
+              Book appointment
+            </button>
           </div>
-          <button className="button primary large-cta" type="button" onClick={() => setBookingOpen(true)}>
-            Start booking
-          </button>
           {confirmedBookingId && (
-            <p className="notice success" role="status">Appointment booked and saved to the shared diary.</p>
+            <p className="notice success" role="status">Appointment booked.</p>
           )}
           {error && (
             <div className="notice warning" role="alert">
               {error}
-              <div style={{ marginTop: 10 }}><button className="pill" type="button" onClick={refresh}>Retry database connection</button></div>
+              <div style={{ marginTop: 10 }}><button className="pill" type="button" onClick={refresh}>Retry connection</button></div>
             </div>
           )}
         </div>
-
-        <div className="visual-card">
-          <div className="phone-preview">
-            <span className="phone-pill">Today’s flow</span>
-            <strong>1. Details</strong>
-            <strong>2. Treatment</strong>
-            <strong>3. Diary slot</strong>
-            <strong>4. Review & book</strong>
-          </div>
-        </div>
       </section>
 
-      <section className="client-login-card" aria-label="Client OTP login">
+      <section className="client-login-card simplified-client-login" aria-label="Client login and sign up">
         <div>
-          <p className="badge blue-badge">Client login · email OTP ready</p>
-          <h2>{clientProfile ? 'Signed in for quicker bookings.' : 'Sign in with a one-time code.'}</h2>
+          <h2>{clientProfile ? 'You are signed in.' : 'Login or sign up'}</h2>
           <p className="mini-copy">
             {clientProfile
-              ? 'Clients can see recent appointments and book again without retyping everything.'
-              : 'Clients can still book as a guest. Your full international mobile number is the account ID, and the login code is sent by email for now.'}
+              ? 'Your details are ready for quicker appointment booking.'
+              : 'Existing clients sign in with mobile number and password. New clients verify their mobile number once during sign-up.'}
           </p>
         </div>
         <div className="client-login-actions">
           <button className="button primary" type="button" onClick={() => setClientLoginOpen((current) => !current)}>
-            {clientLoginOpen ? 'Hide login' : clientProfile ? 'My bookings' : 'Client login'}
+            {clientLoginOpen ? 'Hide' : clientProfile ? 'My account' : 'Login / Sign up'}
           </button>
-          <button className="pill" type="button" onClick={() => setBookingOpen(true)}>{clientProfile ? 'Book another appointment' : 'Continue as guest'}</button>
+          <button className="pill" type="button" onClick={() => setBookingOpen(true)}>Book appointment</button>
         </div>
         {clientLoginOpen && (
           <div className="client-login-panel">
             {clientLoginStage !== 'signed-in' && (
               <>
-                <div className="grid two controls-grid">
-                  <div className="form-row">
-                    <label htmlFor="clientLoginCountry">Country</label>
-                    <input
-                      id="clientLoginCountry"
-                      list="zipbook-country-options"
-                      value={clientLoginCountryInput}
-                      onChange={(event) => setClientLoginCountryInput(event.target.value)}
-                      autoComplete="country-name"
-                      placeholder="Search country"
-                    />
-                    <datalist id="zipbook-country-options">
-                      {PHONE_COUNTRIES.map((country) => <option key={`${country.iso}-${country.dialCode}`} value={phoneCountryLabel(country)} />)}
-                    </datalist>
-                    <small>Search and select the country first, this sets the international dialling code.</small>
-                  </div>
-                  <div className="form-row">
-                    <label htmlFor="clientLoginPhone">Mobile number</label>
-                    <input id="clientLoginPhone" value={clientLoginPhone} onChange={(event) => setClientLoginPhone(event.target.value)} inputMode="tel" autoComplete="tel-national" placeholder="0712345678" />
-                    <small>Type the local number. If it starts with 0, ZipBook drops the 0 and stores {previewPhone(selectedLoginCountry, clientLoginPhone)}.</small>
-                  </div>
-                  <div className="form-row full-width-row">
-                    <label htmlFor="clientLoginEmail">Email for login code</label>
-                    <input id="clientLoginEmail" value={clientLoginEmail} onChange={(event) => setClientLoginEmail(event.target.value)} type="email" autoComplete="email" placeholder="you@example.com" />
-                    <small>We will email the one-time code before SMS is connected. The full international mobile number is the unique account ID.</small>
-                  </div>
+                <div className="auth-tabs" role="tablist" aria-label="Client account options">
+                  <button className={clientLoginStage === 'login' ? 'auth-tab active' : 'auth-tab'} type="button" onClick={() => { setClientLoginStage('login'); setClientLoginNotice(''); }}>
+                    Login
+                  </button>
+                  <button className={clientLoginStage === 'signup' || clientLoginStage === 'verify-signup' ? 'auth-tab active' : 'auth-tab'} type="button" onClick={() => { setClientLoginStage('signup'); setClientLoginNotice(''); }}>
+                    Sign up
+                  </button>
                 </div>
-                {clientLoginStage === 'verify' && (
-                  <div className="client-otp-box">
+
+                {clientLoginStage !== 'verify-signup' && (
+                  <div className="grid two controls-grid">
                     <div className="form-row">
-                      <label htmlFor="clientOtpCode">Login code</label>
-                      <input id="clientOtpCode" value={clientOtpCode} onChange={(event) => setClientOtpCode(event.target.value)} inputMode="numeric" maxLength={6} placeholder="6-digit code" />
+                      <label htmlFor="clientLoginCountry">Country</label>
+                      <input
+                        id="clientLoginCountry"
+                        list="zipbook-country-options"
+                        value={clientLoginCountryInput}
+                        onChange={(event) => setClientLoginCountryInput(event.target.value)}
+                        autoComplete="country-name"
+                        placeholder="Search country"
+                      />
+                      <datalist id="zipbook-country-options">
+                        {PHONE_COUNTRIES.map((country) => <option key={`${country.iso}-${country.dialCode}`} value={phoneCountryLabel(country)} />)}
+                      </datalist>
                     </div>
-                    {clientOtp?.deliveryMode === 'server-console-preview' && <p className="delivery-note-pill">Local testing without email settings: check the Netlify dev terminal for the login code.</p>}
+                    <div className="form-row">
+                      <label htmlFor="clientLoginPhone">Mobile number</label>
+                      <input id="clientLoginPhone" value={clientLoginPhone} onChange={(event) => setClientLoginPhone(event.target.value)} inputMode="tel" autoComplete="tel-national" placeholder="0712345678" />
+                      <small>{previewPhone(selectedLoginCountry, clientLoginPhone)}</small>
+                    </div>
+                    {clientLoginStage === 'signup' && (
+                      <div className="form-row full-width-row">
+                        <label htmlFor="clientLoginEmail">Email address</label>
+                        <input id="clientLoginEmail" value={clientLoginEmail} onChange={(event) => setClientLoginEmail(event.target.value)} type="email" autoComplete="email" placeholder="you@example.com" />
+                      </div>
+                    )}
+                    <div className="form-row full-width-row">
+                      <label htmlFor="clientPassword">Password</label>
+                      <input id="clientPassword" value={clientPassword} onChange={(event) => setClientPassword(event.target.value)} type="password" autoComplete={clientLoginStage === 'signup' ? 'new-password' : 'current-password'} placeholder="Password" />
+                      {clientLoginStage === 'signup' && <small>Use at least 6 characters. OTP is used once to verify the mobile number.</small>}
+                    </div>
                   </div>
                 )}
+
+                {clientLoginStage === 'verify-signup' && (
+                  <div className="client-otp-box">
+                    <p className="mini-copy">Enter the code sent to {clientOtp?.destination}. This verifies the mobile number for the new account.</p>
+                    <div className="form-row">
+                      <label htmlFor="clientOtpCode">Sign-up code</label>
+                      <input id="clientOtpCode" value={clientOtpCode} onChange={(event) => setClientOtpCode(event.target.value)} inputMode="numeric" maxLength={6} placeholder="6-digit code" />
+                    </div>
+                    {clientOtp?.deliveryMode === 'server-console-preview' && <p className="delivery-note-pill">Local testing without email settings: check the Netlify dev terminal for the sign-up code.</p>}
+                  </div>
+                )}
+
                 <div className="client-login-bottom">
-                  {clientLoginStage === 'request' ? (
-                    <button className="button primary" type="button" onClick={requestClientLoginCode} disabled={clientLoginLoading || !canRequestClientCode}>
-                      {clientLoginLoading ? 'Sending code…' : 'Email login code'}
+                  {clientLoginStage === 'login' && (
+                    <button className="button primary" type="button" onClick={signInClient} disabled={clientLoginLoading || !canSignInClient}>
+                      {clientLoginLoading ? 'Signing in…' : 'Login'}
                     </button>
-                  ) : (
+                  )}
+                  {clientLoginStage === 'signup' && (
+                    <button className="button primary" type="button" onClick={requestClientSignupCode} disabled={clientLoginLoading || !canStartClientSignup}>
+                      {clientLoginLoading ? 'Sending code…' : 'Create account'}
+                    </button>
+                  )}
+                  {clientLoginStage === 'verify-signup' && (
                     <>
-                      <button className="button primary" type="button" onClick={verifyClientLoginCode} disabled={clientLoginLoading || clientOtpCode.trim().length < 4}>
-                        {clientLoginLoading ? 'Checking code…' : 'Verify code'}
+                      <button className="button primary" type="button" onClick={verifyClientSignupCode} disabled={clientLoginLoading || clientOtpCode.trim().length < 4}>
+                        {clientLoginLoading ? 'Checking code…' : 'Verify and sign in'}
                       </button>
-                      <button className="pill" type="button" onClick={requestClientLoginCode} disabled={clientLoginLoading}>Send again</button>
+                      <button className="pill" type="button" onClick={requestClientSignupCode} disabled={clientLoginLoading}>Send again</button>
                     </>
                   )}
-                  <span>{clientLoginStage === 'request' ? 'Select the country, then type the local mobile number. ZipBook stores the full international number.' : 'Codes expire after 10 minutes.'}</span>
+                  <span>{clientLoginStage === 'login' ? 'No code needed for normal login.' : clientLoginStage === 'signup' ? 'We verify your mobile once when you sign up.' : 'Codes expire after 10 minutes.'}</span>
                 </div>
               </>
             )}
@@ -521,7 +566,7 @@ export default function BookPage() {
                 <div className="client-profile-head">
                   <div>
                     <strong>{clientProfile.customer.fullName === 'Client user' ? 'Client account' : clientProfile.customer.fullName}</strong>
-                    <span>Account ID: {clientProfile.customer.phone} · {clientProfile.customer.email}</span>
+                    <span>{clientProfile.customer.phone}</span>
                   </div>
                   <button className="pill" type="button" onClick={signOutClient}>Sign out</button>
                 </div>
@@ -532,19 +577,13 @@ export default function BookPage() {
                       <span>{getDayLabel(booking.date)} · {booking.time}–{booking.endTime}</span>
                       <em>{booking.practitioner} · {booking.status}</em>
                     </article>
-                  )) : <p className="mini-copy">No previous appointments found for this login yet.</p>}
+                  )) : <p className="mini-copy">No previous appointments found yet.</p>}
                 </div>
               </div>
             )}
-            {clientLoginNotice && <p className={clientLoginNotice.toLowerCase().includes('could not') || clientLoginNotice.toLowerCase().includes('not correct') || clientLoginNotice.toLowerCase().includes('expired') ? 'notice warning' : 'notice success'} role="status">{clientLoginNotice}</p>}
+            {clientLoginNotice && <p className={clientLoginNotice.toLowerCase().includes('could not') || clientLoginNotice.toLowerCase().includes('not correct') || clientLoginNotice.toLowerCase().includes('expired') || clientLoginNotice.toLowerCase().includes('not recognised') ? 'notice warning' : 'notice success'} role="status">{clientLoginNotice}</p>}
           </div>
         )}
-      </section>
-
-      <section className="compact-dashboard">
-        <article className="mini-card"><strong>{procedures.length}</strong><span>Treatments</span></article>
-        <article className="mini-card"><strong>{eligiblePractitioners.length}</strong><span>Available clinicians</span></article>
-        <article className="mini-card"><strong>{loading ? '…' : availableSlots.length}</strong><span>Slots for selected date</span></article>
       </section>
 
       <form className={`booking-workflow ${bookingOpen ? 'is-open' : ''}`} onSubmit={handleSubmit}>

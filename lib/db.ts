@@ -104,6 +104,15 @@ type ClientSessionRow = {
   expires_at: string;
 };
 
+type ClientAccountRow = {
+  id: string;
+  customer_id: string;
+  login_phone: string;
+  login_email: string;
+  password_hash: string | null;
+  verified_at: string | null;
+};
+
 type ClientBookingRow = {
   id: string;
   procedure_name: string | null;
@@ -210,6 +219,27 @@ function makeOtpCode() {
 
 function makeToken(prefix: string) {
   return `${prefix}-${randomBytes(24).toString('hex')}`;
+}
+
+function validateClientPassword(value?: string) {
+  const password = value ?? '';
+  if (password.length < 6) throw new Error('Enter a password with at least 6 characters.');
+  return password;
+}
+
+function hashClientPassword(accountId: string, password: string) {
+  return hashSecret(`zipbook-client-password:${accountId}:${password}`);
+}
+
+async function createClientSession(customerId: string) {
+  const database = db();
+  const sessionToken = makeToken('client');
+  const sessionId = `sess-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  await database.sql`
+    INSERT INTO client_sessions (id, practice_id, customer_id, session_token_hash, expires_at)
+    VALUES (${sessionId}, ${PRACTICE_ID}, ${customerId}, ${hashSecret(sessionToken)}, NOW() + INTERVAL '30 days')
+  `;
+  return sessionToken;
 }
 
 function mapPractice(row: PracticeRow): PracticeSettings {
@@ -580,6 +610,133 @@ async function ensureClientAccount(customer: Customer, input: { phone: string; l
   return id;
 }
 
+
+async function findClientAccountByPhone(phone: string): Promise<ClientAccountRow | null> {
+  const database = db();
+  const rows = await database.sql<ClientAccountRow>`
+    SELECT id, customer_id, login_phone, login_email, password_hash, verified_at::text AS verified_at
+    FROM client_accounts
+    WHERE practice_id = ${PRACTICE_ID} AND login_phone = ${phone}
+    LIMIT 1
+  `;
+  return rows[0] ?? null;
+}
+
+export async function requestClientSignupOtp(input: { phone?: string; localPhone?: string; countryDialCode?: string; email?: string; password?: string }): Promise<{ otpId: string; channel: 'sms' | 'email'; destination: string; accountPhone: string; expiresAt: string; deliveryMessage: string; deliveryMode: string; deliveryProvider: string; deliveryReady: boolean }> {
+  const phone = normaliseClientLoginPhone(input);
+  const email = normaliseEmail(input.email);
+  const password = validateClientPassword(input.password);
+  if (!phone) throw new Error('Select a country and enter your mobile number.');
+  if (!isValidInternationalPhone(phone)) throw new Error('Enter a valid mobile number. ZipBook stores it as a full international number, for example +254712345678.');
+  if (!email) throw new Error('Enter your email address so we can send your sign-up code.');
+  if (!isValidEmail(email)) throw new Error('Enter a valid email address for your sign-up code.');
+
+  const existingAccount = await findClientAccountByPhone(phone);
+  if (existingAccount?.verified_at && existingAccount.password_hash) {
+    throw new Error('An account already exists for this mobile number. Please sign in instead.');
+  }
+
+  const customer = await ensureClientLoginCustomer({ ...input, phone, email });
+  const accountId = await ensureClientAccount(customer, { ...input, phone, email });
+  const passwordHash = hashClientPassword(accountId, password);
+  const database = db();
+  await database.sql`
+    UPDATE client_accounts
+    SET login_phone = ${phone}, login_email = ${email}, password_hash = ${passwordHash}, otp_enabled = TRUE, updated_at = NOW()
+    WHERE practice_id = ${PRACTICE_ID} AND id = ${accountId}
+  `;
+
+  const otpId = `otp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  const code = makeOtpCode();
+  const channel: 'sms' | 'email' = 'email';
+  const destination = email;
+
+  await database.sql`
+    INSERT INTO client_login_otps (id, practice_id, customer_id, destination, channel, otp_code_hash, expires_at)
+    VALUES (${otpId}, ${PRACTICE_ID}, ${customer.id}, ${destination}, ${channel}, ${hashSecret(`${otpId}:${code}`)}, NOW() + INTERVAL '10 minutes')
+  `;
+
+  const delivery = await deliverClientOtp({ channel, destination, code, otpId });
+
+  await database.sql`
+    INSERT INTO audit_logs (id, practice_id, action, entity_type, entity_id, source, details)
+    VALUES (${`audit-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`}, ${PRACTICE_ID}, ${'client_signup_otp_requested'}, ${'customer'}, ${customer.id}, ${'client'}, ${JSON.stringify({ channel, destination, accountPhone: phone, deliveryMode: delivery.mode, deliveryProvider: delivery.provider, deliveryReady: delivery.delivered })}::jsonb)
+  `;
+
+  const rows = await database.sql<{ expires_at: string }>`SELECT expires_at::text AS expires_at FROM client_login_otps WHERE id = ${otpId} LIMIT 1`;
+  return {
+    otpId,
+    channel,
+    destination,
+    accountPhone: phone,
+    expiresAt: rows[0]?.expires_at ?? '',
+    deliveryMessage: delivery.message,
+    deliveryMode: delivery.mode,
+    deliveryProvider: delivery.provider,
+    deliveryReady: delivery.delivered
+  };
+}
+
+export async function verifyClientSignupOtp(input: { otpId: string; code: string }): Promise<{ sessionToken: string; profile: ClientLoginProfile }> {
+  const otpId = cleanLoginValue(input.otpId);
+  const code = cleanLoginValue(input.code);
+  if (!otpId || !code) throw new Error('Enter the sign-up code.');
+
+  const database = db();
+  const rows = await database.sql<ClientLoginOtpRow>`
+    SELECT id, customer_id, destination, channel, otp_code_hash, expires_at::text AS expires_at, attempts, consumed_at::text AS consumed_at
+    FROM client_login_otps
+    WHERE practice_id = ${PRACTICE_ID} AND id = ${otpId}
+    LIMIT 1
+  `;
+  const otp = rows[0];
+  if (!otp || otp.consumed_at) throw new Error('This sign-up code is no longer valid. Please request a new one.');
+  if (new Date(otp.expires_at).getTime() < Date.now()) throw new Error('This sign-up code has expired. Please request a new one.');
+  if (otp.attempts >= 5) throw new Error('Too many incorrect attempts. Please request a new sign-up code.');
+
+  if (hashSecret(`${otp.id}:${code}`) !== otp.otp_code_hash) {
+    await database.sql`UPDATE client_login_otps SET attempts = attempts + 1 WHERE id = ${otp.id}`;
+    throw new Error('That code was not correct. Please check it and try again.');
+  }
+
+  await database.sql`UPDATE client_login_otps SET consumed_at = NOW(), attempts = attempts + 1 WHERE id = ${otp.id}`;
+  await database.sql`
+    UPDATE client_accounts
+    SET verified_at = COALESCE(verified_at, NOW()), last_login_at = NOW(), updated_at = NOW()
+    WHERE practice_id = ${PRACTICE_ID} AND customer_id = ${otp.customer_id}
+  `;
+  await database.sql`UPDATE customers SET has_client_login = TRUE, last_seen_at = NOW(), updated_at = NOW() WHERE practice_id = ${PRACTICE_ID} AND id = ${otp.customer_id}`;
+
+  const sessionToken = await createClientSession(otp.customer_id);
+  const profile = await getClientProfile(otp.customer_id);
+  return { sessionToken, profile };
+}
+
+export async function loginClientWithPassword(input: { phone?: string; localPhone?: string; countryDialCode?: string; password?: string }): Promise<{ sessionToken: string; profile: ClientLoginProfile }> {
+  const phone = normaliseClientLoginPhone(input);
+  const password = input.password ?? '';
+  if (!phone) throw new Error('Select your country and enter your mobile number.');
+  if (!isValidInternationalPhone(phone)) throw new Error('Enter a valid mobile number.');
+  if (!password) throw new Error('Enter your password.');
+
+  const account = await findClientAccountByPhone(phone);
+  if (!account || !account.password_hash) throw new Error('No account was found for this mobile number. Please sign up first.');
+  if (!account.verified_at) throw new Error('This mobile number has not been verified yet. Please complete sign-up first.');
+  if (hashClientPassword(account.id, password) !== account.password_hash) throw new Error('The mobile number or password was not recognised.');
+
+  const database = db();
+  await database.sql`
+    UPDATE client_accounts
+    SET last_login_at = NOW(), updated_at = NOW()
+    WHERE practice_id = ${PRACTICE_ID} AND id = ${account.id}
+  `;
+  await database.sql`UPDATE customers SET last_seen_at = NOW(), updated_at = NOW() WHERE practice_id = ${PRACTICE_ID} AND id = ${account.customer_id}`;
+
+  const sessionToken = await createClientSession(account.customer_id);
+  const profile = await getClientProfile(account.customer_id);
+  return { sessionToken, profile };
+}
+
 export async function requestClientLoginOtp(input: { phone?: string; localPhone?: string; countryDialCode?: string; email?: string }): Promise<{ otpId: string; channel: 'sms' | 'email'; destination: string; accountPhone: string; expiresAt: string; deliveryMessage: string; deliveryMode: string; deliveryProvider: string; deliveryReady: boolean }> {
   const phone = normaliseClientLoginPhone(input);
   const email = normaliseEmail(input.email);
@@ -691,13 +848,7 @@ export async function verifyClientLoginOtp(input: { otpId: string; code: string 
   `;
   await database.sql`UPDATE customers SET has_client_login = TRUE, last_seen_at = NOW(), updated_at = NOW() WHERE practice_id = ${PRACTICE_ID} AND id = ${otp.customer_id}`;
 
-  const sessionToken = makeToken('client');
-  const sessionId = `sess-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-  await database.sql`
-    INSERT INTO client_sessions (id, practice_id, customer_id, session_token_hash, expires_at)
-    VALUES (${sessionId}, ${PRACTICE_ID}, ${otp.customer_id}, ${hashSecret(sessionToken)}, NOW() + INTERVAL '30 days')
-  `;
-
+  const sessionToken = await createClientSession(otp.customer_id);
   const profile = await getClientProfile(otp.customer_id);
   return { sessionToken, profile };
 }

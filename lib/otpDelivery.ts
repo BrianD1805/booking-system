@@ -28,9 +28,9 @@ function buildEmailHtml(code: string) {
   return `
     <div style="margin:0;padding:24px;background:#f5f8fc;font-family:Arial,Helvetica,sans-serif;color:#14304a;">
       <div style="max-width:520px;margin:0 auto;background:#ffffff;border-radius:18px;padding:28px;border:1px solid #dbe8f5;box-shadow:0 12px 28px rgba(24,62,99,0.08);">
-        <p style="margin:0 0 8px 0;color:#336699;font-size:13px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;">ZipBook login code</p>
-        <h1 style="margin:0 0 14px 0;font-size:24px;line-height:1.25;color:#14304a;">Your one-time login code</h1>
-        <p style="margin:0 0 18px 0;font-size:15px;line-height:1.6;color:#4d6378;">Use this code to sign in to the ZipBook client booking app. It will expire in 10 minutes.</p>
+        <p style="margin:0 0 8px 0;color:#336699;font-size:13px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;">ZipBook verification code</p>
+        <h1 style="margin:0 0 14px 0;font-size:24px;line-height:1.25;color:#14304a;">Your ZipBook verification code</h1>
+        <p style="margin:0 0 18px 0;font-size:15px;line-height:1.6;color:#4d6378;">Use this code to verify your mobile number for your ZipBook account. It will expire in 10 minutes.</p>
         <div style="margin:22px 0;padding:18px 20px;background:#eef6ff;border:1px solid #cfe2f5;border-radius:16px;text-align:center;font-size:30px;letter-spacing:0.22em;font-weight:800;color:#255f99;">${code}</div>
         <p style="margin:0;font-size:13px;line-height:1.5;color:#6b7f92;">If you did not request this code, you can safely ignore this email.</p>
       </div>
@@ -49,7 +49,7 @@ async function sendEmailOtp(input: { destination: string; code: string }): Promi
       delivered: false,
       provider: 'email-not-configured',
       mode: 'email-provider-not-configured',
-      message: 'Email login codes are ready to send, but the email provider is not configured yet.'
+      message: 'Email verification codes are ready to send, but the email provider is not configured yet.'
     };
   }
 
@@ -62,7 +62,7 @@ async function sendEmailOtp(input: { destination: string; code: string }): Promi
     body: JSON.stringify({
       from,
       to: [input.destination],
-      subject: 'Your ZipBook login code',
+      subject: 'Your ZipBook verification code',
       html: buildEmailHtml(input.code),
       ...(replyTo ? { reply_to: replyTo } : {})
     })
@@ -76,7 +76,7 @@ async function sendEmailOtp(input: { destination: string; code: string }): Promi
       delivered: false,
       provider: 'resend',
       mode: 'email-provider',
-      message: 'We could not send the email login code just now. Please try again in a moment.'
+      message: 'We could not send the email verification code just now. Please try again in a moment.'
     };
   }
 
@@ -85,7 +85,7 @@ async function sendEmailOtp(input: { destination: string; code: string }): Promi
     delivered: true,
     provider: 'resend',
     mode: 'email-provider',
-    message: 'We have emailed your login code. Please check your inbox.'
+    message: 'We have emailed your verification code. Please check your inbox.'
   };
 }
 
@@ -107,7 +107,7 @@ export async function deliverClientOtp(input: {
       delivered: true,
       provider: 'console',
       mode: 'server-console-preview',
-      message: 'Email delivery is not configured locally yet. For local testing, check the Netlify dev terminal for the login code.'
+      message: 'Email delivery is not configured locally yet. For local testing, check the Netlify dev terminal for the verification code.'
     };
   }
 
@@ -118,7 +118,7 @@ export async function deliverClientOtp(input: {
       delivered: true,
       provider: 'console',
       mode: 'server-console-preview',
-      message: 'SMS delivery is not connected yet. For local testing, check the Netlify dev terminal for the login code.'
+      message: 'SMS delivery is not connected yet. For local testing, check the Netlify dev terminal for the verification code.'
     };
   }
 
