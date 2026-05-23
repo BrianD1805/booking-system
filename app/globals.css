@@ -2196,3 +2196,23 @@ textarea { min-height: 110px; resize: vertical; }
   scrollbar-width: thin;
   scrollbar-color: rgba(51, 102, 153, 0.38) rgba(219, 234, 254, 0.55);
 }
+
+
+/* Ver-0.021A: modal visibility and back-button lockdown.
+   Ver-0.021 grouped popup styles accidentally overrode the hidden booking flow state. */
+.booking-workflow:not(.is-open) {
+  display: none !important;
+  pointer-events: none;
+}
+
+.booking-workflow.is-open {
+  display: grid !important;
+  pointer-events: auto;
+}
+
+.booking-workflow .workflow-card,
+.time-picker-popup .time-picker-card,
+.client-auth-popup .client-auth-card,
+.booking-success-page .booking-success-card {
+  overscroll-behavior: contain;
+}

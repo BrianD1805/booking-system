@@ -1,6 +1,6 @@
 'use client';
 
-import { FormEvent, useEffect, useMemo, useState } from 'react';
+import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { APP_VERSION, procedureDuration, type ClientLoginProfile } from '@/lib/mockData';
 import { FIRST_AVAILABLE, getAvailabilityForDate, getDateOffset, getDayLabel, practitionersForProcedure } from '@/lib/availability';
 import { useBookingDatabase } from '@/lib/useBookingDatabase';
@@ -187,6 +187,7 @@ export default function BookPage() {
   const [bookingOpen, setBookingOpen] = useState(false);
   const [timePickerOpen, setTimePickerOpen] = useState(false);
   const [clientLoginOpen, setClientLoginOpen] = useState(false);
+  const modalHistoryRef = useRef(false);
   const [clientLoginStage, setClientLoginStage] = useState<LoginStage>('login');
   const [clientLoginCountryInput, setClientLoginCountryInput] = useState(phoneCountryLabel(DEFAULT_PHONE_COUNTRY));
   const [clientLoginPhone, setClientLoginPhone] = useState('');
@@ -288,6 +289,74 @@ export default function BookPage() {
     if (profile.customer.phone && !profile.customer.phone.startsWith('no-phone-')) setPatientPhone(profile.customer.phone);
     if (profile.customer.email && !profile.customer.email.endsWith('@client-login.local')) setPatientEmail(profile.customer.email);
   }
+
+
+  function hasOpenClientModal() {
+    return bookingOpen || timePickerOpen || clientLoginOpen || Boolean(successBooking);
+  }
+
+  function closeTopClientModal() {
+    if (timePickerOpen) {
+      setTimePickerOpen(false);
+      return;
+    }
+    if (successBooking) {
+      setSuccessBooking(null);
+      setCopyStatus('');
+      return;
+    }
+    if (clientLoginOpen) {
+      setClientLoginOpen(false);
+      return;
+    }
+    if (bookingOpen) {
+      setTimePickerOpen(false);
+      setBookingOpen(false);
+    }
+  }
+
+  function pushClientModalHistory() {
+    if (typeof window === 'undefined' || modalHistoryRef.current) return;
+    window.history.pushState({ zipbookClientModal: true }, '', window.location.href);
+    modalHistoryRef.current = true;
+  }
+
+  function dismissClientModal() {
+    if (typeof window !== 'undefined' && modalHistoryRef.current) {
+      window.history.back();
+      return;
+    }
+    closeTopClientModal();
+  }
+
+  function openBookingFlow() {
+    pushClientModalHistory();
+    setStep(0);
+    setTimePickerOpen(false);
+    setBookingOpen(true);
+  }
+
+  function openClientLogin(stage: LoginStage) {
+    pushClientModalHistory();
+    setClientLoginStage(stage);
+    setClientLoginOpen(true);
+  }
+
+  function openTimePicker() {
+    pushClientModalHistory();
+    setTimePickerOpen(true);
+  }
+
+  useEffect(() => {
+    function handleBrowserBack() {
+      if (!hasOpenClientModal()) return;
+      closeTopClientModal();
+      modalHistoryRef.current = false;
+    }
+
+    window.addEventListener('popstate', handleBrowserBack);
+    return () => window.removeEventListener('popstate', handleBrowserBack);
+  }, [bookingOpen, timePickerOpen, clientLoginOpen, successBooking]);
 
   async function requestClientSignupCode() {
     setClientLoginLoading(true);
@@ -424,6 +493,7 @@ export default function BookPage() {
       });
       setBookingOpen(false);
       setTimePickerOpen(false);
+      modalHistoryRef.current = Boolean(typeof window !== 'undefined' && window.history.state?.zipbookClientModal);
       setStep(0);
       resetSelection();
     } catch {
@@ -442,7 +512,7 @@ export default function BookPage() {
           className="client-login-icon-button"
           type="button"
           aria-label={clientProfile ? 'Open my account' : 'Open login and sign up'}
-          onClick={() => { setClientLoginOpen(true); setClientLoginStage(clientProfile ? 'signed-in' : 'login'); }}
+          onClick={() => openClientLogin(clientProfile ? 'signed-in' : 'login')}
         >
           <span aria-hidden="true">{clientProfile ? '✓' : '👤'}</span>
           <strong>{clientProfile ? 'My account' : 'Login'}</strong>
@@ -459,7 +529,7 @@ export default function BookPage() {
           Book your appointment quickly and clearly, with your details ready when you sign in.
         </p>
         <div className="client-home-actions">
-          <button className="button orange large-cta" type="button" onClick={() => setBookingOpen(true)}>
+          <button className="button orange large-cta" type="button" onClick={openBookingFlow}>
             Make a booking
           </button>
         </div>
@@ -492,7 +562,7 @@ export default function BookPage() {
                     : 'Login with your mobile number and password, or sign up once with phone verification.'}
                 </p>
               </div>
-              <button className="icon-button mobile-close" type="button" aria-label="Close login" onClick={() => setClientLoginOpen(false)}>×</button>
+              <button className="icon-button mobile-close" type="button" aria-label="Close login" onClick={dismissClientModal}>×</button>
             </div>
 
             {clientLoginStage !== 'signed-in' && (
@@ -607,7 +677,7 @@ export default function BookPage() {
               <p className="badge blue-badge">Step {step + 1} of {steps.length}</p>
               <h2>{steps[step]}</h2>
             </div>
-            <button className="icon-button mobile-close" type="button" aria-label="Close booking flow" onClick={() => { setBookingOpen(false); setTimePickerOpen(false); }}>×</button>
+            <button className="icon-button mobile-close" type="button" aria-label="Close booking flow" onClick={dismissClientModal}>×</button>
           </div>
 
           {error && (
@@ -695,7 +765,7 @@ export default function BookPage() {
               )}
               <div className="diary-inline-actions">
                 <button className="pill" type="button" onClick={() => setStep(1)} disabled={saving}>Back</button>
-                <button className="button primary" type="button" onClick={() => setTimePickerOpen(true)} disabled={loading || saving}>
+                <button className="button primary" type="button" onClick={openTimePicker} disabled={loading || saving}>
                   Select Time
                 </button>
               </div>
@@ -711,7 +781,7 @@ export default function BookPage() {
                     <h2 id="time-picker-title">{getDayLabel(selectedDate)}</h2>
                     <p className="mini-copy">Select one slot. You will review the appointment before it is booked.</p>
                   </div>
-                  <button className="icon-button mobile-close" type="button" aria-label="Close time selector" onClick={() => setTimePickerOpen(false)}>×</button>
+                  <button className="icon-button mobile-close" type="button" aria-label="Close time selector" onClick={dismissClientModal}>×</button>
                 </div>
 
                 <div className="time-picker-slots" role="list" aria-label="Available appointment times">
@@ -733,7 +803,7 @@ export default function BookPage() {
                 </div>
 
                 <div className="time-picker-actions">
-                  <button className="pill" type="button" onClick={() => setTimePickerOpen(false)}>Back</button>
+                  <button className="pill" type="button" onClick={dismissClientModal}>Back</button>
                   <button
                     className="button primary"
                     type="button"
@@ -824,6 +894,7 @@ export default function BookPage() {
                 type="button"
                 onClick={() => {
                   setSuccessBooking(null);
+                  modalHistoryRef.current = false;
                   window.close();
                 }}
               >
