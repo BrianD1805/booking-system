@@ -1815,3 +1815,123 @@ textarea { min-height: 110px; resize: vertical; }
     border-radius: 26px;
   }
 }
+
+/* Ver-0.020: premium live booking confirmation wait state */
+.workflow-card {
+  position: relative;
+}
+
+.booking-inline-warning {
+  display: grid;
+  gap: 8px;
+  margin: 14px 0 0;
+  padding: 12px 14px;
+  border-radius: 18px;
+  border: 1px solid rgba(185, 28, 28, 0.18);
+  background: linear-gradient(180deg, #fff7f7 0%, #fff1f1 100%);
+  color: #7f1d1d;
+  line-height: 1.4;
+}
+
+.booking-inline-warning strong {
+  font-size: 0.98rem;
+}
+
+.booking-inline-warning span {
+  font-size: 0.9rem;
+}
+
+.booking-inline-warning .pill {
+  justify-self: start;
+  background: #ffffff;
+}
+
+.booking-confirmation-wait {
+  position: absolute;
+  inset: 0;
+  z-index: 12;
+  display: grid;
+  place-items: center;
+  padding: 22px;
+  background: rgba(245, 249, 255, 0.84);
+  backdrop-filter: blur(10px);
+}
+
+.booking-wait-card {
+  width: min(390px, 100%);
+  display: grid;
+  justify-items: center;
+  text-align: center;
+  gap: 10px;
+  padding: 28px 24px;
+  border-radius: 30px;
+  border: 1px solid rgba(37, 99, 235, 0.18);
+  background: linear-gradient(180deg, #ffffff 0%, #eff6ff 100%);
+  box-shadow: 0 28px 70px rgba(20, 36, 54, 0.22);
+}
+
+.booking-wait-card h3 {
+  margin: 0;
+  color: var(--zw-blue-deep);
+  font-size: clamp(1.28rem, 5vw, 1.7rem);
+  letter-spacing: -0.035em;
+}
+
+.booking-wait-card p:not(.badge) {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.booking-wait-orbit {
+  position: relative;
+  width: 82px;
+  height: 82px;
+  margin-bottom: 4px;
+  border-radius: 999px;
+  background: radial-gradient(circle at center, #ffffff 0 38%, rgba(219, 234, 254, 0.9) 39% 100%);
+  box-shadow: inset 0 0 0 1px rgba(37, 99, 235, 0.16), 0 18px 38px rgba(37, 99, 235, 0.18);
+}
+
+.booking-wait-orbit::before {
+  content: '';
+  position: absolute;
+  inset: 12px;
+  border-radius: inherit;
+  border: 3px solid rgba(37, 99, 235, 0.18);
+  border-top-color: var(--zw-blue);
+  animation: zipbookWaitSpin 1s linear infinite;
+}
+
+.booking-wait-orbit span {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: var(--zw-blue);
+  animation: zipbookWaitPulse 1.25s ease-in-out infinite;
+}
+
+.booking-wait-orbit span:nth-child(1) { left: 36px; top: 8px; animation-delay: 0s; }
+.booking-wait-orbit span:nth-child(2) { right: 14px; bottom: 18px; animation-delay: 0.18s; }
+.booking-wait-orbit span:nth-child(3) { left: 14px; bottom: 18px; animation-delay: 0.36s; }
+
+@keyframes zipbookWaitSpin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes zipbookWaitPulse {
+  0%, 100% { transform: scale(0.78); opacity: 0.45; }
+  50% { transform: scale(1.18); opacity: 1; }
+}
+
+@media (max-width: 520px) {
+  .booking-confirmation-wait {
+    padding: 16px;
+  }
+
+  .booking-wait-card {
+    padding: 24px 18px;
+    border-radius: 26px;
+  }
+}

@@ -471,7 +471,7 @@ export default function BookPage() {
         {confirmedBookingId && (
           <p className="notice success" role="status">Appointment booked.</p>
         )}
-        {error && (
+        {!bookingOpen && error && (
           <div className="notice warning" role="alert">
             {error}
             <div style={{ marginTop: 10 }}><button className="pill" type="button" onClick={refresh}>Retry connection</button></div>
@@ -610,6 +610,28 @@ export default function BookPage() {
             <button className="icon-button mobile-close" type="button" aria-label="Close booking flow" onClick={() => { setBookingOpen(false); setTimePickerOpen(false); }}>×</button>
           </div>
 
+          {error && (
+            <div className="booking-inline-warning" role="alert">
+              <strong>We could not confirm that booking yet.</strong>
+              <span>{error}</span>
+              <button className="pill" type="button" onClick={() => void handleSubmit({ preventDefault: () => undefined } as FormEvent<HTMLFormElement>)} disabled={saving}>Try again</button>
+            </div>
+          )}
+
+          {saving && (
+            <div className="booking-confirmation-wait" role="status" aria-live="polite" aria-label="Waiting for booking confirmation">
+              <div className="booking-wait-card">
+                <div className="booking-wait-orbit" aria-hidden="true">
+                  <span></span>
+                  <span></span>
+                  <span></span>
+                </div>
+                <p className="badge blue-badge">Confirming appointment</p>
+                <h3>Please wait, we are checking the diary.</h3>
+                <p>Your appointment is being confirmed securely. Please keep this screen open.</p>
+              </div>
+            </div>
+          )}
 
           {step === 0 && (
             <section className="flow-step">
