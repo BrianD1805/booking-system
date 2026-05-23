@@ -1,7 +1,6 @@
 'use client';
 
 import { FormEvent, useEffect, useMemo, useState } from 'react';
-import { Header } from '@/components/Header';
 import { APP_VERSION, procedureDuration, type ClientLoginProfile } from '@/lib/mockData';
 import { FIRST_AVAILABLE, getAvailabilityForDate, getDateOffset, getDayLabel, practitionersForProcedure } from '@/lib/availability';
 import { useBookingDatabase } from '@/lib/useBookingDatabase';
@@ -434,52 +433,68 @@ export default function BookPage() {
 
   return (
     <main className="shell fresh-shell">
-      <Header area="client" />
+      <header className="client-home-topbar" aria-label="Client app header">
+        <a className="client-home-brand" href="/book" aria-label="ZipBook client home">
+          <img src="/icons/icon-72.png" alt="" width="44" height="44" />
+          <span>ZipBook</span>
+        </a>
+        <button
+          className="client-login-icon-button"
+          type="button"
+          aria-label={clientProfile ? 'Open my account' : 'Open login and sign up'}
+          onClick={() => { setClientLoginOpen(true); setClientLoginStage(clientProfile ? 'signed-in' : 'login'); }}
+        >
+          <span aria-hidden="true">{clientProfile ? '✓' : '👤'}</span>
+          <strong>{clientProfile ? 'My account' : 'Login'}</strong>
+        </button>
+      </header>
 
-      <section className="focus-hero client-welcome-hero">
-        <div>
-          <p className="badge blue-badge">ZipBook · {APP_VERSION}</p>
-          <h1 className="hero-title clean-title">Book your appointment.</h1>
-          <p className="hero-copy tight-copy">
-            Sign in for quicker booking, sign up once to verify your mobile number, or book an appointment now.
-          </p>
-          <div className="client-primary-actions">
-            <button className="button primary large-cta" type="button" onClick={() => { setClientLoginOpen(true); setClientLoginStage(clientProfile ? 'signed-in' : 'login'); }}>
-              {clientProfile ? 'My account' : 'Login / Sign up'}
-            </button>
-            <button className="button orange large-cta" type="button" onClick={() => setBookingOpen(true)}>
-              Book appointment
-            </button>
-          </div>
-          {confirmedBookingId && (
-            <p className="notice success" role="status">Appointment booked.</p>
-          )}
-          {error && (
-            <div className="notice warning" role="alert">
-              {error}
-              <div style={{ marginTop: 10 }}><button className="pill" type="button" onClick={refresh}>Retry connection</button></div>
-            </div>
-          )}
+      <section className="client-home-welcome" aria-labelledby="client-home-title">
+        <div className="client-home-icon-wrap" aria-hidden="true">
+          <img src="/icons/icon-192.png" alt="" width="96" height="96" />
         </div>
+        <p className="badge blue-badge">ZipBook · {APP_VERSION}</p>
+        <h1 id="client-home-title" className="hero-title clean-title">Welcome to ZipBook.</h1>
+        <p className="hero-copy tight-copy">
+          Book your appointment quickly and clearly, with your details ready when you sign in.
+        </p>
+        <div className="client-home-actions">
+          <button className="button orange large-cta" type="button" onClick={() => setBookingOpen(true)}>
+            Make a booking
+          </button>
+        </div>
+        {clientProfile && (
+          <p className="client-signed-in-note" role="status">
+            Signed in as <strong>{clientProfile.customer.fullName === 'Client user' ? clientProfile.customer.phone : clientProfile.customer.fullName}</strong>
+          </p>
+        )}
+        {confirmedBookingId && (
+          <p className="notice success" role="status">Appointment booked.</p>
+        )}
+        {error && (
+          <div className="notice warning" role="alert">
+            {error}
+            <div style={{ marginTop: 10 }}><button className="pill" type="button" onClick={refresh}>Retry connection</button></div>
+          </div>
+        )}
       </section>
 
-      <section className="client-login-card simplified-client-login" aria-label="Client login and sign up">
-        <div>
-          <h2>{clientProfile ? 'You are signed in.' : 'Login or sign up'}</h2>
-          <p className="mini-copy">
-            {clientProfile
-              ? 'Your details are ready for quicker appointment booking.'
-              : 'Existing clients sign in with mobile number and password. New clients verify their mobile number once during sign-up.'}
-          </p>
-        </div>
-        <div className="client-login-actions">
-          <button className="button primary" type="button" onClick={() => setClientLoginOpen((current) => !current)}>
-            {clientLoginOpen ? 'Hide' : clientProfile ? 'My account' : 'Login / Sign up'}
-          </button>
-          <button className="pill" type="button" onClick={() => setBookingOpen(true)}>Book appointment</button>
-        </div>
-        {clientLoginOpen && (
-          <div className="client-login-panel">
+      {clientLoginOpen && (
+        <section className="client-auth-popup" aria-label="Client login and sign up" role="dialog" aria-modal="true">
+          <div className="client-auth-card">
+            <div className="client-auth-head">
+              <div>
+                <p className="badge blue-badge">Client account</p>
+                <h2>{clientProfile ? 'My account' : 'Login or sign up'}</h2>
+                <p className="mini-copy">
+                  {clientProfile
+                    ? 'Your saved details are ready for quicker booking.'
+                    : 'Login with your mobile number and password, or sign up once with phone verification.'}
+                </p>
+              </div>
+              <button className="icon-button mobile-close" type="button" aria-label="Close login" onClick={() => setClientLoginOpen(false)}>×</button>
+            </div>
+
             {clientLoginStage !== 'signed-in' && (
               <>
                 <div className="auth-tabs" role="tablist" aria-label="Client account options">
@@ -521,7 +536,7 @@ export default function BookPage() {
                     <div className="form-row full-width-row">
                       <label htmlFor="clientPassword">Password</label>
                       <input id="clientPassword" value={clientPassword} onChange={(event) => setClientPassword(event.target.value)} type="password" autoComplete={clientLoginStage === 'signup' ? 'new-password' : 'current-password'} placeholder="Password" />
-                      {clientLoginStage === 'signup' && <small>Use at least 6 characters. OTP is used once to verify the mobile number.</small>}
+                      {clientLoginStage === 'signup' && <small>OTP is used once to verify your mobile number.</small>}
                     </div>
                   </div>
                 )}
@@ -537,7 +552,7 @@ export default function BookPage() {
                   </div>
                 )}
 
-                <div className="client-login-bottom">
+                <div className="client-login-bottom client-auth-bottom">
                   {clientLoginStage === 'login' && (
                     <button className="button primary" type="button" onClick={signInClient} disabled={clientLoginLoading || !canSignInClient}>
                       {clientLoginLoading ? 'Signing in…' : 'Login'}
@@ -556,7 +571,6 @@ export default function BookPage() {
                       <button className="pill" type="button" onClick={requestClientSignupCode} disabled={clientLoginLoading}>Send again</button>
                     </>
                   )}
-                  <span>{clientLoginStage === 'login' ? 'No code needed for normal login.' : clientLoginStage === 'signup' ? 'We verify your mobile once when you sign up.' : 'Codes expire after 10 minutes.'}</span>
                 </div>
               </>
             )}
@@ -583,8 +597,8 @@ export default function BookPage() {
             )}
             {clientLoginNotice && <p className={clientLoginNotice.toLowerCase().includes('could not') || clientLoginNotice.toLowerCase().includes('not correct') || clientLoginNotice.toLowerCase().includes('expired') || clientLoginNotice.toLowerCase().includes('not recognised') ? 'notice warning' : 'notice success'} role="status">{clientLoginNotice}</p>}
           </div>
-        )}
-      </section>
+        </section>
+      )}
 
       <form className={`booking-workflow ${bookingOpen ? 'is-open' : ''}`} onSubmit={handleSubmit}>
         <div className="workflow-card">
@@ -796,7 +810,6 @@ export default function BookPage() {
 
       <ClientInstallPrompt />
 
-      <p className="footer-note">Client-facing installable app by Brian Hallam at ZippyWeb.</p>
     </main>
   );
 }
