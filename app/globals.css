@@ -2449,3 +2449,206 @@ body {
     padding: 13px 14px;
   }
 }
+
+
+/* Ver-0.022A: forgot password opens as its own premium popup. */
+.client-reset-card {
+  width: min(620px, calc(100dvw - clamp(28px, 6vw, 56px))) !important;
+}
+
+.client-reset-card > .reset-popup-body,
+.client-reset-card > .notice {
+  min-width: 0;
+  max-width: none;
+  margin-left: clamp(18px, 3vw, 28px) !important;
+  margin-right: clamp(18px, 3vw, 28px) !important;
+}
+
+.client-reset-card > .reset-popup-body {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-top: clamp(18px, 3vw, 24px);
+  padding-bottom: clamp(28px, 5vw, 42px);
+  scrollbar-width: thin;
+  scrollbar-color: rgba(51, 102, 153, 0.38) rgba(219, 234, 254, 0.55);
+}
+
+.client-reset-card > .reset-popup-body::-webkit-scrollbar {
+  width: 10px;
+}
+
+.client-reset-card > .reset-popup-body::-webkit-scrollbar-track {
+  background: rgba(219, 234, 254, 0.55);
+  border-radius: 999px;
+}
+
+.client-reset-card > .reset-popup-body::-webkit-scrollbar-thumb {
+  background: rgba(51, 102, 153, 0.38);
+  border-radius: 999px;
+  border: 2px solid rgba(219, 234, 254, 0.55);
+}
+
+.client-reset-popup .client-auth-bottom {
+  justify-content: center;
+}
+
+@media (max-width: 760px) {
+  .client-reset-card > .reset-popup-body,
+  .client-reset-card > .notice {
+    margin-left: 16px !important;
+    margin-right: 16px !important;
+  }
+
+  .client-reset-card > .reset-popup-body {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Ver-0.022B: desktop-only login/sign-up popup repair. Mobile rules above remain unchanged. */
+@media (min-width: 861px) {
+  .client-auth-card:not(.client-reset-card) {
+    width: min(760px, calc(100dvw - 64px)) !important;
+    max-height: calc(100dvh - 48px) !important;
+  }
+
+  .client-auth-card:not(.client-reset-card) .client-auth-head {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    align-items: center;
+    gap: 14px;
+    padding: 16px 22px 12px !important;
+  }
+
+  .client-auth-title-copy {
+    min-width: 0;
+  }
+
+  .client-auth-card:not(.client-reset-card) .client-auth-head .badge {
+    padding: 4px 8px;
+    font-size: 0.76rem;
+  }
+
+  .client-auth-card:not(.client-reset-card) .client-auth-head h2 {
+    margin: 4px 0 2px;
+    font-size: 1.58rem;
+    line-height: 1.05;
+    letter-spacing: -0.04em;
+  }
+
+  .client-auth-card:not(.client-reset-card) .client-auth-head .mini-copy {
+    max-width: 430px;
+    margin: 0;
+    font-size: 0.84rem;
+    line-height: 1.32;
+  }
+
+  .client-auth-status-pill {
+    display: grid;
+    gap: 1px;
+    min-width: 144px;
+    max-width: 190px;
+    padding: 8px 10px;
+    border: 1px solid rgba(51, 102, 153, 0.14);
+    border-radius: 16px;
+    background: #f8fbff;
+    color: var(--muted);
+    font-size: 0.78rem;
+    line-height: 1.2;
+  }
+
+  .client-auth-status-pill strong {
+    color: var(--zw-blue-deep);
+    font-size: 0.82rem;
+  }
+
+  .client-auth-status-pill span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .client-auth-status-pill.warning {
+    border-color: rgba(185, 28, 28, 0.2);
+    background: #fff7f7;
+    color: #7f1d1d;
+  }
+
+  .client-auth-status-pill.warning strong {
+    color: #7f1d1d;
+  }
+
+  .client-auth-card:not(.client-reset-card) > .auth-tabs {
+    max-width: 270px;
+    margin-top: 12px !important;
+    padding: 4px;
+    gap: 4px;
+  }
+
+  .client-auth-card:not(.client-reset-card) > .auth-tabs .auth-tab {
+    padding: 7px 12px;
+    font-size: 0.86rem;
+  }
+
+  .client-auth-card:not(.client-reset-card) > .grid,
+  .client-auth-card:not(.client-reset-card) > .client-otp-box,
+  .client-auth-card:not(.client-reset-card) .client-profile-panel {
+    margin-left: 22px !important;
+    margin-right: 22px !important;
+    padding-top: 14px;
+    padding-bottom: 18px;
+  }
+
+  .client-auth-card:not(.client-reset-card) .controls-grid {
+    gap: 10px 14px;
+  }
+
+  .client-auth-card:not(.client-reset-card) .form-row {
+    gap: 5px;
+    margin-bottom: 8px;
+  }
+
+  .client-auth-card:not(.client-reset-card) label {
+    font-size: 0.84rem;
+  }
+
+  .client-auth-card:not(.client-reset-card) input,
+  .client-auth-card:not(.client-reset-card) select,
+  .client-auth-card:not(.client-reset-card) textarea {
+    min-height: 42px;
+    padding: 10px 12px;
+    border-radius: 13px;
+    font-size: 0.92rem;
+  }
+
+  .client-auth-card:not(.client-reset-card) .form-row small {
+    font-size: 0.76rem;
+  }
+
+  .client-auth-card:not(.client-reset-card) .auth-text-link {
+    padding-top: 3px;
+    font-size: 0.84rem;
+  }
+
+  .client-auth-card:not(.client-reset-card) .client-auth-bottom {
+    padding: 11px 22px 13px !important;
+  }
+
+  .client-auth-card:not(.client-reset-card) .client-auth-bottom .button,
+  .client-auth-card:not(.client-reset-card) .client-auth-bottom .pill {
+    min-height: 40px;
+    min-width: 132px;
+    padding: 9px 14px;
+    font-size: 0.9rem;
+  }
+
+  .client-auth-card:not(.client-reset-card) > .mobile-auth-notice {
+    display: none !important;
+  }
+}
+
+@media (max-width: 860px) {
+  .client-auth-status-pill {
+    display: none;
+  }
+}
