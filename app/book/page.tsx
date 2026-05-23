@@ -147,7 +147,7 @@ function previewPhone(country: PhoneCountry | null, localValue: string) {
   return full || 'Select country and enter local number';
 }
 
-type LoginStage = 'login' | 'signup' | 'verify-signup' | 'signed-in';
+type LoginStage = 'login' | 'signup' | 'verify-signup' | 'forgot-password' | 'reset-password' | 'signed-in';
 
 type ClientCodeResponse = {
   otpId: string;
@@ -193,6 +193,7 @@ export default function BookPage() {
   const [clientLoginPhone, setClientLoginPhone] = useState('');
   const [clientLoginEmail, setClientLoginEmail] = useState('');
   const [clientPassword, setClientPassword] = useState('');
+  const [clientResetPassword, setClientResetPassword] = useState('');
   const [clientOtpCode, setClientOtpCode] = useState('');
   const [clientOtp, setClientOtp] = useState<ClientCodeResponse | null>(null);
   const [clientSessionToken, setClientSessionToken] = useState('');
@@ -234,6 +235,8 @@ export default function BookPage() {
   const clientLoginFullPhone = buildInternationalPhone(selectedLoginCountry, clientLoginPhone);
   const canSignInClient = Boolean(selectedLoginCountry && clientLoginFullPhone && clientPassword.trim());
   const canStartClientSignup = Boolean(selectedLoginCountry && clientLoginFullPhone && clientLoginEmail.trim() && clientPassword.length >= 6);
+  const canRequestPasswordReset = Boolean(selectedLoginCountry && clientLoginFullPhone && clientLoginEmail.trim());
+  const canCompletePasswordReset = Boolean(clientOtpCode.trim().length >= 4 && clientResetPassword.length >= 6);
   const canGoToTreatment = patientName.trim() && patientPhone.trim() && patientEmail.trim();
   const canGoToDiary = Boolean(activeProcedureId && practitionerChoice);
   const canConfirm = Boolean(selectedTime && selectedPractitionerId);
@@ -391,6 +394,59 @@ export default function BookPage() {
     }
   }
 
+  async function requestClientPasswordResetCode() {
+    setClientLoginLoading(true);
+    setClientLoginNotice('');
+    try {
+      const response = await fetch('/api/client-login/password-reset/request-code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          phone: clientLoginFullPhone,
+          localPhone: clientLoginPhone,
+          countryName: selectedLoginCountry?.name,
+          countryIso: selectedLoginCountry?.iso,
+          countryDialCode: selectedLoginCountry?.dialCode,
+          email: clientLoginEmail
+        })
+      });
+      const payload = await readJsonResponse<ClientCodeResponse>(response);
+      setClientOtp(payload);
+      setClientOtpCode('');
+      setClientResetPassword('');
+      setClientLoginStage('reset-password');
+      setClientLoginNotice(payload.deliveryMessage ?? `We have sent a password reset code to ${payload.destination}.`);
+    } catch (error) {
+      setClientLoginNotice(error instanceof Error ? error.message : 'Could not send the password reset code.');
+    } finally {
+      setClientLoginLoading(false);
+    }
+  }
+
+  async function confirmClientPasswordReset() {
+    if (!clientOtp) return;
+    setClientLoginLoading(true);
+    setClientLoginNotice('');
+    try {
+      const response = await fetch('/api/client-login/password-reset/confirm', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ otpId: clientOtp.otpId, code: clientOtpCode, password: clientResetPassword })
+      });
+      const payload = await readJsonResponse<ClientVerifyResponse>(response);
+      window.localStorage.setItem('zipbook-client-session', payload.sessionToken);
+      setClientSessionToken(payload.sessionToken);
+      setClientPassword('');
+      setClientResetPassword('');
+      applyClientProfile(payload.profile);
+      setClientLoginNotice('Password reset. You are signed in again.');
+    } catch (error) {
+      setClientLoginNotice(error instanceof Error ? error.message : 'Could not reset the password.');
+    } finally {
+      setClientLoginLoading(false);
+    }
+  }
+
   async function verifyClientSignupCode() {
     if (!clientOtp) return;
     setClientLoginLoading(true);
@@ -447,6 +503,7 @@ export default function BookPage() {
     setClientProfile(null);
     setClientOtp(null);
     setClientOtpCode('');
+    setClientResetPassword('');
     setClientLoginStage('login');
     setClientLoginNotice('Signed out on this device.');
   }
@@ -559,11 +616,13 @@ export default function BookPage() {
             <div className="client-auth-head">
               <div>
                 <p className="badge blue-badge">Client account</p>
-                <h2>{clientProfile ? 'My account' : 'Login or sign up'}</h2>
+                <h2>{clientProfile ? 'My account' : clientLoginStage === 'forgot-password' || clientLoginStage === 'reset-password' ? 'Reset password' : 'Login or sign up'}</h2>
                 <p className="mini-copy">
                   {clientProfile
                     ? 'Your saved details are ready for quicker booking.'
-                    : 'Login with your mobile number and password, or sign up once with phone verification.'}
+                    : clientLoginStage === 'forgot-password' || clientLoginStage === 'reset-password'
+                      ? 'Use your verified mobile number and email address to safely set a new password.'
+                      : 'Login with your mobile number and password, or sign up once with phone verification.'}
                 </p>
               </div>
               <button className="icon-button mobile-close" type="button" aria-label="Close login" onClick={dismissClientModal}>×</button>
@@ -572,15 +631,15 @@ export default function BookPage() {
             {clientLoginStage !== 'signed-in' && (
               <>
                 <div className="auth-tabs" role="tablist" aria-label="Client account options">
-                  <button className={clientLoginStage === 'login' ? 'auth-tab active' : 'auth-tab'} type="button" onClick={() => { setClientLoginStage('login'); setClientLoginNotice(''); }}>
+                  <button className={clientLoginStage === 'login' ? 'auth-tab active' : 'auth-tab'} type="button" onClick={() => { setClientLoginStage('login'); setClientLoginNotice(''); setClientOtp(null); setClientOtpCode(''); }}>
                     Login
                   </button>
-                  <button className={clientLoginStage === 'signup' || clientLoginStage === 'verify-signup' ? 'auth-tab active' : 'auth-tab'} type="button" onClick={() => { setClientLoginStage('signup'); setClientLoginNotice(''); }}>
+                  <button className={clientLoginStage === 'signup' || clientLoginStage === 'verify-signup' ? 'auth-tab active' : 'auth-tab'} type="button" onClick={() => { setClientLoginStage('signup'); setClientLoginNotice(''); setClientOtp(null); setClientOtpCode(''); setClientResetPassword(''); }}>
                     Sign up
                   </button>
                 </div>
 
-                {clientLoginStage !== 'verify-signup' && (
+                {(clientLoginStage === 'login' || clientLoginStage === 'signup' || clientLoginStage === 'forgot-password') && (
                   <div className="grid two controls-grid">
                     <div className="form-row">
                       <label htmlFor="clientLoginCountry">Country</label>
@@ -601,17 +660,31 @@ export default function BookPage() {
                       <input id="clientLoginPhone" value={clientLoginPhone} onChange={(event) => setClientLoginPhone(event.target.value)} inputMode="tel" autoComplete="tel-national" placeholder="0712345678" />
                       <small>{previewPhone(selectedLoginCountry, clientLoginPhone)}</small>
                     </div>
-                    {clientLoginStage === 'signup' && (
+                    {(clientLoginStage === 'signup' || clientLoginStage === 'forgot-password') && (
                       <div className="form-row full-width-row">
                         <label htmlFor="clientLoginEmail">Email address</label>
                         <input id="clientLoginEmail" value={clientLoginEmail} onChange={(event) => setClientLoginEmail(event.target.value)} type="email" autoComplete="email" placeholder="you@example.com" />
+                        {clientLoginStage === 'forgot-password' && <small>Use the email address saved on your client account.</small>}
                       </div>
                     )}
-                    <div className="form-row full-width-row">
-                      <label htmlFor="clientPassword">Password</label>
-                      <input id="clientPassword" value={clientPassword} onChange={(event) => setClientPassword(event.target.value)} type="password" autoComplete={clientLoginStage === 'signup' ? 'new-password' : 'current-password'} placeholder="Password" />
-                      {clientLoginStage === 'signup' && <small>OTP is used once to verify your mobile number.</small>}
-                    </div>
+                    {clientLoginStage !== 'forgot-password' && (
+                      <div className="form-row full-width-row">
+                        <label htmlFor="clientPassword">Password</label>
+                        <input id="clientPassword" value={clientPassword} onChange={(event) => setClientPassword(event.target.value)} type="password" autoComplete={clientLoginStage === 'signup' ? 'new-password' : 'current-password'} placeholder="Password" />
+                        {clientLoginStage === 'signup' && <small>OTP is used once to verify your mobile number.</small>}
+                        {clientLoginStage === 'login' && (
+                          <button className="auth-text-link" type="button" onClick={() => { setClientLoginStage('forgot-password'); setClientLoginNotice(''); setClientOtp(null); setClientOtpCode(''); }}>
+                            Forgot password?
+                          </button>
+                        )}
+                      </div>
+                    )}
+                    {clientLoginStage === 'forgot-password' && (
+                      <div className="client-reset-intro full-width-row">
+                        <strong>Reset your password</strong>
+                        <span>We will send a one-time code to your saved email address before allowing a new password.</span>
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -626,6 +699,22 @@ export default function BookPage() {
                   </div>
                 )}
 
+                {clientLoginStage === 'reset-password' && (
+                  <div className="client-otp-box">
+                    <p className="mini-copy">Enter the code sent to {clientOtp?.destination}, then choose a new password.</p>
+                    <div className="form-row">
+                      <label htmlFor="clientOtpCode">Reset code</label>
+                      <input id="clientOtpCode" value={clientOtpCode} onChange={(event) => setClientOtpCode(event.target.value)} inputMode="numeric" maxLength={6} placeholder="6-digit code" />
+                    </div>
+                    <div className="form-row">
+                      <label htmlFor="clientResetPassword">New password</label>
+                      <input id="clientResetPassword" value={clientResetPassword} onChange={(event) => setClientResetPassword(event.target.value)} type="password" autoComplete="new-password" placeholder="At least 6 characters" />
+                      <small>Your old password will stop working after this reset.</small>
+                    </div>
+                    {clientOtp?.deliveryMode === 'server-console-preview' && <p className="delivery-note-pill">Local testing without email settings: check the Netlify dev terminal for the reset code.</p>}
+                  </div>
+                )}
+
                 <div className="client-login-bottom client-auth-bottom">
                   {clientLoginStage === 'login' && (
                     <button className="button primary" type="button" onClick={signInClient} disabled={clientLoginLoading || !canSignInClient}>
@@ -637,12 +726,28 @@ export default function BookPage() {
                       {clientLoginLoading ? 'Sending code…' : 'Create account'}
                     </button>
                   )}
+                  {clientLoginStage === 'forgot-password' && (
+                    <>
+                      <button className="pill" type="button" onClick={() => { setClientLoginStage('login'); setClientLoginNotice(''); }}>Back to login</button>
+                      <button className="button primary" type="button" onClick={requestClientPasswordResetCode} disabled={clientLoginLoading || !canRequestPasswordReset}>
+                        {clientLoginLoading ? 'Sending code…' : 'Send reset code'}
+                      </button>
+                    </>
+                  )}
                   {clientLoginStage === 'verify-signup' && (
                     <>
                       <button className="button primary" type="button" onClick={verifyClientSignupCode} disabled={clientLoginLoading || clientOtpCode.trim().length < 4}>
                         {clientLoginLoading ? 'Checking code…' : 'Verify and sign in'}
                       </button>
                       <button className="pill" type="button" onClick={requestClientSignupCode} disabled={clientLoginLoading}>Send again</button>
+                    </>
+                  )}
+                  {clientLoginStage === 'reset-password' && (
+                    <>
+                      <button className="button primary" type="button" onClick={confirmClientPasswordReset} disabled={clientLoginLoading || !canCompletePasswordReset}>
+                        {clientLoginLoading ? 'Resetting…' : 'Reset and sign in'}
+                      </button>
+                      <button className="pill" type="button" onClick={requestClientPasswordResetCode} disabled={clientLoginLoading}>Send again</button>
                     </>
                   )}
                 </div>

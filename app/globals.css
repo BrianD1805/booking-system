@@ -2394,3 +2394,58 @@ body {
     font-size: 0.82rem;
   }
 }
+
+/* Ver-0.022: client login/sign-up polish and forgot-password foundation.
+   Client home remains locked; this only extends the account popup. */
+.auth-text-link {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: var(--blue, #336699);
+  font-weight: 800;
+  padding: 8px 0 0;
+  width: fit-content;
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 4px;
+}
+
+.auth-text-link:hover {
+  color: #244f79;
+}
+
+.client-reset-intro {
+  border: 1px solid rgba(51, 102, 153, 0.14);
+  border-radius: 20px;
+  background: linear-gradient(135deg, rgba(219, 234, 254, 0.72), rgba(255, 255, 255, 0.96));
+  padding: 14px 16px;
+  display: grid;
+  gap: 5px;
+  color: var(--ink, #0f172a);
+}
+
+.client-reset-intro strong {
+  font-size: 0.98rem;
+}
+
+.client-reset-intro span {
+  color: var(--muted, #64748b);
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+.client-otp-box .form-row + .form-row {
+  margin-top: 14px;
+}
+
+@media (max-width: 760px) {
+  .auth-text-link {
+    padding-top: 6px;
+  }
+
+  .client-reset-intro {
+    border-radius: 18px;
+    padding: 13px 14px;
+  }
+}

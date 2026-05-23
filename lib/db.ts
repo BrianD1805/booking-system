@@ -932,6 +932,107 @@ export async function loginClientWithPassword(input: { phone?: string; localPhon
   return { sessionToken, profile };
 }
 
+
+export async function requestClientPasswordResetOtp(input: { phone?: string; localPhone?: string; countryDialCode?: string; email?: string }): Promise<{ otpId: string; channel: 'sms' | 'email'; destination: string; accountPhone: string; expiresAt: string; deliveryMessage: string; deliveryMode: string; deliveryProvider: string; deliveryReady: boolean }> {
+  const phone = normaliseClientLoginPhone(input);
+  const email = normaliseEmail(input.email);
+  if (!phone) throw new Error('Select your country and enter your mobile number.');
+  if (!isValidInternationalPhone(phone)) throw new Error('Enter a valid mobile number.');
+  if (!email) throw new Error('Enter the email address saved on your account.');
+  if (!isValidEmail(email)) throw new Error('Enter a valid email address.');
+
+  const account = await findClientAccountByPhone(phone);
+  if (!account || !account.password_hash) throw new Error('We could not find a verified account for those details. Please check the mobile number and email address.');
+  if (!account.verified_at) throw new Error('This mobile number has not been verified yet. Please complete sign-up first.');
+  if (normaliseEmail(account.login_email) !== email) throw new Error('We could not match that email address to this mobile number.');
+
+  const otpId = `otp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  const code = makeOtpCode();
+  const channel: 'sms' | 'email' = 'email';
+  const destination = email;
+  const database = db();
+
+  await database.sql`
+    INSERT INTO client_login_otps (id, practice_id, customer_id, destination, channel, otp_code_hash, expires_at)
+    VALUES (${otpId}, ${PRACTICE_ID}, ${account.customer_id}, ${destination}, ${channel}, ${hashSecret(`${otpId}:${code}`)}, NOW() + INTERVAL '10 minutes')
+  `;
+
+  const delivery = await deliverClientOtp({ channel, destination, code, otpId });
+
+  await database.sql`
+    INSERT INTO audit_logs (id, practice_id, action, entity_type, entity_id, source, details)
+    VALUES (${`audit-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`}, ${PRACTICE_ID}, ${'client_password_reset_otp_requested'}, ${'customer'}, ${account.customer_id}, ${'client'}, ${JSON.stringify({ channel, destination, accountPhone: phone, deliveryMode: delivery.mode, deliveryProvider: delivery.provider, deliveryReady: delivery.delivered })}::jsonb)
+  `;
+
+  const rows = await database.sql<{ expires_at: string }>`SELECT expires_at::text AS expires_at FROM client_login_otps WHERE id = ${otpId} LIMIT 1`;
+  return {
+    otpId,
+    channel,
+    destination,
+    accountPhone: phone,
+    expiresAt: rows[0]?.expires_at ?? '',
+    deliveryMessage: delivery.message,
+    deliveryMode: delivery.mode,
+    deliveryProvider: delivery.provider,
+    deliveryReady: delivery.delivered
+  };
+}
+
+export async function confirmClientPasswordReset(input: { otpId: string; code: string; password?: string }): Promise<{ sessionToken: string; profile: ClientLoginProfile }> {
+  const otpId = cleanLoginValue(input.otpId);
+  const code = cleanLoginValue(input.code);
+  const password = validateClientPassword(input.password);
+  if (!otpId || !code) throw new Error('Enter the password reset code.');
+
+  const database = db();
+  const rows = await database.sql<ClientLoginOtpRow>`
+    SELECT id, customer_id, destination, channel, otp_code_hash, expires_at::text AS expires_at, attempts, consumed_at::text AS consumed_at
+    FROM client_login_otps
+    WHERE practice_id = ${PRACTICE_ID} AND id = ${otpId}
+    LIMIT 1
+  `;
+  const otp = rows[0];
+  if (!otp || otp.consumed_at) throw new Error('This password reset code is no longer valid. Please request a new one.');
+  if (new Date(otp.expires_at).getTime() < Date.now()) throw new Error('This password reset code has expired. Please request a new one.');
+  if (otp.attempts >= 5) throw new Error('Too many incorrect attempts. Please request a new password reset code.');
+
+  if (hashSecret(`${otp.id}:${code}`) !== otp.otp_code_hash) {
+    await database.sql`UPDATE client_login_otps SET attempts = attempts + 1 WHERE id = ${otp.id}`;
+    throw new Error('That code was not correct. Please check it and try again.');
+  }
+
+  const accountRows = await database.sql<ClientAccountRow>`
+    SELECT id, customer_id, login_phone, login_email, password_hash, verified_at::text AS verified_at
+    FROM client_accounts
+    WHERE practice_id = ${PRACTICE_ID} AND customer_id = ${otp.customer_id}
+    ORDER BY updated_at DESC, created_at DESC
+    LIMIT 1
+  `;
+  const account = accountRows[0];
+  if (!account) throw new Error('Client account not found for this reset code.');
+
+  await database.sql`UPDATE client_login_otps SET consumed_at = NOW(), attempts = attempts + 1 WHERE id = ${otp.id}`;
+  await database.sql`
+    UPDATE client_accounts
+    SET password_hash = ${hashClientPassword(account.id, password)}, verified_at = COALESCE(verified_at, NOW()), last_login_at = NOW(), updated_at = NOW()
+    WHERE practice_id = ${PRACTICE_ID} AND id = ${account.id}
+  `;
+  await database.sql`
+    UPDATE client_sessions
+    SET revoked_at = NOW()
+    WHERE practice_id = ${PRACTICE_ID} AND customer_id = ${otp.customer_id} AND revoked_at IS NULL
+  `;
+  await database.sql`UPDATE customers SET has_client_login = TRUE, last_seen_at = NOW(), updated_at = NOW() WHERE practice_id = ${PRACTICE_ID} AND id = ${otp.customer_id}`;
+  await database.sql`
+    INSERT INTO audit_logs (id, practice_id, action, entity_type, entity_id, source, details)
+    VALUES (${`audit-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`}, ${PRACTICE_ID}, ${'client_password_reset_completed'}, ${'customer'}, ${otp.customer_id}, ${'client'}, ${JSON.stringify({ destination: otp.destination, channel: otp.channel })}::jsonb)
+  `;
+
+  const sessionToken = await createClientSession(otp.customer_id);
+  const profile = await getClientProfile(otp.customer_id);
+  return { sessionToken, profile };
+}
+
 export async function requestClientLoginOtp(input: { phone?: string; localPhone?: string; countryDialCode?: string; email?: string }): Promise<{ otpId: string; channel: 'sms' | 'email'; destination: string; accountPhone: string; expiresAt: string; deliveryMessage: string; deliveryMode: string; deliveryProvider: string; deliveryReady: boolean }> {
   const phone = normaliseClientLoginPhone(input);
   const email = normaliseEmail(input.email);
