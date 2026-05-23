@@ -2216,3 +2216,181 @@ textarea { min-height: 110px; resize: vertical; }
 .booking-success-page .booking-success-card {
   overscroll-behavior: contain;
 }
+
+/* Ver-0.021C: login/sign-up popup responsive lockdown.
+   Client home is locked; this only repairs the account popup behaviour. */
+html,
+body {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+.client-auth-popup {
+  position: fixed;
+  inset: 0;
+  width: 100dvw;
+  min-width: 0;
+  max-width: 100dvw;
+  min-height: 100dvh;
+  max-height: 100dvh;
+  overflow: hidden;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+  display: grid;
+  place-items: center;
+  padding: clamp(14px, 3vw, 28px) !important;
+}
+
+.client-auth-card {
+  width: min(620px, calc(100dvw - clamp(28px, 6vw, 56px))) !important;
+  max-width: calc(100dvw - clamp(28px, 6vw, 56px));
+  max-height: calc(100dvh - clamp(28px, 6vw, 56px));
+  min-width: 0;
+  display: flex !important;
+  flex-direction: column;
+  overflow: hidden !important;
+  overscroll-behavior: contain;
+}
+
+.client-auth-head {
+  flex: 0 0 auto;
+}
+
+.client-auth-card > .auth-tabs,
+.client-auth-card > .grid,
+.client-auth-card > .client-otp-box,
+.client-profile-panel,
+.client-auth-card > .notice {
+  min-width: 0;
+  max-width: none;
+  margin-left: clamp(18px, 3vw, 28px) !important;
+  margin-right: clamp(18px, 3vw, 28px) !important;
+}
+
+.client-auth-card > .auth-tabs {
+  align-self: center;
+  width: auto !important;
+  max-width: min(320px, calc(100% - 36px));
+  display: grid !important;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  padding: 5px;
+  margin-top: clamp(16px, 2.5vw, 22px) !important;
+  margin-bottom: 0 !important;
+  overflow: hidden !important;
+  border-radius: 999px;
+}
+
+.client-auth-card > .auth-tabs .auth-tab,
+.auth-tabs .auth-tab {
+  width: auto !important;
+  min-width: 0;
+  padding: 8px 14px;
+  font-size: 0.92rem;
+  line-height: 1;
+  white-space: nowrap;
+  text-align: center;
+}
+
+.client-auth-card > .grid,
+.client-auth-card > .client-otp-box,
+.client-profile-panel {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-top: clamp(18px, 3vw, 24px);
+  padding-bottom: clamp(28px, 5vw, 42px);
+  scrollbar-width: thin;
+}
+
+.client-auth-card > .notice {
+  flex: 0 0 auto;
+  overflow: visible;
+  margin-top: 12px;
+  margin-bottom: 12px;
+}
+
+.client-auth-bottom {
+  flex: 0 0 auto;
+  position: sticky;
+  bottom: 0;
+  width: 100%;
+  margin-top: auto;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.client-auth-bottom .button,
+.client-auth-bottom .pill {
+  width: auto;
+  min-width: 148px;
+}
+
+@media (max-width: 760px) {
+  .client-auth-popup {
+    align-items: center !important;
+    justify-items: center !important;
+    padding: 12px !important;
+  }
+
+  .client-auth-card {
+    width: calc(100dvw - 24px) !important;
+    max-width: calc(100dvw - 24px) !important;
+    max-height: calc(100dvh - 24px) !important;
+    border-radius: 24px !important;
+  }
+
+  .client-auth-head {
+    padding: 16px 16px 13px !important;
+  }
+
+  .client-auth-head h2 {
+    font-size: 1.45rem;
+  }
+
+  .client-auth-card > .auth-tabs {
+    max-width: 250px;
+    margin-left: auto !important;
+    margin-right: auto !important;
+    padding: 4px;
+  }
+
+  .client-auth-card > .auth-tabs .auth-tab,
+  .auth-tabs .auth-tab {
+    padding: 8px 11px;
+    font-size: 0.86rem;
+  }
+
+  .client-auth-card > .grid,
+  .client-auth-card > .client-otp-box,
+  .client-profile-panel,
+  .client-auth-card > .notice {
+    margin-left: 16px !important;
+    margin-right: 16px !important;
+  }
+
+  .client-auth-card > .grid {
+    grid-template-columns: 1fr;
+  }
+
+  .client-auth-bottom {
+    padding: 13px 16px calc(15px + env(safe-area-inset-bottom)) !important;
+  }
+
+  .client-auth-bottom .button,
+  .client-auth-bottom .pill {
+    width: 100%;
+  }
+}
+
+@media (max-width: 380px) {
+  .client-auth-card > .auth-tabs {
+    max-width: 224px;
+  }
+
+  .client-auth-card > .auth-tabs .auth-tab,
+  .auth-tabs .auth-tab {
+    padding: 7px 9px;
+    font-size: 0.82rem;
+  }
+}
