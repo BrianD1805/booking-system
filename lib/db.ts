@@ -355,6 +355,166 @@ function mapBlockedTime(row: BlockedTimeRow): BlockedTime {
   };
 }
 
+
+export type AdminDataCustomer = Customer & {
+  loginPhone?: string;
+  loginEmail?: string;
+  verifiedAt?: string;
+  passwordSet: boolean;
+  bookingCount: number;
+  latestBookingDate?: string;
+};
+
+type AdminDataCustomerRow = CustomerRow & {
+  login_phone: string | null;
+  login_email: string | null;
+  verified_at: string | null;
+  password_set: boolean;
+  booking_count: number;
+  latest_booking_date: string | null;
+};
+
+function mapAdminDataCustomer(row: AdminDataCustomerRow): AdminDataCustomer {
+  return {
+    ...mapCustomer(row),
+    loginPhone: row.login_phone ?? undefined,
+    loginEmail: row.login_email ?? undefined,
+    verifiedAt: row.verified_at ?? undefined,
+    passwordSet: Boolean(row.password_set),
+    bookingCount: Number(row.booking_count ?? 0),
+    latestBookingDate: row.latest_booking_date ? normaliseDate(row.latest_booking_date) : undefined
+  };
+}
+
+export async function listAdminDataCustomers(query?: string): Promise<AdminDataCustomer[]> {
+  const database = db();
+  const trimmed = cleanLoginValue(query).toLowerCase();
+  const pattern = `%${trimmed}%`;
+  const rows = trimmed.length >= 2
+    ? await database.sql<AdminDataCustomerRow>`
+      SELECT c.id, c.full_name, c.phone, c.email, c.notes, c.has_client_login, c.last_seen_at::text AS last_seen_at, c.created_at::text AS created_at, c.updated_at::text AS updated_at,
+             ca.login_phone, ca.login_email, ca.verified_at::text AS verified_at, (ca.password_hash IS NOT NULL AND ca.password_hash <> '') AS password_set,
+             COUNT(b.id)::int AS booking_count, MAX(b.booking_date)::text AS latest_booking_date
+      FROM customers c
+      LEFT JOIN client_accounts ca ON ca.customer_id = c.id
+      LEFT JOIN bookings b ON b.customer_id = c.id
+      WHERE c.practice_id = ${PRACTICE_ID}
+        AND (lower(c.full_name) LIKE ${pattern} OR lower(c.phone) LIKE ${pattern} OR lower(c.email) LIKE ${pattern})
+      GROUP BY c.id, c.full_name, c.phone, c.email, c.notes, c.has_client_login, c.last_seen_at, c.created_at, c.updated_at, ca.login_phone, ca.login_email, ca.verified_at, ca.password_hash
+      ORDER BY c.updated_at DESC, c.created_at DESC
+      LIMIT 50
+    `
+    : await database.sql<AdminDataCustomerRow>`
+      SELECT c.id, c.full_name, c.phone, c.email, c.notes, c.has_client_login, c.last_seen_at::text AS last_seen_at, c.created_at::text AS created_at, c.updated_at::text AS updated_at,
+             ca.login_phone, ca.login_email, ca.verified_at::text AS verified_at, (ca.password_hash IS NOT NULL AND ca.password_hash <> '') AS password_set,
+             COUNT(b.id)::int AS booking_count, MAX(b.booking_date)::text AS latest_booking_date
+      FROM customers c
+      LEFT JOIN client_accounts ca ON ca.customer_id = c.id
+      LEFT JOIN bookings b ON b.customer_id = c.id
+      WHERE c.practice_id = ${PRACTICE_ID}
+      GROUP BY c.id, c.full_name, c.phone, c.email, c.notes, c.has_client_login, c.last_seen_at, c.created_at, c.updated_at, ca.login_phone, ca.login_email, ca.verified_at, ca.password_hash
+      ORDER BY c.updated_at DESC, c.created_at DESC
+      LIMIT 50
+    `;
+
+  return rows.map(mapAdminDataCustomer);
+}
+
+async function getAdminDataCustomerById(customerId: string): Promise<AdminDataCustomer | null> {
+  const database = db();
+  const rows = await database.sql<AdminDataCustomerRow>`
+    SELECT c.id, c.full_name, c.phone, c.email, c.notes, c.has_client_login, c.last_seen_at::text AS last_seen_at, c.created_at::text AS created_at, c.updated_at::text AS updated_at,
+           ca.login_phone, ca.login_email, ca.verified_at::text AS verified_at, (ca.password_hash IS NOT NULL AND ca.password_hash <> '') AS password_set,
+           COUNT(b.id)::int AS booking_count, MAX(b.booking_date)::text AS latest_booking_date
+    FROM customers c
+    LEFT JOIN client_accounts ca ON ca.customer_id = c.id
+    LEFT JOIN bookings b ON b.customer_id = c.id
+    WHERE c.practice_id = ${PRACTICE_ID} AND c.id = ${customerId}
+    GROUP BY c.id, c.full_name, c.phone, c.email, c.notes, c.has_client_login, c.last_seen_at, c.created_at, c.updated_at, ca.login_phone, ca.login_email, ca.verified_at, ca.password_hash
+    LIMIT 1
+  `;
+
+  return rows[0] ? mapAdminDataCustomer(rows[0]) : null;
+}
+
+export async function updateAdminDataCustomer(input: { id: string; fullName: string; phone: string; email: string; notes?: string }): Promise<AdminDataCustomer> {
+  const database = db();
+  const fullName = cleanLoginValue(input.fullName);
+  const phone = cleanLoginValue(input.phone);
+  const email = normaliseEmail(input.email);
+  if (!fullName) throw new Error('Customer name is required.');
+  if (!phone) throw new Error('Customer phone is required.');
+  if (!isValidEmail(email)) throw new Error('Enter a valid customer email address.');
+
+  const rows = await database.sql<CustomerRow>`
+    UPDATE customers
+    SET full_name = ${fullName}, phone = ${phone}, email = ${email}, notes = ${input.notes ?? ''}, updated_at = NOW()
+    WHERE practice_id = ${PRACTICE_ID} AND id = ${input.id}
+    RETURNING id, full_name, phone, email, notes, has_client_login, last_seen_at::text AS last_seen_at, created_at::text AS created_at, updated_at::text AS updated_at
+  `;
+  if (!rows[0]) throw new Error('Customer not found.');
+
+  await database.sql`
+    UPDATE client_accounts
+    SET login_phone = ${phone}, login_email = ${email}, updated_at = NOW()
+    WHERE practice_id = ${PRACTICE_ID} AND customer_id = ${input.id}
+  `;
+
+  return await getAdminDataCustomerById(input.id) ?? { ...mapCustomer(rows[0]), passwordSet: false, bookingCount: 0 };
+}
+
+export async function setAdminDataCustomerPassword(input: { customerId: string; password: string }): Promise<AdminDataCustomer> {
+  const database = db();
+  const password = validateClientPassword(input.password);
+  const customer = await findCustomerById(input.customerId);
+  if (!customer) throw new Error('Customer not found.');
+
+  const existing = await database.sql<{ id: string }>`
+    SELECT id FROM client_accounts WHERE practice_id = ${PRACTICE_ID} AND customer_id = ${input.customerId} LIMIT 1
+  `;
+  const accountId = existing[0]?.id ?? `acct-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  const passwordHash = hashClientPassword(accountId, password);
+
+  if (existing[0]) {
+    await database.sql`
+      UPDATE client_accounts
+      SET login_phone = ${customer.phone}, login_email = ${customer.email.toLowerCase()}, password_hash = ${passwordHash}, verified_at = COALESCE(verified_at, NOW()), otp_enabled = FALSE, updated_at = NOW()
+      WHERE id = ${accountId}
+    `;
+  } else {
+    await database.sql`
+      INSERT INTO client_accounts (id, customer_id, practice_id, login_phone, login_email, password_hash, verified_at, otp_enabled)
+      VALUES (${accountId}, ${customer.id}, ${PRACTICE_ID}, ${customer.phone}, ${customer.email.toLowerCase()}, ${passwordHash}, NOW(), FALSE)
+    `;
+  }
+
+  await database.sql`
+    UPDATE customers SET has_client_login = TRUE, updated_at = NOW() WHERE practice_id = ${PRACTICE_ID} AND id = ${customer.id}
+  `;
+
+  return await getAdminDataCustomerById(customer.id) ?? { ...customer, hasClientLogin: true, passwordSet: true, bookingCount: 0 };
+}
+
+export async function deleteAdminDataCustomerAndBookings(customerId: string): Promise<{ deletedSessions: number; deletedOtps: number; deletedBookings: number; deletedAccounts: number; deletedCustomers: number }> {
+  const database = db();
+  const customer = await findCustomerById(customerId);
+  if (!customer) throw new Error('Customer not found.');
+
+  const sessions = await database.sql<{ count: number }>`WITH deleted AS (DELETE FROM client_sessions WHERE practice_id = ${PRACTICE_ID} AND customer_id = ${customerId} RETURNING id) SELECT COUNT(*)::int AS count FROM deleted`;
+  const otps = await database.sql<{ count: number }>`WITH deleted AS (DELETE FROM client_login_otps WHERE practice_id = ${PRACTICE_ID} AND customer_id = ${customerId} RETURNING id) SELECT COUNT(*)::int AS count FROM deleted`;
+  const bookings = await database.sql<{ count: number }>`WITH deleted AS (DELETE FROM bookings WHERE practice_id = ${PRACTICE_ID} AND customer_id = ${customerId} RETURNING id) SELECT COUNT(*)::int AS count FROM deleted`;
+  const accounts = await database.sql<{ count: number }>`WITH deleted AS (DELETE FROM client_accounts WHERE practice_id = ${PRACTICE_ID} AND customer_id = ${customerId} RETURNING id) SELECT COUNT(*)::int AS count FROM deleted`;
+  const customers = await database.sql<{ count: number }>`WITH deleted AS (DELETE FROM customers WHERE practice_id = ${PRACTICE_ID} AND id = ${customerId} RETURNING id) SELECT COUNT(*)::int AS count FROM deleted`;
+
+  return {
+    deletedSessions: Number(sessions[0]?.count ?? 0),
+    deletedOtps: Number(otps[0]?.count ?? 0),
+    deletedBookings: Number(bookings[0]?.count ?? 0),
+    deletedAccounts: Number(accounts[0]?.count ?? 0),
+    deletedCustomers: Number(customers[0]?.count ?? 0)
+  };
+}
+
 export async function getBootstrapData(): Promise<BootstrapData> {
   const database = db();
   const [practiceRows, procedureRows, blockedDateRows, blockedTimeRows, practitionerRows, practitionerWorkingHourRows, practitionerProcedureRows, practitionerBlockedTimeRows] = await Promise.all([

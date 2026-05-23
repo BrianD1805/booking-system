@@ -1468,3 +1468,96 @@ textarea { min-height: 110px; resize: vertical; }
     text-align: center;
   }
 }
+
+.admin-data-panel {
+  margin-bottom: 18px;
+}
+
+.inline-action-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.inline-action-row input {
+  flex: 1;
+}
+
+.admin-data-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 0.85fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.customer-data-list {
+  display: grid;
+  gap: 10px;
+  max-height: 62vh;
+  overflow: auto;
+  padding-right: 4px;
+}
+
+.customer-data-card {
+  appearance: none;
+  border: 1px solid rgba(51, 102, 153, 0.16);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 12px 30px rgba(22, 52, 84, 0.06);
+  color: var(--ink);
+  cursor: pointer;
+  display: grid;
+  gap: 4px;
+  padding: 14px;
+  text-align: left;
+  transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.customer-data-card:hover,
+.customer-data-card.selected {
+  border-color: rgba(51, 102, 153, 0.46);
+  box-shadow: 0 18px 42px rgba(22, 52, 84, 0.12);
+  transform: translateY(-1px);
+}
+
+.customer-data-card span,
+.customer-data-card small,
+.micro-copy {
+  color: var(--muted);
+  font-size: 0.86rem;
+}
+
+.admin-data-editor {
+  display: grid;
+  gap: 12px;
+}
+
+.admin-data-editor textarea {
+  resize: vertical;
+}
+
+.admin-data-divider {
+  border-top: 1px solid rgba(51, 102, 153, 0.14);
+  margin: 8px 0;
+}
+
+.button.danger {
+  background: #9f2f2f;
+  border-color: #9f2f2f;
+  color: white;
+}
+
+@media (max-width: 860px) {
+  .admin-data-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .inline-action-row {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .customer-data-list {
+    max-height: none;
+  }
+}
