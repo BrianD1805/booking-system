@@ -268,8 +268,7 @@ export default function BookPage() {
       .then((response) => readJsonResponse<{ profile: ClientLoginProfile }>(response))
       .then((payload) => {
         setClientSessionToken(storedToken);
-        setClientProfile(payload.profile);
-        setClientLoginStage('signed-in');
+        applyClientProfile(payload.profile);
       })
       .catch(() => {
         window.localStorage.removeItem('zipbook-client-session');
@@ -282,12 +281,16 @@ export default function BookPage() {
     setSelectedPractitionerId('');
   }
 
-  function applyClientProfile(profile: ClientLoginProfile) {
-    setClientProfile(profile);
-    setClientLoginStage('signed-in');
+  function prefillBookingDetailsFromProfile(profile: ClientLoginProfile) {
     if (profile.customer.fullName && profile.customer.fullName !== 'Client user') setPatientName(profile.customer.fullName);
     if (profile.customer.phone && !profile.customer.phone.startsWith('no-phone-')) setPatientPhone(profile.customer.phone);
     if (profile.customer.email && !profile.customer.email.endsWith('@client-login.local')) setPatientEmail(profile.customer.email);
+  }
+
+  function applyClientProfile(profile: ClientLoginProfile) {
+    setClientProfile(profile);
+    setClientLoginStage('signed-in');
+    prefillBookingDetailsFromProfile(profile);
   }
 
 
@@ -331,6 +334,7 @@ export default function BookPage() {
 
   function openBookingFlow() {
     pushClientModalHistory();
+    if (clientProfile) prefillBookingDetailsFromProfile(clientProfile);
     setStep(0);
     setTimePickerOpen(false);
     setBookingOpen(true);
