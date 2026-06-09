@@ -34,6 +34,8 @@ export default function AdminDataPage() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('Enter the admin data key, then load customers.');
   const [error, setError] = useState('');
+  const [pastBookingCount, setPastBookingCount] = useState<number | null>(null);
+  const [pastBookingBeforeDate, setPastBookingBeforeDate] = useState('');
 
   const authHeaders: Record<string, string> = adminKey.trim() ? { 'x-zipbook-admin-key': adminKey.trim() } : {};
 
@@ -72,6 +74,54 @@ export default function AdminDataPage() {
     });
     setNewPassword('');
     setMessage(`${customer.fullName} selected.`);
+  }
+
+  async function checkPastBookings() {
+    setLoading(true);
+    setError('');
+    try {
+      const response = await fetch('/api/admin-data/bookings/past', {
+        cache: 'no-store',
+        headers: authHeaders
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(typeof payload?.error === 'string' ? payload.error : 'Could not check past bookings.');
+      const count = Number(payload.summary?.pastBookingCount ?? 0);
+      const beforeDate = String(payload.summary?.beforeDate ?? 'today');
+      setPastBookingCount(count);
+      setPastBookingBeforeDate(beforeDate);
+      setMessage(count ? `${count} past booking${count === 1 ? '' : 's'} found before ${beforeDate}.` : `No past bookings found before ${beforeDate}.`);
+    } catch (checkError) {
+      setError(checkError instanceof Error ? checkError.message : 'Could not check past bookings.');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function deletePastBookings() {
+    const confirmed = window.confirm('Remove all bookings before today for the demo? This keeps customers and future bookings, but the deleted past bookings cannot be restored from this tool.');
+    if (!confirmed) return;
+
+    setLoading(true);
+    setError('');
+    try {
+      const response = await fetch('/api/admin-data/bookings/past?confirm=DELETE', {
+        method: 'DELETE',
+        headers: authHeaders
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(typeof payload?.error === 'string' ? payload.error : 'Could not remove past bookings.');
+      const deleted = Number(payload.result?.deletedBookings ?? 0);
+      const beforeDate = String(payload.result?.beforeDate ?? 'today');
+      setPastBookingCount(0);
+      setPastBookingBeforeDate(beforeDate);
+      setMessage(`Removed ${deleted} past booking${deleted === 1 ? '' : 's'} before ${beforeDate}. Customers and future bookings were left untouched.`);
+      await loadCustomers(query);
+    } catch (deleteError) {
+      setError(deleteError instanceof Error ? deleteError.message : 'Could not remove past bookings.');
+    } finally {
+      setLoading(false);
+    }
   }
 
   async function handleSearch(event: FormEvent<HTMLFormElement>) {
@@ -188,6 +238,24 @@ export default function AdminDataPage() {
 
         {error && <div className="notice warning" role="alert">{error}</div>}
         {!error && message && <div className="notice soft" role="status">{message}</div>}
+      </section>
+
+      <section className="card clean-panel admin-data-panel">
+        <div className="section-heading-row compact-row">
+          <div>
+            <h2 className="section-title compact">Demo cleanup</h2>
+            <p className="mini-copy">Remove old past bookings before a demo without deleting customer records or future appointments.</p>
+          </div>
+          <div className="command-actions">
+            <button className="pill" type="button" onClick={checkPastBookings} disabled={loading}>Check past bookings</button>
+            <button className="button danger" type="button" onClick={deletePastBookings} disabled={loading || pastBookingCount === 0}>Remove past bookings</button>
+          </div>
+        </div>
+        <p className="micro-copy">
+          {pastBookingCount === null
+            ? 'This only targets bookings dated before today. It does not remove today, future bookings, customers, client logins, sessions or OTP records.'
+            : `${pastBookingCount} past booking${pastBookingCount === 1 ? '' : 's'} before ${pastBookingBeforeDate || 'today'}.`}
+        </p>
       </section>
 
       <section className="admin-data-grid">

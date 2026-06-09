@@ -1241,6 +1241,46 @@ export async function updateBookingStatusInDatabase(id: string, status: BookingS
   return mapBooking(rows[0]);
 }
 
+
+export async function getPastBookingsDemoCleanupSummary(): Promise<{ pastBookingCount: number; beforeDate: string }> {
+  const database = db();
+  const rows = await database.sql<{ count: number; before_date: string }>`
+    SELECT COUNT(*)::int AS count, CURRENT_DATE::text AS before_date
+    FROM bookings
+    WHERE practice_id = ${PRACTICE_ID}
+      AND booking_date < CURRENT_DATE
+  `;
+
+  return {
+    pastBookingCount: Number(rows[0]?.count ?? 0),
+    beforeDate: normaliseDate(rows[0]?.before_date ?? new Date())
+  };
+}
+
+export async function deletePastBookingsForDemo(): Promise<{ deletedBookings: number; beforeDate: string }> {
+  const database = db();
+  const deleted = await database.sql<{ count: number; before_date: string }>`
+    WITH removed AS (
+      DELETE FROM bookings
+      WHERE practice_id = ${PRACTICE_ID}
+        AND booking_date < CURRENT_DATE
+      RETURNING id
+    )
+    SELECT COUNT(*)::int AS count, CURRENT_DATE::text AS before_date
+    FROM removed
+  `;
+
+  const deletedBookings = Number(deleted[0]?.count ?? 0);
+  const beforeDate = normaliseDate(deleted[0]?.before_date ?? new Date());
+
+  await database.sql`
+    INSERT INTO audit_logs (id, practice_id, action, entity_type, entity_id, source, details)
+    VALUES (${`audit-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`}, ${PRACTICE_ID}, ${'past_bookings_demo_cleanup'}, ${'booking'}, ${'past-bookings'}, ${'admin'}, ${JSON.stringify({ deletedBookings, beforeDate })}::jsonb)
+  `;
+
+  return { deletedBookings, beforeDate };
+}
+
 export async function deleteBookingFromDatabase(id: string): Promise<void> {
   const database = db();
   await database.sql`DELETE FROM bookings WHERE practice_id = ${PRACTICE_ID} AND id = ${id}`;
