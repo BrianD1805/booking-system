@@ -190,8 +190,19 @@ export function getAvailabilityForDate(
   const practiceBlocks = blockedTimes.filter((block) => block.date === date);
   const slots: DiarySlot[] = [];
 
-  for (let slotStart = start; slotStart + duration <= end; slotStart += slotInterval) {
+  for (let slotStart = start; slotStart < end; slotStart += slotInterval) {
     const slotEnd = slotStart + duration;
+
+    if (slotEnd > end) {
+      slots.push({
+        time: fromMinutes(slotStart),
+        endTime: fromMinutes(end),
+        available: false,
+        reason: `Not enough time for ${duration} mins before closing`
+      });
+      continue;
+    }
+
     const practiceBlock = practiceBlocks.find((block) => rangesOverlap(slotStart, slotEnd, toMinutes(block.startTime), toMinutes(block.endTime)));
 
     if (practiceBlock) {

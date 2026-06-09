@@ -108,6 +108,19 @@ const PHONE_COUNTRIES: PhoneCountry[] = [
 
 const DEFAULT_PHONE_COUNTRY = PHONE_COUNTRIES[0];
 
+function timeToMinutes(time: string) {
+  const [hours, minutes] = time.split(':').map(Number);
+  return (hours * 60) + minutes;
+}
+
+function slotStartsInsideSelectedAppointment(slotTime: string, selectedStartTime: string, selectedEndTime?: string) {
+  if (!selectedStartTime || !selectedEndTime) return false;
+  const slotStart = timeToMinutes(slotTime);
+  const selectedStart = timeToMinutes(selectedStartTime);
+  const selectedEnd = timeToMinutes(selectedEndTime);
+  return slotStart > selectedStart && slotStart < selectedEnd;
+}
+
 function phoneCountryLabel(country: PhoneCountry) {
   return `${country.name} (${country.dialCode})`;
 }
@@ -231,6 +244,7 @@ export default function BookPage() {
     [bookings, selectedDate, activeProcedureId, context, practitionerChoice]
   );
   const availableSlots = slots.filter((slot) => slot.available);
+  const selectedSlot = slots.find((slot) => slot.time === selectedTime && slot.practitionerId === selectedPractitionerId);
   const selectedPractitioner = practitioners.find((item) => item.id === selectedPractitionerId);
   const selectedLoginCountry = findPhoneCountry(clientLoginCountryInput);
   const clientLoginFullPhone = buildInternationalPhone(selectedLoginCountry, clientLoginPhone);
@@ -940,7 +954,7 @@ export default function BookPage() {
               {selectedTime ? (
                 <div className="selected-slot-summary">
                   <span>Selected time</span>
-                  <strong>{selectedTime} · {selectedPractitioner?.name ?? 'Practitioner selected'}</strong>
+                  <strong>{selectedTime}{selectedSlot?.endTime ? `–${selectedSlot.endTime}` : ''} · {selectedPractitioner?.name ?? 'Practitioner selected'}</strong>
                 </div>
               ) : (
                 <p className="mini-copy">Choose a date, then open the time selector to view the full list of available appointment times.</p>
@@ -961,27 +975,35 @@ export default function BookPage() {
                   <div>
                     <p className="badge blue-badge">Available times</p>
                     <h2 id="time-picker-title">{getDayLabel(selectedDate)}</h2>
-                    <p className="mini-copy">Select one slot. You will review the appointment before it is booked.</p>
+                    <p className="mini-copy">Select a start time. Longer appointments will visibly cover the extra diary blocks they need.</p>
                   </div>
                   <button className="icon-button mobile-close" type="button" aria-label="Close time selector" onClick={dismissClientModal}>×</button>
                 </div>
 
                 <div className="time-picker-slots" role="list" aria-label="Available appointment times">
-                  {slots.map((slot) => (
-                    <button
-                      key={`${slot.time}-${slot.endTime}-${slot.practitionerId ?? 'none'}`}
-                      className={`slot ${slot.available ? 'available' : 'unavailable'} ${selectedTime === slot.time && selectedPractitionerId === slot.practitionerId ? 'selected' : ''}`}
-                      disabled={!slot.available || saving}
-                      type="button"
-                      onClick={() => {
-                        setSelectedTime(slot.time);
-                        setSelectedPractitionerId(slot.practitionerId ?? '');
-                      }}
-                    >
-                      <strong>{slot.time}</strong>
-                      <span>{slot.available ? `${slot.endTime} · ${slot.practitionerName}` : slot.reason ?? 'Unavailable'}</span>
-                    </button>
-                  ))}
+                  {slots.map((slot) => {
+                    const isSelectedSlot = selectedTime === slot.time && selectedPractitionerId === slot.practitionerId;
+                    const isCoveredBySelection = Boolean(
+                      selectedSlot &&
+                      selectedSlot.practitionerId === slot.practitionerId &&
+                      slotStartsInsideSelectedAppointment(slot.time, selectedSlot.time, selectedSlot.endTime)
+                    );
+                    return (
+                      <button
+                        key={`${slot.time}-${slot.endTime}-${slot.practitionerId ?? 'none'}`}
+                        className={`slot ${slot.available ? 'available' : 'unavailable'} ${isSelectedSlot ? 'selected' : ''} ${isCoveredBySelection ? 'covered' : ''}`}
+                        disabled={!slot.available || saving}
+                        type="button"
+                        onClick={() => {
+                          setSelectedTime(slot.time);
+                          setSelectedPractitionerId(slot.practitionerId ?? '');
+                        }}
+                      >
+                        <strong>{slot.time}</strong>
+                        <span>{isCoveredBySelection ? 'Included in selected appointment' : slot.available ? `${slot.endTime} · ${slot.practitionerName}` : slot.reason ?? 'Unavailable'}</span>
+                      </button>
+                    );
+                  })}
                 </div>
 
                 <div className="time-picker-actions">

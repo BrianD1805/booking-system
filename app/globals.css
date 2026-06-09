@@ -363,6 +363,8 @@ textarea { min-height: 110px; resize: vertical; }
 .slot.available { border-color: rgba(37, 99, 235, 0.22); background: linear-gradient(180deg, #ffffff 0%, #eff6ff 100%); }
 .slot.available:hover, .slot.selected { border-color: var(--zw-blue); box-shadow: 0 16px 32px rgba(37, 99, 235, 0.14); }
 .slot.selected { outline: 3px solid rgba(37, 99, 235, 0.14); }
+.slot.covered { border-color: rgba(37, 99, 235, 0.42); background: linear-gradient(180deg, #eef6ff 0%, #dbeafe 100%); box-shadow: inset 4px 0 0 rgba(37, 99, 235, 0.46), 0 12px 26px rgba(37, 99, 235, 0.10); }
+.slot.covered span { color: #1d4ed8; font-weight: 800; }
 .slot.unavailable { background: #f8fafc; color: #8290a0; }
 .popup-slots { max-height: 370px; overflow: auto; padding-right: 4px; }
 .admin-slots { grid-template-columns: repeat(auto-fit, minmax(142px, 1fr)); }

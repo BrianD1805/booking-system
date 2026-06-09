@@ -25,6 +25,14 @@ function bookingStartsOnSlot(booking: { time: string }, slot: { time: string }) 
   return booking.time === slot.time;
 }
 
+function slotStartsInsideSelectedAppointment(slotTime: string, selectedStartTime: string, selectedEndTime?: string) {
+  if (!selectedStartTime || !selectedEndTime) return false;
+  const slotStart = timeToMinutes(slotTime);
+  const selectedStart = timeToMinutes(selectedStartTime);
+  const selectedEnd = timeToMinutes(selectedEndTime);
+  return slotStart > selectedStart && slotStart < selectedEnd;
+}
+
 export default function AdminPage() {
   const [selectedDate, setSelectedDate] = useState(getDateOffset(0));
   const [procedureId, setProcedureId] = useState('checkup');
@@ -81,6 +89,7 @@ export default function AdminPage() {
   const dateBookings = allDateBookings.filter((booking) =>
     diaryPractitionerFilter === 'all' ? true : booking.practitionerId === diaryPractitionerFilter
   );
+  const selectedBookingFlowSlot = bookingFlowSlots.find((slot) => slot.time === selectedTime);
   const canSave = Boolean(selectedTime && activePractitionerId && patientName.trim() && patientPhone.trim() && patientEmail.trim());
 
   async function handleCustomerSearch() {
@@ -315,12 +324,19 @@ export default function AdminPage() {
                 </div>
               </div>
               <div className="slot-grid popup-slots">
-                {bookingFlowSlots.map((slot) => (
-                  <button key={`${slot.time}-${slot.endTime}-modal`} className={`slot ${slot.available ? 'available' : 'unavailable'} ${selectedTime === slot.time ? 'selected' : ''}`} disabled={!slot.available || saving} type="button" onClick={() => setSelectedTime(slot.time)}>
-                    <strong>{slot.time}</strong>
-                    <span>{slot.available ? slot.endTime : slot.reason ?? 'Unavailable'}</span>
-                  </button>
-                ))}
+                {bookingFlowSlots.map((slot) => {
+                  const isSelectedSlot = selectedTime === slot.time;
+                  const isCoveredBySelection = Boolean(
+                    selectedBookingFlowSlot &&
+                    slotStartsInsideSelectedAppointment(slot.time, selectedBookingFlowSlot.time, selectedBookingFlowSlot.endTime)
+                  );
+                  return (
+                    <button key={`${slot.time}-${slot.endTime}-modal`} className={`slot ${slot.available ? 'available' : 'unavailable'} ${isSelectedSlot ? 'selected' : ''} ${isCoveredBySelection ? 'covered' : ''}`} disabled={!slot.available || saving} type="button" onClick={() => setSelectedTime(slot.time)}>
+                      <strong>{slot.time}</strong>
+                      <span>{isCoveredBySelection ? 'Included in selected appointment' : slot.available ? slot.endTime : slot.reason ?? 'Unavailable'}</span>
+                    </button>
+                  );
+                })}
               </div>
             </section>
           )}
