@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import Link from 'next/link';
 import { Header } from '@/components/Header';
 import { APP_VERSION } from '@/lib/mockData';
 import { makeAdminAuthHeaders } from '@/components/admin/AdminAuthGate';
@@ -54,9 +53,8 @@ export default function AdminAuditPage() {
           <h1 className="hero-title clean-title">Admin activity.</h1>
           <p className="hero-copy tight-copy">Bookings, client changes, staff changes and admin transactions are recorded here with the signed-in staff identity where available.</p>
         </div>
-        <div className="command-actions">
-          <Link className="pill" href="/admin">Back to diary</Link>
-          <button type="button" onClick={loadAudit} disabled={loading} className={`button primary large-cta admin-action-button ${loading ? 'is-loading' : ''}`}><span className="refresh-icon" aria-hidden="true">↻</span>{loading ? 'Refreshing…' : 'Refresh audit'}</button>
+        <div className="command-actions admin-compact-actions">
+          <button type="button" onClick={loadAudit} disabled={loading} className={`pill admin-action-button admin-compact-button ${loading ? 'is-loading' : ''}`}><span className="refresh-icon" aria-hidden="true">↻</span>{loading ? 'Refreshing…' : 'Refresh audit'}</button>
         </div>
       </section>
 

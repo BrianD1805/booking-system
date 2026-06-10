@@ -17,13 +17,15 @@ export function Header({ area }: { area: 'client' | 'admin' | 'landing' }) {
         <nav className="nav-pills" aria-label="Client navigation">
           <span className="pill">{contextLabel}</span>
         </nav>
+      ) : area === 'admin' ? (
+        <nav className="nav-pills" aria-label="Admin context">
+          <span className="pill">{contextLabel}</span>
+        </nav>
       ) : (
         <nav className="nav-pills" aria-label="Main navigation">
           <Link className="pill" href="/book">Client app</Link>
-          {area !== 'admin' && <Link className="pill" href="/admin">Admin app</Link>}
+          <Link className="pill" href="/admin">Admin app</Link>
           <Link className="pill" href="/widget">Website embed</Link>
-          {area === 'admin' && <Link className="pill" href="/admin/reception">Reception</Link>}
-          {area === 'admin' && <Link className="pill" href="/admin/data">Clients</Link>}
           <span className="pill">{contextLabel}</span>
         </nav>
       )}

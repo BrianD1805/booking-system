@@ -263,9 +263,8 @@ export default function ReceptionBookingPage() {
           <h1 className="hero-title clean-title">Add booking.</h1>
           <p className="hero-copy tight-copy">A guided receptionist flow: choose the client, choose the appointment, then confirm the live booking.</p>
         </div>
-        <div className="command-actions">
-          <Link className="pill" href="/admin">Back to diary</Link>
-          <button type="button" onClick={() => void handleReceptionRefresh()} disabled={saving || loading} className={`pill admin-action-button ${loading ? 'is-loading' : ''}`}><span className="refresh-icon" aria-hidden="true">↻</span>{loading ? 'Refreshing…' : 'Refresh diary'}</button>
+        <div className="command-actions admin-compact-actions">
+          <button type="button" onClick={() => void handleReceptionRefresh()} disabled={saving || loading} className={`pill admin-action-button admin-compact-button ${loading ? 'is-loading' : ''}`}><span className="refresh-icon" aria-hidden="true">↻</span>{loading ? 'Refreshing…' : 'Refresh diary'}</button>
         </div>
       </section>
 
@@ -414,7 +413,7 @@ export default function ReceptionBookingPage() {
 
           <div className="reception-save-actions">
             <Link className="pill" href="/admin">Cancel</Link>
-            <button type="submit" disabled={!canSave || saving || Boolean(error)} className={`button primary large-cta admin-busy-button ${saving ? 'is-loading' : ''}`}>{saving && <span className="admin-spinner" aria-hidden="true" />}{saving ? 'Checking diary…' : 'Save confirmed booking'}</button>
+            <button type="submit" disabled={!canSave || saving || Boolean(error)} className={`button primary admin-compact-button admin-busy-button ${saving ? 'is-loading' : ''}`}>{saving && <span className="admin-spinner" aria-hidden="true" />}{saving ? 'Checking diary…' : 'Save confirmed booking'}</button>
           </div>
         </section>
       </form>

@@ -270,9 +270,9 @@ export default function AdminPage() {
           <h1 className="hero-title clean-title">Practice diary.</h1>
           <p className="hero-copy tight-copy">A cleaner receptionist view for live appointments, practitioner diaries and fast patient updates.</p>
         </div>
-        <div className="command-actions">
-          <Link className="button primary large-cta" href="/admin/reception">Add booking</Link>
-          <button type="button" onClick={() => void handleDiaryRefresh()} disabled={saving || loading} className={`pill admin-action-button ${loading ? 'is-loading' : ''}`}><span className="refresh-icon" aria-hidden="true">↻</span>{loading ? 'Refreshing…' : 'Refresh diary'}</button>
+        <div className="command-actions admin-compact-actions">
+          <Link className="button primary admin-compact-button" href="/admin/reception">Add booking</Link>
+          <button type="button" onClick={() => void handleDiaryRefresh()} disabled={saving || loading} className={`pill admin-action-button admin-compact-button ${loading ? 'is-loading' : ''}`}><span className="refresh-icon" aria-hidden="true">↻</span>{loading ? 'Refreshing…' : 'Refresh diary'}</button>
         </div>
       </section>
 

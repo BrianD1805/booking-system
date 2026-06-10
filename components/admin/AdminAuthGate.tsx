@@ -45,8 +45,16 @@ export function AdminAuthGate({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('Enter the master key, then sign in as a staff member.');
   const [error, setError] = useState('');
+  const [menuOpen, setMenuOpen] = useState(false);
 
   const isAdminUtility = useMemo(() => pathname?.startsWith('/admin/staff') || pathname?.startsWith('/admin/audit'), [pathname]);
+  const adminMenuItems = useMemo(() => [
+    { href: '/admin', label: 'Diary', helper: 'Daily slots and bookings' },
+    { href: '/admin/reception', label: 'Add booking', helper: 'Reception booking flow' },
+    { href: '/admin/data', label: 'Clients', helper: 'Search and manage clients' },
+    { href: '/admin/staff', label: 'Staff', helper: 'Admin users and roles' },
+    { href: '/admin/audit', label: 'Audit trail', helper: 'Changes and transactions' }
+  ], []);
 
   useEffect(() => {
     const stored = getStoredAdminAuth();
@@ -209,15 +217,42 @@ export function AdminAuthGate({ children }: { children: React.ReactNode }) {
     <>
       <AdminToastHost />
       <div className="admin-staff-bar">
-        <span>Signed in: <strong>{staff.fullName}</strong> · {staff.role}</span>
-        <nav>
-          <a href="/admin">Diary</a>
-          <a href="/admin/reception">Reception</a>
-          <a href="/admin/data">Customers</a>
-          <a href="/admin/staff">Staff</a>
-          <a href="/admin/audit">Audit</a>
-        </nav>
-        <button type="button" onClick={signOut}>Staff sign out</button>
+        <div className="admin-staff-identity">
+          <span>Signed in</span>
+          <strong>{staff.fullName}</strong>
+          <small>{staff.role}</small>
+        </div>
+        <div className="admin-mega-menu-wrap">
+          <button
+            className="admin-mega-trigger"
+            type="button"
+            onClick={() => setMenuOpen((open) => !open)}
+            aria-expanded={menuOpen}
+            aria-controls="adminMegaMenu"
+          >
+            ☰ Admin menu
+          </button>
+          {menuOpen && (
+            <div id="adminMegaMenu" className="admin-mega-menu" role="menu">
+              <div className="admin-mega-menu-head">
+                <strong>ZipBook Admin</strong>
+                <span>One clean menu for diary, reception, clients and practice tools.</span>
+              </div>
+              <div className="admin-mega-menu-grid">
+                {adminMenuItems.map((item) => {
+                  const active = pathname === item.href || (item.href !== '/admin' && pathname?.startsWith(item.href));
+                  return (
+                    <a key={item.href} href={item.href} className={active ? 'active' : ''} role="menuitem" onClick={() => setMenuOpen(false)}>
+                      <strong>{item.label}</strong>
+                      <span>{item.helper}</span>
+                    </a>
+                  );
+                })}
+              </div>
+              <button type="button" className="admin-mega-signout" onClick={() => { setMenuOpen(false); signOut(); }}>Staff sign out</button>
+            </div>
+          )}
+        </div>
       </div>
       {isAdminUtility ? children : children}
     </>

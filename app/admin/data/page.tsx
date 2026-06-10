@@ -110,10 +110,9 @@ export default function AdminDataPage() {
           <h1 className="hero-title clean-title">Clients.</h1>
           <p className="hero-copy tight-copy">Search, add, edit and safely manage client records, family listings, documents, contact preferences and notes.</p>
         </div>
-        <div className="command-actions">
-          <Link className="pill" href="/admin">Back to diary</Link>
-          <Link href="/admin/data/new" className="button primary large-cta">Add client</Link>
-          <button type="button" onClick={() => loadClients()} disabled={loading} className={`button secondary large-cta admin-busy-button ${loading ? 'is-loading' : ''}`}>{loading && <span className="admin-spinner" aria-hidden="true" />}Load clients</button>
+        <div className="command-actions admin-compact-actions">
+          <Link href="/admin/data/new" className="button primary admin-compact-button">Add client</Link>
+          <button type="button" onClick={() => loadClients()} disabled={loading} className={`pill admin-busy-button admin-compact-button ${loading ? 'is-loading' : ''}`}>{loading && <span className="admin-spinner" aria-hidden="true" />}Load clients</button>
         </div>
       </section>
 
@@ -136,22 +135,6 @@ export default function AdminDataPage() {
         {!error && message && <div className="notice soft" role="status">{message}</div>}
       </section>
 
-      <section className="card clean-panel admin-data-panel">
-        <div className="section-heading-row compact-row">
-          <div>
-            <h2 className="section-title compact">Demo cleanup</h2>
-            <p className="mini-copy">Remove old past bookings before a demo without deleting client records or future appointments.</p>
-          </div>
-          <div className="command-actions">
-            <button type="button" onClick={checkPastBookings} disabled={loading} className={`pill admin-busy-button ${loading ? 'is-loading' : ''}`}>{loading && <span className="admin-spinner" aria-hidden="true" />}Check past bookings</button>
-            <button type="button" onClick={deletePastBookings} disabled={loading || pastBookingCount === 0} className={`button danger admin-busy-button ${loading ? 'is-loading' : ''}`}>{loading && <span className="admin-spinner" aria-hidden="true" />}Remove past bookings</button>
-          </div>
-        </div>
-        <p className="micro-copy">
-          {pastBookingCount === null ? 'This only targets bookings dated before today.' : `${pastBookingCount} past booking${pastBookingCount === 1 ? '' : 's'} before ${pastBookingBeforeDate || 'today'}.`}
-        </p>
-      </section>
-
       <section className="card clean-panel clients-results-panel">
         <div className="section-heading-row compact-row">
           <div>
@@ -170,6 +153,22 @@ export default function AdminDataPage() {
           {!clients.length && <p className="mini-copy">No clients loaded yet. Search above or add a new client.</p>}
         </div>
       </section>
+      <section className="card clean-panel admin-data-panel">
+        <div className="section-heading-row compact-row">
+          <div>
+            <h2 className="section-title compact">Demo cleanup</h2>
+            <p className="mini-copy">Remove old past bookings before a demo without deleting client records or future appointments.</p>
+          </div>
+          <div className="command-actions">
+            <button type="button" onClick={checkPastBookings} disabled={loading} className={`pill admin-busy-button ${loading ? 'is-loading' : ''}`}>{loading && <span className="admin-spinner" aria-hidden="true" />}Check past bookings</button>
+            <button type="button" onClick={deletePastBookings} disabled={loading || pastBookingCount === 0} className={`button danger admin-busy-button ${loading ? 'is-loading' : ''}`}>{loading && <span className="admin-spinner" aria-hidden="true" />}Remove past bookings</button>
+          </div>
+        </div>
+        <p className="micro-copy">
+          {pastBookingCount === null ? 'This only targets bookings dated before today.' : `${pastBookingCount} past booking${pastBookingCount === 1 ? '' : 's'} before ${pastBookingBeforeDate || 'today'}.`}
+        </p>
+      </section>
+
     </main>
   );
 }

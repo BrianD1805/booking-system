@@ -3955,3 +3955,213 @@ a.pill:active {
     justify-self: start;
   }
 }
+
+/* Ver-0.028B admin UX tidy pass */
+.admin-staff-bar {
+  padding: 8px 18px;
+  gap: 12px;
+}
+
+.admin-staff-identity {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+  color: #12345a;
+}
+
+.admin-staff-identity span,
+.admin-staff-identity small {
+  color: rgba(18, 52, 90, 0.68);
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.admin-staff-identity strong {
+  color: #092c57;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-mega-menu-wrap {
+  position: relative;
+  margin-left: auto;
+}
+
+.admin-mega-trigger,
+.admin-mega-signout {
+  border: 1px solid rgba(31, 93, 177, 0.18);
+  border-radius: 999px;
+  background: #ffffff;
+  color: #123f8c;
+  font-weight: 900;
+  padding: 8px 14px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.admin-mega-trigger {
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  color: #ffffff;
+  border-color: rgba(37, 99, 235, 0.5);
+  box-shadow: 0 12px 28px rgba(37, 99, 235, 0.18);
+}
+
+.admin-mega-menu {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  z-index: 2000;
+  width: min(520px, calc(100vw - 28px));
+  padding: 16px;
+  border: 1px solid rgba(31, 93, 177, 0.16);
+  border-radius: 26px;
+  background: rgba(255, 255, 255, 0.98);
+  box-shadow: 0 24px 70px rgba(15, 23, 42, 0.20);
+  backdrop-filter: blur(18px);
+}
+
+.admin-mega-menu-head {
+  display: grid;
+  gap: 3px;
+  padding: 4px 4px 12px;
+  color: #092c57;
+}
+
+.admin-mega-menu-head span {
+  color: rgba(18, 52, 90, 0.65);
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.admin-mega-menu-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.admin-mega-menu-grid a {
+  display: grid;
+  gap: 4px;
+  min-height: 74px;
+  padding: 13px 14px;
+  border: 1px solid rgba(31, 93, 177, 0.13);
+  border-radius: 18px;
+  background: linear-gradient(180deg, #ffffff 0%, #f6f9ff 100%);
+  color: #092c57;
+  text-decoration: none;
+}
+
+.admin-mega-menu-grid a.active {
+  border-color: rgba(37, 99, 235, 0.38);
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  color: #ffffff;
+  box-shadow: inset 5px 0 0 rgba(255, 255, 255, 0.38), 0 16px 28px rgba(37, 99, 235, 0.16);
+}
+
+.admin-mega-menu-grid a span {
+  color: rgba(18, 52, 90, 0.64);
+  font-size: 0.86rem;
+  font-weight: 700;
+}
+
+.admin-mega-menu-grid a.active span {
+  color: rgba(255, 255, 255, 0.78);
+}
+
+.admin-mega-signout {
+  width: auto;
+  margin-top: 12px;
+  color: #9f2f2f;
+  border-color: rgba(220, 38, 38, 0.22);
+}
+
+.admin-shell .admin-compact-actions {
+  align-items: center;
+  gap: 8px;
+}
+
+.admin-shell .admin-compact-button,
+.admin-shell .admin-form-actions .button,
+.admin-shell .admin-form-actions .pill {
+  width: auto !important;
+  min-width: 0 !important;
+  flex: 0 0 auto !important;
+  padding: 10px 16px;
+  font-size: 0.94rem;
+  line-height: 1.1;
+}
+
+.admin-form-actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 10px;
+}
+
+.admin-shell .admin-command {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+}
+
+.admin-shell .clients-search-panel {
+  margin-bottom: 12px;
+}
+
+.admin-shell .clients-results-panel {
+  margin-top: 0;
+  margin-bottom: 18px;
+}
+
+.admin-shell .clients-one-line-list {
+  max-width: 760px;
+}
+
+.admin-shell .client-one-line-row {
+  min-height: 40px;
+  padding: 8px 12px;
+  border-radius: 14px;
+  box-shadow: none;
+}
+
+.admin-shell .topbar .nav-pills a[href="/book"],
+.admin-shell .topbar .nav-pills a[href="/widget"] {
+  display: none;
+}
+
+@media (max-width: 760px) {
+  .admin-staff-identity {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .admin-mega-menu-wrap {
+    width: 100%;
+    margin-left: 0;
+  }
+
+  .admin-mega-trigger {
+    width: 100%;
+  }
+
+  .admin-mega-menu {
+    right: auto;
+    left: 0;
+    width: 100%;
+  }
+
+  .admin-mega-menu-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-shell .admin-command {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-form-actions,
+  .admin-shell .admin-compact-actions {
+    justify-content: flex-start;
+  }
+}

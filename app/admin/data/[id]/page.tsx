@@ -287,9 +287,9 @@ export default function AdminClientEditPage() {
           <h1 className="hero-title clean-title">{isNew ? 'Add client.' : 'Edit client.'}</h1>
           <p className="hero-copy tight-copy">Edit the client details, save, then return to the Clients page.</p>
         </div>
-        <div className="command-actions">
-          <Link className="pill" href="/admin/data">Back to clients</Link>
-          <button type="button" onClick={saveClient} disabled={loading || saving} className={`button primary large-cta admin-busy-button ${saving ? 'is-loading' : ''}`}>{saving && <span className="admin-spinner" aria-hidden="true" />}{isNew ? 'Save new client' : 'Save client'}</button>
+        <div className="command-actions admin-compact-actions">
+          <Link className="pill admin-compact-button" href="/admin/data">Back to clients</Link>
+          <button type="button" onClick={saveClient} disabled={loading || saving} className={`button primary admin-compact-button admin-busy-button ${saving ? 'is-loading' : ''}`}>{saving && <span className="admin-spinner" aria-hidden="true" />}{isNew ? 'Save new client' : 'Save client'}</button>
         </div>
       </section>
 

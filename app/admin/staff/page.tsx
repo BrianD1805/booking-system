@@ -1,7 +1,6 @@
 'use client';
 
 import { FormEvent, useEffect, useState } from 'react';
-import Link from 'next/link';
 import { Header } from '@/components/Header';
 import { APP_VERSION } from '@/lib/mockData';
 import { makeAdminAuthHeaders } from '@/components/admin/AdminAuthGate';
@@ -116,9 +115,8 @@ export default function AdminStaffPage() {
           <h1 className="hero-title clean-title">Staff logins.</h1>
           <p className="hero-copy tight-copy">Add, edit or remove the reception/admin staff who can use ZipBook after the master key has unlocked the admin system.</p>
         </div>
-        <div className="command-actions">
-          <Link className="pill" href="/admin">Back to diary</Link>
-          <button type="button" onClick={loadStaff} disabled={loading} className={`button primary large-cta admin-action-button ${loading ? 'is-loading' : ''}`}><span className="refresh-icon" aria-hidden="true">↻</span>{loading ? 'Refreshing…' : 'Refresh staff'}</button>
+        <div className="command-actions admin-compact-actions">
+          <button type="button" onClick={loadStaff} disabled={loading} className={`pill admin-action-button admin-compact-button ${loading ? 'is-loading' : ''}`}><span className="refresh-icon" aria-hidden="true">↻</span>{loading ? 'Refreshing…' : 'Refresh staff'}</button>
         </div>
       </section>
 
@@ -142,7 +140,9 @@ export default function AdminStaffPage() {
             <div className="form-row"><label>{form.id ? 'New password (optional)' : 'Password'}</label><input type="password" value={form.password} onChange={(event) => setForm({ ...form, password: event.target.value })} /></div>
             <label className="staff-active-toggle"><input type="checkbox" checked={form.active} onChange={(event) => setForm({ ...form, active: event.target.checked })} /> Active staff login</label>
           </div>
-          <button type="submit" disabled={loading} className={`button primary admin-busy-button ${loading ? 'is-loading' : ''}`}>{loading && <span className="admin-spinner" aria-hidden="true" />}{form.id ? 'Save staff changes' : 'Add staff member'}</button>
+          <div className="admin-form-actions">
+            <button type="submit" disabled={loading} className={`button primary admin-compact-button admin-busy-button ${loading ? 'is-loading' : ''}`}>{loading && <span className="admin-spinner" aria-hidden="true" />}{form.id ? 'Save staff changes' : 'Add staff member'}</button>
+          </div>
         </form>
       </section>
 
