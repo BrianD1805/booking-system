@@ -3878,3 +3878,80 @@ a.pill:active {
     justify-content: flex-start;
   }
 }
+
+/* Ver-0.028A clients list and edit page polish */
+.clients-results-panel {
+  display: grid;
+  gap: 14px;
+}
+
+.clients-one-line-list {
+  display: grid;
+  gap: 8px;
+}
+
+.client-one-line-row {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) minmax(140px, auto);
+  align-items: center;
+  gap: 12px;
+  min-height: 46px;
+  padding: 10px 14px;
+  border: 1px solid rgba(51, 102, 153, 0.16);
+  border-radius: 16px;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+  text-decoration: none;
+  color: #073763;
+  box-shadow: 0 8px 18px rgba(51, 102, 153, 0.06);
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
+.client-one-line-row:hover {
+  transform: translateY(-1px);
+  border-color: rgba(29, 95, 232, 0.32);
+  box-shadow: 0 12px 24px rgba(51, 102, 153, 0.12);
+}
+
+.client-one-line-row strong {
+  font-weight: 900;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.client-one-line-row span {
+  justify-self: end;
+  color: rgba(4, 36, 70, 0.7);
+  font-weight: 850;
+  white-space: nowrap;
+}
+
+.clients-editor-page-panel {
+  max-width: 1080px;
+  margin-inline: auto;
+}
+
+.notification-toggle-row .preference-toggle {
+  background: #ffffff;
+  color: #0b3970;
+  border-color: rgba(51, 102, 153, 0.28);
+  box-shadow: none;
+}
+
+.notification-toggle-row .preference-toggle.selected {
+  background: linear-gradient(135deg, #1d5fe8, #1744b8);
+  color: #ffffff;
+  border-color: transparent;
+  box-shadow: inset 4px 0 0 rgba(255, 255, 255, 0.44), 0 12px 24px rgba(29, 95, 232, 0.2);
+}
+
+@media (max-width: 700px) {
+  .client-one-line-row {
+    grid-template-columns: 1fr;
+    gap: 3px;
+  }
+
+  .client-one-line-row span {
+    justify-self: start;
+  }
+}

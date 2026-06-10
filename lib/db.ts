@@ -551,7 +551,7 @@ export async function listAdminDataCustomers(query?: string): Promise<AdminDataC
   return await Promise.all(rows.map(hydrateAdminDataCustomer));
 }
 
-async function getAdminDataCustomerById(customerId: string): Promise<AdminDataCustomer | null> {
+export async function getAdminDataCustomerById(customerId: string): Promise<AdminDataCustomer | null> {
   const database = db();
   const rows = await database.sql<AdminDataCustomerRow>`
     SELECT c.id, c.full_name, c.phone, c.email, c.notes, c.has_client_login, c.last_seen_at::text AS last_seen_at, c.created_at::text AS created_at, c.updated_at::text AS updated_at,
