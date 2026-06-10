@@ -3109,3 +3109,147 @@ body {
     max-height: calc(100dvh - 24px) !important;
   }
 }
+
+/* Ver-0.023C: polish reception client search popup padding and simplify results.
+   Client search results must be one line per client: full name and phone number only. */
+.reception-client-search-popup {
+  width: min(720px, calc(100dvw - clamp(32px, 6vw, 56px))) !important;
+  border-radius: 28px !important;
+}
+
+.reception-client-search-popup .reception-popup-header {
+  padding: 22px 24px 16px !important;
+  border-bottom: 1px solid rgba(51, 102, 153, 0.1);
+}
+
+.reception-client-search-popup .reception-popup-header h2 {
+  margin: 4px 0 6px;
+  font-size: clamp(1.45rem, 2.4vw, 1.9rem);
+  line-height: 1.05;
+}
+
+.reception-client-search-popup .reception-popup-header p:not(.badge) {
+  margin: 0;
+  max-width: 560px;
+  color: var(--muted);
+  font-size: 0.95rem;
+  line-height: 1.45;
+}
+
+.reception-client-search-popup .reception-popup-body {
+  gap: 12px !important;
+  padding: 18px 24px 20px !important;
+}
+
+.reception-client-search-popup .reception-search-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: stretch;
+}
+
+.reception-client-search-popup .reception-search-row input {
+  min-height: 46px;
+  padding: 11px 15px;
+  font-size: 0.98rem;
+}
+
+.reception-client-search-popup .reception-search-row .button {
+  min-height: 46px;
+  min-width: 118px;
+  padding: 10px 20px;
+  border-radius: 18px;
+}
+
+.reception-client-search-popup .customer-search-message {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+.reception-client-search-popup .reception-popup-results {
+  gap: 6px !important;
+  margin-top: 0;
+  max-height: 34vh;
+  padding-right: 2px;
+}
+
+.reception-client-search-popup .reception-client-result-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  min-height: 46px;
+  padding: 10px 13px;
+  border-radius: 14px;
+  line-height: 1.2;
+}
+
+.reception-client-search-popup .reception-client-result-row strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.95rem;
+}
+
+.reception-client-search-popup .reception-client-result-row span {
+  color: var(--muted);
+  font-size: 0.9rem;
+  white-space: nowrap;
+}
+
+.reception-client-search-popup .compact-empty-state {
+  padding: 14px;
+  border-radius: 16px;
+}
+
+.reception-client-search-popup .reception-popup-actions {
+  gap: 10px;
+  padding: 14px 24px 18px !important;
+  border-top: 1px solid rgba(51, 102, 153, 0.1);
+}
+
+.reception-client-search-popup .reception-popup-actions .pill {
+  min-height: 42px;
+  padding: 10px 18px;
+  font-size: 0.95rem;
+}
+
+@media (max-width: 760px) {
+  .reception-client-search-popup {
+    width: calc(100dvw - 24px) !important;
+    max-width: calc(100dvw - 24px) !important;
+    border-radius: 24px !important;
+  }
+
+  .reception-client-search-popup .reception-popup-header {
+    padding: 18px 18px 14px !important;
+  }
+
+  .reception-client-search-popup .reception-popup-body {
+    padding: 16px 18px 18px !important;
+  }
+
+  .reception-client-search-popup .reception-search-row {
+    grid-template-columns: 1fr;
+  }
+
+  .reception-client-search-popup .reception-search-row .button {
+    width: 100%;
+  }
+
+  .reception-client-search-popup .reception-client-result-row {
+    grid-template-columns: 1fr;
+    gap: 4px;
+    align-items: start;
+  }
+
+  .reception-client-search-popup .reception-client-result-row span {
+    white-space: normal;
+  }
+
+  .reception-client-search-popup .reception-popup-actions {
+    padding: 12px 18px 16px !important;
+  }
+}

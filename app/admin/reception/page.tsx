@@ -365,10 +365,9 @@ export default function ReceptionBookingPage() {
 
               <div className="customer-result-list reception-results reception-popup-results">
                 {customerResults.length > 0 ? customerResults.map((customer) => (
-                  <button className="customer-result" type="button" key={customer.id} onClick={() => selectCustomer(customer)}>
+                  <button className="customer-result reception-client-result-row" type="button" key={customer.id} onClick={() => selectCustomer(customer)}>
                     <strong>{customer.fullName}</strong>
-                    <span>{customer.phone} · {customer.email}</span>
-                    <em>{customer.hasClientLogin ? 'Client login enabled' : 'No client login account'}</em>
+                    <span>{customer.phone || 'No phone number'}</span>
                   </button>
                 )) : (
                   <div className="empty-state compact-empty-state">
