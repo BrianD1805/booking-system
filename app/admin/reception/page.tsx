@@ -3,11 +3,23 @@
 import Link from 'next/link';
 import { FormEvent, KeyboardEvent, useMemo, useState } from 'react';
 import { Header } from '@/components/Header';
-import { APP_VERSION, practitionerName, procedureDuration, procedureName, type Customer } from '@/lib/mockData';
+import { APP_VERSION, practitionerName, procedureDuration, procedureName, type Booking, type Customer } from '@/lib/mockData';
 import { FIRST_AVAILABLE, getAvailabilityForDate, getDateOffset, getDayLabel, practitionersForProcedure } from '@/lib/availability';
 import { useBookingDatabase } from '@/lib/useBookingDatabase';
 
 type ReceptionMode = 'search' | 'adhoc';
+
+type ReceptionSuccessBooking = {
+  id: string;
+  patientName: string;
+  patientPhone: string;
+  patientEmail: string;
+  treatment: string;
+  duration: number;
+  practitioner: string;
+  dateLabel: string;
+  time: string;
+};
 
 function timeToMinutes(time: string) {
   const [hours, minutes] = time.split(':').map(Number);
@@ -39,6 +51,8 @@ export default function ReceptionBookingPage() {
   const [receptionMode, setReceptionMode] = useState<ReceptionMode>('search');
   const [saveMessage, setSaveMessage] = useState('');
   const [clientPopupOpen, setClientPopupOpen] = useState(false);
+  const [successBooking, setSuccessBooking] = useState<ReceptionSuccessBooking | null>(null);
+  const [copyStatus, setCopyStatus] = useState('');
 
   const { bootstrap, bookings, loading, saving, error, createBooking, refresh } = useBookingDatabase(selectedDate);
   const { practiceSettings, procedures, blockedDates, blockedTimes, practitioners } = bootstrap;
@@ -135,6 +149,50 @@ export default function ReceptionBookingPage() {
     setSaveMessage('');
   }
 
+
+  function buildReceptionCopyText(booking: ReceptionSuccessBooking) {
+    return [
+      'Booking confirmed',
+      `Patient: ${booking.patientName}`,
+      `Phone: ${booking.patientPhone}`,
+      `Email: ${booking.patientEmail}`,
+      `Treatment: ${booking.treatment} · ${booking.duration} mins`,
+      `Date: ${booking.dateLabel}`,
+      `Time: ${booking.time}`,
+      `Practitioner: ${booking.practitioner}`,
+      `Booking ID: ${booking.id}`
+    ].join('\n');
+  }
+
+  async function copyReceptionBookingDetails() {
+    if (!successBooking) return;
+
+    try {
+      await navigator.clipboard.writeText(buildReceptionCopyText(successBooking));
+      setCopyStatus('Copied');
+      window.setTimeout(() => setCopyStatus(''), 2000);
+    } catch {
+      setCopyStatus('Copy failed');
+      window.setTimeout(() => setCopyStatus(''), 2500);
+    }
+  }
+
+  function startNextReceptionBooking() {
+    setSuccessBooking(null);
+    setCopyStatus('');
+    setSelectedCustomer(null);
+    setPatientName('');
+    setPatientPhone('');
+    setPatientEmail('');
+    setCustomerSearch('');
+    setCustomerResults([]);
+    setReceptionMode('search');
+    setSelectedTime('');
+    setNotes('');
+    setCustomerSearchMessage('Open client search to find an existing client, or use ad-hoc patient mode.');
+    setSaveMessage('');
+  }
+
   async function handleSaveBooking(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setSaveMessage('');
@@ -144,7 +202,7 @@ export default function ReceptionBookingPage() {
     }
 
     try {
-      await createBooking({
+      const booking: Booking = await createBooking({
         patientName: patientName.trim(),
         patientPhone: patientPhone.trim(),
         patientEmail: patientEmail.trim(),
@@ -157,9 +215,28 @@ export default function ReceptionBookingPage() {
         notes: notes.trim()
       });
 
-      setSaveMessage(`Booking saved for ${patientName.trim()} on ${getDayLabel(selectedDate)} at ${selectedTime}.`);
+      setSuccessBooking({
+        id: booking.id,
+        patientName: booking.patientName,
+        patientPhone: booking.patientPhone,
+        patientEmail: booking.patientEmail,
+        treatment: procedureName(booking.procedureId, procedures),
+        duration: procedureDuration(booking.procedureId, procedures),
+        practitioner: practitionerName(booking.practitionerId, practitioners),
+        dateLabel: getDayLabel(booking.date),
+        time: `${booking.time}–${booking.endTime}`
+      });
+      setCopyStatus('');
+      setSelectedCustomer(null);
+      setPatientName('');
+      setPatientPhone('');
+      setPatientEmail('');
+      setCustomerSearch('');
+      setCustomerResults([]);
+      setReceptionMode('search');
       setSelectedTime('');
       setNotes('');
+      setCustomerSearchMessage('Booking confirmed. Client cleared ready for the next booking.');
       await refresh();
     } catch {
       setSaveMessage('The booking could not be saved. Check the diary notice above and try again.');
@@ -189,7 +266,7 @@ export default function ReceptionBookingPage() {
         </div>
       )}
 
-      {saveMessage && <div className={`notice ${saveMessage.startsWith('Booking saved') ? 'success' : 'warning'}`}>{saveMessage}</div>}
+      {saveMessage && <div className="notice warning">{saveMessage}</div>}
 
       <form className="reception-booking-flow" onSubmit={handleSaveBooking}>
         <div className="reception-stepper" aria-label="Reception booking progress">
@@ -331,6 +408,46 @@ export default function ReceptionBookingPage() {
           </div>
         </section>
       </form>
+
+
+      {successBooking && (
+        <section className="booking-success-page reception-success-page" aria-labelledby="reception-success-title" role="dialog" aria-modal="true">
+          <div className="booking-success-card reception-success-card">
+            <div className="booking-success-head">
+              <p className="badge blue-badge">Booking confirmed</p>
+              <h2 id="reception-success-title">Appointment confirmed.</h2>
+              <p className="mini-copy success-mini-copy">Reception booking saved. Use Copy to save or share the details.</p>
+            </div>
+
+            <div className="booking-success-body">
+              <div className="success-details-card">
+                <div className="success-details-head">
+                  <strong>Booking details</strong>
+                  <button className="copy-details-button" type="button" onClick={copyReceptionBookingDetails} aria-label="Copy booking details">
+                    <span aria-hidden="true">⧉</span>
+                    {copyStatus || 'Copy'}
+                  </button>
+                </div>
+                <div className="success-detail-grid">
+                  <p><strong>Patient</strong><span>{successBooking.patientName}</span></p>
+                  <p><strong>Phone</strong><span>{successBooking.patientPhone}</span></p>
+                  <p><strong>Email</strong><span>{successBooking.patientEmail}</span></p>
+                  <p><strong>Treatment</strong><span>{successBooking.treatment} · {successBooking.duration} mins</span></p>
+                  <p><strong>Date</strong><span>{successBooking.dateLabel}</span></p>
+                  <p><strong>Time</strong><span>{successBooking.time}</span></p>
+                  <p><strong>Practitioner</strong><span>{successBooking.practitioner}</span></p>
+                  <p><strong>Booking ID</strong><span>{successBooking.id}</span></p>
+                </div>
+              </div>
+            </div>
+
+            <div className="success-actions">
+              <button className="button primary" type="button" onClick={startNextReceptionBooking}>Add next booking</button>
+              <Link className="pill" href="/admin">Back to diary</Link>
+            </div>
+          </div>
+        </section>
+      )}
 
       {clientPopupOpen && (
         <div className="client-auth-popup reception-client-popup-overlay" role="dialog" aria-modal="true" aria-label="Select client">

@@ -3253,3 +3253,57 @@ body {
     padding: 12px 18px 16px !important;
   }
 }
+
+/* Ver-0.023D: booking slot spacing, selected-duration styling and reception confirmation polish. */
+.slot-grid,
+.admin-slot-grid,
+.reception-slot-grid,
+.flow-slot-grid {
+  padding-top: 14px;
+}
+
+.diary-slots-panel .admin-slot-grid,
+.reception-slot-grid,
+.flow-slot-grid {
+  scroll-padding-top: 14px;
+}
+
+.slot.selected,
+.slot.covered,
+.reception-slot-grid .slot.selected,
+.reception-slot-grid .slot.covered,
+.flow-slot-grid .slot.selected,
+.flow-slot-grid .slot.covered {
+  border-color: rgba(51, 102, 153, 0.35) !important;
+  background: #eaf3ff !important;
+  color: var(--zw-blue-deep) !important;
+  outline: none !important;
+  box-shadow: inset 4px 0 0 rgba(37, 99, 235, 0.46), 0 12px 26px rgba(37, 99, 235, 0.10) !important;
+}
+
+.slot.selected span,
+.slot.covered span,
+.reception-slot-grid .slot.selected span,
+.reception-slot-grid .slot.covered span,
+.flow-slot-grid .slot.selected span,
+.flow-slot-grid .slot.covered span {
+  color: var(--muted) !important;
+  font-weight: 600 !important;
+}
+
+.slot.selected strong,
+.slot.covered strong,
+.reception-slot-grid .slot.selected strong,
+.reception-slot-grid .slot.covered strong,
+.flow-slot-grid .slot.selected strong,
+.flow-slot-grid .slot.covered strong {
+  color: var(--zw-blue-deep) !important;
+}
+
+.reception-success-page {
+  z-index: 1650;
+}
+
+.reception-success-card .success-actions {
+  justify-content: flex-end;
+}
