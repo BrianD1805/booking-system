@@ -101,7 +101,6 @@ export function useBookingDatabase(selectedDate?: string) {
       });
       const payload = await parseJsonResponse<{ booking: Booking }>(response);
       await loadBookings();
-      showAdminToast('Booking status updated.');
       if (input.source !== 'client') showAdminToast('Booking saved to the diary.');
       return payload.booking;
     } catch (error) {
@@ -121,10 +120,16 @@ export function useBookingDatabase(selectedDate?: string) {
         headers: { 'Content-Type': 'application/json', ...makeAdminAuthHeaders() },
         body: JSON.stringify({ status })
       });
-      await parseJsonResponse<{ booking: Booking }>(response);
+      const payload = await parseJsonResponse<{ booking: Booking }>(response);
       await loadBookings();
+      const statusLabel = status.replace('_', ' ');
+      showAdminToast(`Booking marked ${statusLabel}.`);
+      return payload.booking;
     } catch (error) {
-      setState((current) => ({ ...current, error: error instanceof Error ? error.message : 'Could not update booking.' }));
+      const message = error instanceof Error ? error.message : 'Could not update booking.';
+      setState((current) => ({ ...current, error: message }));
+      showAdminToast(message, 'warning');
+      throw error;
     } finally {
       setState((current) => ({ ...current, saving: false }));
     }
@@ -136,9 +141,12 @@ export function useBookingDatabase(selectedDate?: string) {
       const response = await fetch(`/api/bookings/${encodeURIComponent(id)}`, { method: 'DELETE', headers: makeAdminAuthHeaders() });
       await parseJsonResponse<{ ok: boolean }>(response);
       await loadBookings();
-      showAdminToast('Booking deleted.');
+      showAdminToast('Booking deleted from the diary.');
     } catch (error) {
-      setState((current) => ({ ...current, error: error instanceof Error ? error.message : 'Could not delete booking.' }));
+      const message = error instanceof Error ? error.message : 'Could not delete booking.';
+      setState((current) => ({ ...current, error: message }));
+      showAdminToast(message, 'warning');
+      throw error;
     } finally {
       setState((current) => ({ ...current, saving: false }));
     }

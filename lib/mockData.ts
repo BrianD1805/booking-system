@@ -35,7 +35,7 @@ export type PractitionerBlockedTime = {
   reason: string;
 };
 
-export type BookingStatus = 'confirmed' | 'rescheduled' | 'cancelled' | 'completed' | 'no_show';
+export type BookingStatus = 'confirmed' | 'arrived' | 'completed' | 'billing' | 'rescheduled' | 'cancelled' | 'no_show';
 export type BookingSource = 'client' | 'admin' | 'staff';
 
 export type Customer = {
@@ -124,7 +124,7 @@ export type BootstrapData = {
   practitionerBlockedTimes: PractitionerBlockedTime[];
 };
 
-export const APP_VERSION = 'Ver-0.025';
+export const APP_VERSION = 'Ver-0.027';
 
 export const fallbackProcedures: Procedure[] = [
   { id: 'checkup', name: 'Dental check-up', durationMinutes: 30, priceGuide: 'Standard consultation' },

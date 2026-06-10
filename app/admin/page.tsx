@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { FormEvent, useMemo, useState } from 'react';
+import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { Header } from '@/components/Header';
 import { APP_VERSION, practitionerName, procedureName, type BookingStatus, type Customer } from '@/lib/mockData';
 import { FIRST_AVAILABLE, getAvailabilityForDate, getDateOffset, getDayLabel, practitionersForProcedure } from '@/lib/availability';
@@ -10,6 +10,7 @@ import { makeAdminAuthHeaders } from '@/components/admin/AdminAuthGate';
 import { showAdminToast } from '@/components/admin/AdminToast';
 
 type AdminStep = 0 | 1 | 2;
+type BookingAction = 'confirmed' | 'arrived' | 'completed' | 'billing' | 'cancelled' | 'delete';
 
 function timeToMinutes(time: string) {
   const [hours, minutes] = time.split(':').map(Number);
@@ -36,6 +37,48 @@ function slotStartsInsideSelectedAppointment(slotTime: string, selectedStartTime
   return slotStart > selectedStart && slotStart < selectedEnd;
 }
 
+function localToday(date = new Date()) {
+  const local = new Date(date.getTime() - (date.getTimezoneOffset() * 60000));
+  return local.toISOString().slice(0, 10);
+}
+
+function formatTwelveHourClock(date: Date) {
+  return date.toLocaleTimeString('en-GB', { hour: 'numeric', minute: '2-digit', hour12: true });
+}
+
+function currentMinutes(date: Date) {
+  return (date.getHours() * 60) + date.getMinutes();
+}
+
+function slotHasPassed(selectedDate: string, endTime: string, now: Date) {
+  return selectedDate === localToday(now) && timeToMinutes(endTime) <= currentMinutes(now);
+}
+
+function bookingHasPassed(selectedDate: string, endTime: string, now: Date) {
+  return selectedDate === localToday(now) && timeToMinutes(endTime) <= currentMinutes(now);
+}
+
+function statusDisplayLabel(status: BookingStatus) {
+  if (status === 'confirmed') return 'Confirmed';
+  if (status === 'arrived') return 'Arrived';
+  if (status === 'completed') return 'Completed';
+  if (status === 'billing') return 'Billing';
+  if (status === 'cancelled') return 'Cancelled';
+  if (status === 'no_show') return 'No show';
+  if (status === 'rescheduled') return 'Rescheduled';
+  return status;
+}
+
+function bookingActionTitle(action: BookingAction) {
+  if (action === 'confirmed') return 'Record that reception has confirmed this booking by SMS, email or call.';
+  if (action === 'arrived') return 'Mark patient as arrived and waiting.';
+  if (action === 'completed') return 'Mark patient as being treated.';
+  if (action === 'billing') return 'Move this booking to billing. Billing link will be added later.';
+  if (action === 'cancelled') return 'Cancel this booking and release the diary slot.';
+  return 'Delete this booking from the diary.';
+}
+
+
 export default function AdminPage() {
   const [selectedDate, setSelectedDate] = useState(getDateOffset(0));
   const [procedureId, setProcedureId] = useState('checkup');
@@ -54,6 +97,8 @@ export default function AdminPage() {
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [customerSearchMessage, setCustomerSearchMessage] = useState('');
   const [lateMessage, setLateMessage] = useState('The dentist is running around 15 minutes late. Thank you for your patience.');
+  const [bookingActionKey, setBookingActionKey] = useState('');
+  const [now, setNow] = useState(() => new Date());
   const { bootstrap, bookings, loading, saving, error, createBooking, updateBookingStatus, deleteBooking, refresh } = useBookingDatabase(selectedDate);
   const { practiceSettings, procedures, blockedDates, blockedTimes, practitioners } = bootstrap;
   const activeProcedureId = procedures.find((procedure) => procedure.id === procedureId)?.id ?? procedures[0]?.id ?? procedureId;
@@ -93,13 +138,51 @@ export default function AdminPage() {
     diaryPractitionerFilter === 'all' ? true : booking.practitionerId === diaryPractitionerFilter
   );
   const selectedBookingFlowSlot = bookingFlowSlots.find((slot) => slot.time === selectedTime);
+  const visibleOpenSlots = diarySlots.filter((slot) => slot.available && !slotHasPassed(selectedDate, slot.endTime, now));
+  const upcomingBookingCount = dateBookings.filter((booking) => !bookingHasPassed(selectedDate, booking.endTime, now)).length;
+  const currentClockLabel = formatTwelveHourClock(now);
   const canSave = Boolean(selectedTime && activePractitionerId && patientName.trim() && patientPhone.trim() && patientEmail.trim());
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(new Date()), 30000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   async function handleDiaryRefresh() {
     await refresh();
     showAdminToast('Diary refreshed.', 'info');
   }
 
+  function bookingActionLabel(action: BookingAction) {
+    if (action === 'confirmed') return 'Confirming…';
+    if (action === 'arrived') return 'Marking arrived…';
+    if (action === 'completed') return 'Moving to treatment…';
+    if (action === 'billing') return 'Moving to billing…';
+    if (action === 'cancelled') return 'Cancelling…';
+    return 'Deleting…';
+  }
+
+  async function handleBookingStatusAction(bookingId: string, status: BookingStatus) {
+    const actionKey = `${bookingId}-${status}`;
+    setBookingActionKey(actionKey);
+    try {
+      await updateBookingStatus(bookingId, status);
+    } finally {
+      setBookingActionKey('');
+    }
+  }
+
+  async function handleBookingDeleteAction(bookingId: string, patientNameForBooking: string) {
+    const confirmed = window.confirm(`Delete booking for ${patientNameForBooking}? This removes it from the diary and records it in the audit trail.`);
+    if (!confirmed) return;
+    const actionKey = `${bookingId}-delete`;
+    setBookingActionKey(actionKey);
+    try {
+      await deleteBooking(bookingId);
+    } finally {
+      setBookingActionKey('');
+    }
+  }
 
   async function handleCustomerSearch() {
     const query = customerSearch.trim();
@@ -202,8 +285,8 @@ export default function AdminPage() {
 
       <section className="compact-dashboard">
         <article className="mini-card"><strong>{practitioners.filter((item) => item.active).length}</strong><span>Active clinicians</span></article>
-        <article className="mini-card"><strong>{allDateBookings.length}</strong><span>Bookings on this date</span></article>
-        <article className="mini-card"><strong>{loading ? '…' : diarySlots.filter((slot) => slot.available).length}</strong><span>Open slots</span></article>
+        <article className="mini-card"><strong>{upcomingBookingCount}</strong><span>Upcoming bookings</span></article>
+        <article className="mini-card"><strong>{loading ? '…' : visibleOpenSlots.length}</strong><span>Open slots remaining</span></article>
       </section>
 
       <section className="card diary-panel clean-panel">
@@ -232,7 +315,7 @@ export default function AdminPage() {
 
         <div className="diary-focus-note">
           <strong>Diary view</strong>
-          <span>This view shows confirmed bookings for the selected date. Procedures are selected only when adding a new booking.</span>
+          <span>This view shows live bookings for the selected date. Cancelled bookings release their slot; deleted bookings are removed from the diary.</span>
         </div>
 
         <section className="diary-slots-panel">
@@ -241,15 +324,17 @@ export default function AdminPage() {
               <h3 className="mini-section-title">Slots view</h3>
               <p className="mini-copy">Visual 30-minute diary preview for the selected date and practitioner filter.</p>
             </div>
-            <button type="button" onClick={() => void handleDiaryRefresh()} disabled={saving || loading} className={`pill admin-action-button ${loading ? 'is-loading' : ''}`}><span className="refresh-icon" aria-hidden="true">↻</span>{loading ? 'Refreshing…' : 'Refresh'}</button>
+            <div className="admin-refresh-cluster"><span className="admin-clock-pill" aria-label="Current time">{currentClockLabel}</span><button type="button" onClick={() => void handleDiaryRefresh()} disabled={saving || loading} className={`pill admin-action-button ${loading ? 'is-loading' : ''}`}><span className="refresh-icon" aria-hidden="true">↻</span>{loading ? 'Refreshing…' : 'Refresh'}</button></div>
           </div>
           <div className="slot-grid admin-slot-grid">
             {diarySlots.map((slot) => {
               const overlappingBookings = dateBookings.filter((booking) => bookingOverlapsSlot(booking, slot));
               const firstBooking = overlappingBookings[0];
               const startsInThisSlot = firstBooking ? bookingStartsOnSlot(firstBooking, slot) : false;
+              const passedSlot = slotHasPassed(selectedDate, slot.endTime, now);
+              const slotStateClass = passedSlot ? 'past' : overlappingBookings.length ? 'booked' : slot.available ? 'available' : 'unavailable';
               return (
-                <article key={`${slot.time}-${slot.endTime}-admin-diary`} className={`slot diary-slot-card ${overlappingBookings.length ? 'booked' : slot.available ? 'available' : 'unavailable'}`}>
+                <article key={`${slot.time}-${slot.endTime}-admin-diary`} className={`slot diary-slot-card ${slotStateClass}`}>
                   <strong>{slot.time}–{slot.endTime}</strong>
                   {overlappingBookings.length ? (
                     <>
@@ -259,8 +344,8 @@ export default function AdminPage() {
                     </>
                   ) : (
                     <>
-                      <span>{slot.available ? `${slot.availablePractitioners?.length ?? 1} clinician${(slot.availablePractitioners?.length ?? 1) === 1 ? '' : 's'} free` : 'Greyed out'}</span>
-                      <em>{slot.available ? slot.availablePractitioners?.map((item) => item.name).join(', ') : slot.reason ?? 'Unavailable'}</em>
+                      <span>{passedSlot ? 'Time passed' : slot.available ? `${slot.availablePractitioners?.length ?? 1} clinician${(slot.availablePractitioners?.length ?? 1) === 1 ? '' : 's'} free` : 'Greyed out'}</span>
+                      <em>{passedSlot ? 'No longer counted as open' : slot.available ? slot.availablePractitioners?.map((item) => item.name).join(', ') : slot.reason ?? 'Unavailable'}</em>
                     </>
                   )}
                 </article>
@@ -273,22 +358,47 @@ export default function AdminPage() {
           {dateBookings.length === 0 && (
             <p className="notice">No bookings are showing for this date and practitioner filter.</p>
           )}
-          {dateBookings.map((booking) => (
-            <article className="booking-item diary-booking-item" key={booking.id}>
+          {dateBookings.map((booking) => {
+            const passedBooking = bookingHasPassed(selectedDate, booking.endTime, now);
+            return (
+            <article className={`booking-item diary-booking-item ${passedBooking ? 'is-past-booking' : ''}`} key={booking.id}>
               <div>
                 <strong>{booking.time}–{booking.endTime} · {booking.patientName}</strong>
                 <small>{procedureName(booking.procedureId, procedures)}</small>
                 <small>{practitionerName(booking.practitionerId, practitioners)}</small>
-                <small>Source: {booking.source}. Status: <span className={`status status-${booking.status}`}>{booking.status}</span></small>
+                <small>Source: {booking.source}. Status: <span className={`status status-${booking.status}`}>{statusDisplayLabel(booking.status)}</span>{passedBooking && <span className="past-booking-note"> · Time passed</span>}</small>
               </div>
               <div className="nav-pills booking-actions">
-                <button className="pill" type="button" disabled={saving} onClick={() => updateBookingStatus(booking.id, 'confirmed' as BookingStatus)}>Confirm</button>
-                <button className="pill" type="button" disabled={saving} onClick={() => updateBookingStatus(booking.id, 'completed' as BookingStatus)}>Complete</button>
-                <button className="pill" type="button" disabled={saving} onClick={() => updateBookingStatus(booking.id, 'cancelled' as BookingStatus)}>Cancel</button>
-                <button className="pill danger" type="button" disabled={saving} onClick={() => deleteBooking(booking.id)}>Delete</button>
+                {(['confirmed', 'arrived', 'completed', 'billing', 'cancelled'] as BookingStatus[]).map((statusAction) => {
+                  const actionKey = `${booking.id}-${statusAction}`;
+                  const actionIsBusy = bookingActionKey === actionKey;
+                  const alreadySet = booking.status === statusAction;
+                  const label = statusDisplayLabel(statusAction);
+                  return (
+                    <button
+                      key={statusAction}
+                      className={`pill admin-action-button status-action-${statusAction} ${actionIsBusy ? 'is-loading' : ''} ${alreadySet ? 'is-current-status' : ''}`}
+                      type="button"
+                      disabled={saving || alreadySet}
+                      onClick={() => void handleBookingStatusAction(booking.id, statusAction)}
+                      title={alreadySet ? `Already ${label}` : bookingActionTitle(statusAction as BookingAction)}
+                    >
+                      {actionIsBusy ? bookingActionLabel(statusAction as BookingAction) : label}
+                    </button>
+                  );
+                })}
+                <button
+                  className={`pill danger admin-action-button ${bookingActionKey === `${booking.id}-delete` ? 'is-loading' : ''}`}
+                  type="button"
+                  disabled={saving}
+                  onClick={() => void handleBookingDeleteAction(booking.id, booking.patientName)}
+                >
+                  {bookingActionKey === `${booking.id}-delete` ? 'Deleting…' : 'Delete'}
+                </button>
               </div>
             </article>
-          ))}
+            );
+          })}
         </section>
       </section>
 

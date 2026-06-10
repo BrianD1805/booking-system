@@ -5,7 +5,7 @@ import type { BookingStatus } from '@/lib/mockData';
 
 export const dynamic = 'force-dynamic';
 
-const allowedStatuses = new Set(['confirmed', 'rescheduled', 'cancelled', 'completed', 'no_show']);
+const allowedStatuses = new Set(['confirmed', 'arrived', 'completed', 'billing', 'rescheduled', 'cancelled', 'no_show']);
 
 export async function PATCH(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {

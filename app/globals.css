@@ -3618,3 +3618,115 @@ a.pill:active {
     width: auto;
   }
 }
+
+/* Ver-0.026 admin booking action wiring */
+.booking-actions .admin-action-button {
+  min-width: 92px;
+  justify-content: center;
+}
+
+.booking-actions .admin-action-button.is-current-status {
+  background: rgba(20, 184, 166, 0.12);
+  border-color: rgba(20, 184, 166, 0.28);
+  color: #0f766e;
+  opacity: 1;
+}
+
+.booking-actions .admin-action-button:disabled:not(.is-current-status) {
+  cursor: wait;
+}
+
+.booking-actions .admin-action-button.is-loading {
+  position: relative;
+  padding-left: 34px;
+}
+
+.booking-actions .admin-action-button.is-loading::before {
+  content: '';
+  position: absolute;
+  left: 14px;
+  width: 12px;
+  height: 12px;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 999px;
+  animation: zipbookSpin 0.75s linear infinite;
+}
+
+/* Ver-0.027 admin booking flow and past slot view */
+.admin-refresh-cluster {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.admin-clock-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 42px;
+  padding: 0 15px;
+  border: 1px solid rgba(37, 99, 235, 0.18);
+  border-radius: 999px;
+  background: linear-gradient(180deg, #ffffff 0%, #eef6ff 100%);
+  color: #0f3b82;
+  font-weight: 900;
+  font-size: 0.92rem;
+  box-shadow: 0 10px 22px rgba(37, 99, 235, 0.08);
+  white-space: nowrap;
+}
+
+.slot.diary-slot-card.past {
+  border-color: rgba(100, 116, 139, 0.18);
+  background: linear-gradient(180deg, #f1f5f9 0%, #e5e7eb 100%);
+  color: #7b8794;
+  box-shadow: none;
+  opacity: 0.72;
+}
+
+.slot.diary-slot-card.past strong,
+.slot.diary-slot-card.past span,
+.slot.diary-slot-card.past em {
+  color: #7b8794;
+}
+
+.diary-booking-item.is-past-booking {
+  background: linear-gradient(180deg, #f8fafc 0%, #eef2f7 100%);
+  border-color: rgba(100, 116, 139, 0.18);
+  color: #7b8794;
+  opacity: 0.76;
+}
+
+.diary-booking-item.is-past-booking strong,
+.diary-booking-item.is-past-booking small {
+  color: #7b8794;
+}
+
+.past-booking-note {
+  color: #7b8794;
+  font-weight: 800;
+}
+
+.status-arrived { background: #f0f9ff; color: #075985; }
+.status-billing { background: #fef3c7; color: #92400e; }
+
+.booking-actions .status-action-billing {
+  border-color: rgba(217, 119, 6, 0.28);
+  background: #fffaf0;
+  color: #92400e;
+}
+
+.booking-actions .status-action-cancelled {
+  border-color: rgba(220, 38, 38, 0.22);
+  background: #fff7f7;
+  color: #991b1b;
+}
+
+@media (max-width: 700px) {
+  .admin-refresh-cluster {
+    width: 100%;
+    justify-content: flex-start;
+  }
+}
