@@ -3480,3 +3480,141 @@ body {
     white-space: normal;
   }
 }
+
+/* Ver-0.025 admin interaction feedback and toast notifications */
+button,
+.button,
+.pill,
+a.button,
+a.pill {
+  transition: transform 140ms ease, box-shadow 140ms ease, border-color 140ms ease, background 140ms ease, opacity 140ms ease;
+}
+
+button:not(:disabled):hover,
+.button:not(:disabled):hover,
+.pill:not(:disabled):hover,
+a.button:hover,
+a.pill:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 12px 24px rgba(15, 23, 42, 0.12);
+}
+
+button:not(:disabled):active,
+.button:not(:disabled):active,
+.pill:not(:disabled):active,
+a.button:active,
+a.pill:active {
+  transform: translateY(0) scale(0.985);
+  box-shadow: 0 6px 14px rgba(15, 23, 42, 0.12);
+}
+
+.admin-busy-button,
+.admin-action-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  position: relative;
+  white-space: nowrap;
+}
+
+.admin-busy-button:disabled,
+.admin-action-button:disabled {
+  cursor: wait;
+}
+
+.admin-spinner,
+.refresh-spinner {
+  width: 15px;
+  height: 15px;
+  border-radius: 999px;
+  border: 2px solid currentColor;
+  border-top-color: transparent;
+  display: inline-block;
+  animation: zipbook-spin 0.7s linear infinite;
+}
+
+.refresh-icon {
+  display: inline-block;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.admin-action-button.is-loading .refresh-icon,
+.admin-busy-button.is-loading .refresh-icon {
+  animation: zipbook-spin 0.7s linear infinite;
+}
+
+@keyframes zipbook-spin {
+  to { transform: rotate(360deg); }
+}
+
+.admin-toast-stack {
+  position: fixed;
+  top: calc(16px + env(safe-area-inset-top));
+  right: 18px;
+  z-index: 9999;
+  display: grid;
+  gap: 10px;
+  width: min(380px, calc(100vw - 32px));
+  pointer-events: none;
+}
+
+.admin-toast {
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.96);
+  border: 1px solid rgba(37, 99, 235, 0.18);
+  box-shadow: 0 22px 50px rgba(15, 23, 42, 0.18);
+  color: var(--ink);
+  font-size: 0.92rem;
+  font-weight: 800;
+  backdrop-filter: blur(16px);
+  animation: zipbook-toast-in 220ms ease both;
+}
+
+.admin-toast-icon {
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #dbeafe, #bfdbfe);
+  color: #1d4ed8;
+  font-weight: 950;
+  flex: 0 0 auto;
+}
+
+.admin-toast.warning {
+  border-color: rgba(245, 158, 11, 0.28);
+}
+
+.admin-toast.warning .admin-toast-icon {
+  background: linear-gradient(135deg, #fef3c7, #fde68a);
+  color: #92400e;
+}
+
+.admin-toast.info .admin-toast-icon {
+  background: linear-gradient(135deg, #e0f2fe, #bae6fd);
+  color: #0369a1;
+}
+
+@keyframes zipbook-toast-in {
+  from { opacity: 0; transform: translateY(-8px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@media (max-width: 700px) {
+  .admin-toast-stack {
+    top: auto;
+    right: 12px;
+    bottom: calc(14px + env(safe-area-inset-bottom));
+    left: 12px;
+    width: auto;
+  }
+}

@@ -7,6 +7,7 @@ import { APP_VERSION, practitionerName, procedureDuration, procedureName, type B
 import { FIRST_AVAILABLE, getAvailabilityForDate, getDateOffset, getDayLabel, practitionersForProcedure } from '@/lib/availability';
 import { useBookingDatabase } from '@/lib/useBookingDatabase';
 import { makeAdminAuthHeaders } from '@/components/admin/AdminAuthGate';
+import { showAdminToast } from '@/components/admin/AdminToast';
 
 type ReceptionMode = 'search' | 'adhoc';
 
@@ -90,6 +91,11 @@ export default function ReceptionBookingPage() {
 
   const currentStep = !hasPatientDetails ? 1 : !selectedTime ? 2 : 3;
 
+  async function handleReceptionRefresh() {
+    await refresh();
+    showAdminToast('Reception diary refreshed.', 'info');
+  }
+
   async function handleCustomerSearch() {
     const query = customerSearch.trim();
     setSaveMessage('');
@@ -126,6 +132,7 @@ export default function ReceptionBookingPage() {
     setCustomerSearchMessage(`${customer.fullName} selected for this booking.`);
     setSaveMessage('');
     setClientPopupOpen(false);
+    showAdminToast(`${customer.fullName} selected.`, 'info');
   }
 
   function startAdhocPatient() {
@@ -171,6 +178,7 @@ export default function ReceptionBookingPage() {
     try {
       await navigator.clipboard.writeText(buildReceptionCopyText(successBooking));
       setCopyStatus('Copied');
+      showAdminToast('Booking details copied.', 'info');
       window.setTimeout(() => setCopyStatus(''), 2000);
     } catch {
       setCopyStatus('Copy failed');
@@ -216,6 +224,7 @@ export default function ReceptionBookingPage() {
         notes: notes.trim()
       });
 
+      showAdminToast('Booking confirmed and saved.');
       setSuccessBooking({
         id: booking.id,
         patientName: booking.patientName,
@@ -256,14 +265,14 @@ export default function ReceptionBookingPage() {
         </div>
         <div className="command-actions">
           <Link className="pill" href="/admin">Back to diary</Link>
-          <button className="pill" type="button" onClick={refresh} disabled={saving}>Refresh diary</button>
+          <button type="button" onClick={() => void handleReceptionRefresh()} disabled={saving || loading} className={`pill admin-action-button ${loading ? 'is-loading' : ''}`}><span className="refresh-icon" aria-hidden="true">↻</span>{loading ? 'Refreshing…' : 'Refresh diary'}</button>
         </div>
       </section>
 
       {error && (
         <div className="notice warning" role="alert">
           {error}
-          <div style={{ marginTop: 10 }}><button className="pill" type="button" onClick={refresh}>Retry database connection</button></div>
+          <div style={{ marginTop: 10 }}><button type="button" onClick={() => void handleReceptionRefresh()} className={`pill admin-action-button ${loading ? 'is-loading' : ''}`}><span className="refresh-icon" aria-hidden="true">↻</span>{loading ? 'Retrying…' : 'Retry database connection'}</button></div>
         </div>
       )}
 
@@ -405,7 +414,7 @@ export default function ReceptionBookingPage() {
 
           <div className="reception-save-actions">
             <Link className="pill" href="/admin">Cancel</Link>
-            <button className="button primary large-cta" type="submit" disabled={!canSave || saving || Boolean(error)}>{saving ? 'Checking diary…' : 'Save confirmed booking'}</button>
+            <button type="submit" disabled={!canSave || saving || Boolean(error)} className={`button primary large-cta admin-busy-button ${saving ? 'is-loading' : ''}`}>{saving && <span className="admin-spinner" aria-hidden="true" />}{saving ? 'Checking diary…' : 'Save confirmed booking'}</button>
           </div>
         </section>
       </form>
@@ -476,7 +485,7 @@ export default function ReceptionBookingPage() {
                   placeholder="Search name, phone or email"
                   autoFocus
                 />
-                <button className="button primary" type="button" onClick={() => void handleCustomerSearch()} disabled={customerSearching}>{customerSearching ? 'Searching…' : 'Search'}</button>
+                <button type="button" onClick={() => void handleCustomerSearch()} disabled={customerSearching} className={`button primary admin-busy-button ${customerSearching ? 'is-loading' : ''}`}>{customerSearching && <span className="admin-spinner" aria-hidden="true" />}{customerSearching ? 'Searching…' : 'Search'}</button>
               </div>
 
               {customerSearchMessage && <p className="mini-copy customer-search-message">{customerSearchMessage}</p>}

@@ -7,6 +7,7 @@ import { APP_VERSION, practitionerName, procedureName, type BookingStatus, type 
 import { FIRST_AVAILABLE, getAvailabilityForDate, getDateOffset, getDayLabel, practitionersForProcedure } from '@/lib/availability';
 import { useBookingDatabase } from '@/lib/useBookingDatabase';
 import { makeAdminAuthHeaders } from '@/components/admin/AdminAuthGate';
+import { showAdminToast } from '@/components/admin/AdminToast';
 
 type AdminStep = 0 | 1 | 2;
 
@@ -93,6 +94,12 @@ export default function AdminPage() {
   );
   const selectedBookingFlowSlot = bookingFlowSlots.find((slot) => slot.time === selectedTime);
   const canSave = Boolean(selectedTime && activePractitionerId && patientName.trim() && patientPhone.trim() && patientEmail.trim());
+
+  async function handleDiaryRefresh() {
+    await refresh();
+    showAdminToast('Diary refreshed.', 'info');
+  }
+
 
   async function handleCustomerSearch() {
     const query = customerSearch.trim();
@@ -182,14 +189,14 @@ export default function AdminPage() {
         </div>
         <div className="command-actions">
           <Link className="button primary large-cta" href="/admin/reception">Add booking</Link>
-          <button className="pill" type="button" onClick={refresh} disabled={saving}>Refresh diary</button>
+          <button type="button" onClick={() => void handleDiaryRefresh()} disabled={saving || loading} className={`pill admin-action-button ${loading ? 'is-loading' : ''}`}><span className="refresh-icon" aria-hidden="true">↻</span>{loading ? 'Refreshing…' : 'Refresh diary'}</button>
         </div>
       </section>
 
       {error && (
         <div className="notice warning" role="alert">
           {error}
-          <div style={{ marginTop: 10 }}><button className="pill" type="button" onClick={refresh}>Retry database connection</button></div>
+          <div style={{ marginTop: 10 }}><button type="button" onClick={() => void handleDiaryRefresh()} className={`pill admin-action-button ${loading ? 'is-loading' : ''}`}><span className="refresh-icon" aria-hidden="true">↻</span>{loading ? 'Retrying…' : 'Retry database connection'}</button></div>
         </div>
       )}
 
@@ -234,7 +241,7 @@ export default function AdminPage() {
               <h3 className="mini-section-title">Slots view</h3>
               <p className="mini-copy">Visual 30-minute diary preview for the selected date and practitioner filter.</p>
             </div>
-            <button className="pill" type="button" onClick={refresh} disabled={saving}>Refresh</button>
+            <button type="button" onClick={() => void handleDiaryRefresh()} disabled={saving || loading} className={`pill admin-action-button ${loading ? 'is-loading' : ''}`}><span className="refresh-icon" aria-hidden="true">↻</span>{loading ? 'Refreshing…' : 'Refresh'}</button>
           </div>
           <div className="slot-grid admin-slot-grid">
             {diarySlots.map((slot) => {

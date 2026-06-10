@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { Header } from '@/components/Header';
 import { APP_VERSION } from '@/lib/mockData';
 import { makeAdminAuthHeaders } from '@/components/admin/AdminAuthGate';
+import { showAdminToast } from '@/components/admin/AdminToast';
 
 type AuditLog = {
   id: string;
@@ -36,6 +37,7 @@ export default function AdminAuditPage() {
       const payload = await response.json();
       if (!response.ok) throw new Error(typeof payload?.error === 'string' ? payload.error : 'Could not load audit trail.');
       setAudit(Array.isArray(payload.audit) ? payload.audit as AuditLog[] : []);
+      showAdminToast('Audit trail refreshed.', 'info');
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : 'Could not load audit trail.');
     } finally {
@@ -54,7 +56,7 @@ export default function AdminAuditPage() {
         </div>
         <div className="command-actions">
           <Link className="pill" href="/admin">Back to diary</Link>
-          <button className="button primary large-cta" type="button" onClick={loadAudit} disabled={loading}>Refresh audit</button>
+          <button type="button" onClick={loadAudit} disabled={loading} className={`button primary large-cta admin-action-button ${loading ? 'is-loading' : ''}`}><span className="refresh-icon" aria-hidden="true">↻</span>{loading ? 'Refreshing…' : 'Refresh audit'}</button>
         </div>
       </section>
 

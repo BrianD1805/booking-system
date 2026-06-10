@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { Header } from '@/components/Header';
 import { APP_VERSION } from '@/lib/mockData';
 import { makeAdminAuthHeaders } from '@/components/admin/AdminAuthGate';
+import { showAdminToast } from '@/components/admin/AdminToast';
 
 type AdminCustomer = {
   id: string;
@@ -52,6 +53,7 @@ export default function AdminDataPage() {
       const list = Array.isArray(payload.customers) ? payload.customers as AdminCustomer[] : [];
       setCustomers(list);
       setMessage(list.length ? `Loaded ${list.length} customer record${list.length === 1 ? '' : 's'}.` : 'No customers found.');
+      showAdminToast(list.length ? `Loaded ${list.length} customer record${list.length === 1 ? '' : 's'}.` : 'No customers found.', 'info');
       if (selectedCustomer && !list.some((customer) => customer.id === selectedCustomer.id)) {
         setSelectedCustomer(null);
         setEditingCustomer(null);
@@ -91,6 +93,7 @@ export default function AdminDataPage() {
       setPastBookingCount(count);
       setPastBookingBeforeDate(beforeDate);
       setMessage(count ? `${count} past booking${count === 1 ? '' : 's'} found before ${beforeDate}.` : `No past bookings found before ${beforeDate}.`);
+      showAdminToast(count ? `${count} past booking${count === 1 ? '' : 's'} found.` : 'No past bookings found.', 'info');
     } catch (checkError) {
       setError(checkError instanceof Error ? checkError.message : 'Could not check past bookings.');
     } finally {
@@ -116,6 +119,7 @@ export default function AdminDataPage() {
       setPastBookingCount(0);
       setPastBookingBeforeDate(beforeDate);
       setMessage(`Removed ${deleted} past booking${deleted === 1 ? '' : 's'} before ${beforeDate}. Customers and future bookings were left untouched.`);
+      showAdminToast(`Removed ${deleted} past booking${deleted === 1 ? '' : 's'}.`);
       await loadCustomers(query);
     } catch (deleteError) {
       setError(deleteError instanceof Error ? deleteError.message : 'Could not remove past bookings.');
@@ -145,6 +149,7 @@ export default function AdminDataPage() {
       setSelectedCustomer(customer);
       setEditingCustomer({ id: customer.id, fullName: customer.fullName, phone: customer.phone, email: customer.email, notes: customer.notes ?? '' });
       setMessage('Customer updated.');
+      showAdminToast('Customer updated.');
       await loadCustomers(query);
     } catch (saveError) {
       setError(saveError instanceof Error ? saveError.message : 'Could not update customer.');
@@ -171,6 +176,7 @@ export default function AdminDataPage() {
       setEditingCustomer({ id: customer.id, fullName: customer.fullName, phone: customer.phone, email: customer.email, notes: customer.notes ?? '' });
       setCustomers((current) => current.map((item) => item.id === customer.id ? customer : item));
       setMessage(`Password saved for ${customer.fullName}. Status: password set.`);
+      showAdminToast(`Password saved for ${customer.fullName}.`);
       await loadCustomers(query);
     } catch (passwordError) {
       setError(passwordError instanceof Error ? passwordError.message : 'Could not set password.');
@@ -196,6 +202,7 @@ export default function AdminDataPage() {
       setSelectedCustomer(null);
       setEditingCustomer(null);
       setMessage(`Deleted customer data. Bookings removed: ${payload.result?.deletedBookings ?? 0}.`);
+      showAdminToast('Customer deleted.');
       await loadCustomers(query);
     } catch (deleteError) {
       setError(deleteError instanceof Error ? deleteError.message : 'Could not delete customer.');
@@ -216,7 +223,7 @@ export default function AdminDataPage() {
         </div>
         <div className="command-actions">
           <Link className="pill" href="/admin">Back to diary</Link>
-          <button className="button primary large-cta" type="button" onClick={() => loadCustomers()} disabled={loading}>Load customers</button>
+          <button type="button" onClick={() => loadCustomers()} disabled={loading} className={`button primary large-cta admin-busy-button ${loading ? 'is-loading' : ''}`}>{loading && <span className="admin-spinner" aria-hidden="true" />}Load customers</button>
         </div>
       </section>
 
@@ -231,7 +238,7 @@ export default function AdminDataPage() {
             <label htmlFor="customerQuery">Search customers</label>
             <div className="inline-action-row">
               <input id="customerQuery" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Name, phone or email" />
-              <button className="pill" type="submit" disabled={loading}>Search</button>
+              <button type="submit" disabled={loading} className={`pill admin-busy-button ${loading ? 'is-loading' : ''}`}>{loading && <span className="admin-spinner" aria-hidden="true" />}Search</button>
             </div>
           </form>
         </div>
@@ -247,8 +254,8 @@ export default function AdminDataPage() {
             <p className="mini-copy">Remove old past bookings before a demo without deleting customer records or future appointments.</p>
           </div>
           <div className="command-actions">
-            <button className="pill" type="button" onClick={checkPastBookings} disabled={loading}>Check past bookings</button>
-            <button className="button danger" type="button" onClick={deletePastBookings} disabled={loading || pastBookingCount === 0}>Remove past bookings</button>
+            <button type="button" onClick={checkPastBookings} disabled={loading} className={`pill admin-busy-button ${loading ? 'is-loading' : ''}`}>{loading && <span className="admin-spinner" aria-hidden="true" />}Check past bookings</button>
+            <button type="button" onClick={deletePastBookings} disabled={loading || pastBookingCount === 0} className={`button danger admin-busy-button ${loading ? 'is-loading' : ''}`}>{loading && <span className="admin-spinner" aria-hidden="true" />}Remove past bookings</button>
           </div>
         </div>
         <p className="micro-copy">
@@ -305,7 +312,7 @@ export default function AdminDataPage() {
                 <label htmlFor="editNotes">Notes</label>
                 <textarea id="editNotes" value={editingCustomer.notes ?? ''} onChange={(event) => setEditingCustomer({ ...editingCustomer, notes: event.target.value })} rows={3} />
               </div>
-              <button className="button primary" type="button" onClick={saveCustomer} disabled={loading}>Save customer</button>
+              <button type="button" onClick={saveCustomer} disabled={loading} className={`button primary admin-busy-button ${loading ? 'is-loading' : ''}`}>{loading && <span className="admin-spinner" aria-hidden="true" />}Save customer</button>
 
               <div className="admin-data-divider" />
 
@@ -314,11 +321,11 @@ export default function AdminDataPage() {
                 <input id="newPassword" type="password" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} placeholder="Minimum 6 characters" autoComplete="new-password" />
                 <p className="micro-copy">Current status: <strong>{selectedCustomer?.passwordSet ? 'Password set' : 'No password yet'}</strong>. The customer phone will be stored as the login number.</p>
               </div>
-              <button className="button primary" type="button" onClick={setPassword} disabled={loading || newPassword.length < 6}>{loading ? 'Saving...' : selectedCustomer?.passwordSet ? 'Reset password' : 'Save password'}</button>
+              <button type="button" onClick={setPassword} disabled={loading || newPassword.length < 6} className={`button primary admin-busy-button ${loading ? 'is-loading' : ''}`}>{loading && <span className="admin-spinner" aria-hidden="true" />}{loading ? 'Saving…' : selectedCustomer?.passwordSet ? 'Reset password' : 'Save password'}</button>
 
               <div className="admin-data-divider" />
 
-              <button className="button danger" type="button" onClick={deleteCustomer} disabled={loading}>Delete customer and linked bookings</button>
+              <button type="button" onClick={deleteCustomer} disabled={loading} className={`button danger admin-busy-button ${loading ? 'is-loading' : ''}`}>{loading && <span className="admin-spinner" aria-hidden="true" />}Delete customer and linked bookings</button>
             </div>
           ) : (
             <p className="mini-copy">Select a customer from the list to edit their record.</p>

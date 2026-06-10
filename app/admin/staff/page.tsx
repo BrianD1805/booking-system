@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { Header } from '@/components/Header';
 import { APP_VERSION } from '@/lib/mockData';
 import { makeAdminAuthHeaders } from '@/components/admin/AdminAuthGate';
+import { showAdminToast } from '@/components/admin/AdminToast';
 
 type Staff = {
   id: string;
@@ -46,6 +47,7 @@ export default function AdminStaffPage() {
       if (!response.ok) throw new Error(typeof payload?.error === 'string' ? payload.error : 'Could not load staff.');
       setStaff(Array.isArray(payload.staff) ? payload.staff as Staff[] : []);
       setMessage('Staff list loaded.');
+      showAdminToast('Staff list refreshed.', 'info');
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : 'Could not load staff.');
     } finally {
@@ -73,6 +75,7 @@ export default function AdminStaffPage() {
       if (!response.ok) throw new Error(typeof payload?.error === 'string' ? payload.error : 'Could not save staff member.');
       setForm(emptyForm);
       setMessage(editing ? 'Staff member updated.' : 'Staff member added.');
+      showAdminToast(editing ? 'Staff member updated.' : 'Staff member added.');
       await loadStaff();
     } catch (saveError) {
       setError(saveError instanceof Error ? saveError.message : 'Could not save staff member.');
@@ -94,6 +97,7 @@ export default function AdminStaffPage() {
       const payload = await response.json();
       if (!response.ok) throw new Error(typeof payload?.error === 'string' ? payload.error : 'Could not delete staff member.');
       setMessage(`${item.fullName} deleted.`);
+      showAdminToast(`${item.fullName} deleted.`);
       if (form.id === item.id) setForm(emptyForm);
       await loadStaff();
     } catch (deleteError) {
@@ -114,7 +118,7 @@ export default function AdminStaffPage() {
         </div>
         <div className="command-actions">
           <Link className="pill" href="/admin">Back to diary</Link>
-          <button className="button primary large-cta" type="button" onClick={loadStaff} disabled={loading}>Refresh staff</button>
+          <button type="button" onClick={loadStaff} disabled={loading} className={`button primary large-cta admin-action-button ${loading ? 'is-loading' : ''}`}><span className="refresh-icon" aria-hidden="true">↻</span>{loading ? 'Refreshing…' : 'Refresh staff'}</button>
         </div>
       </section>
 
@@ -138,7 +142,7 @@ export default function AdminStaffPage() {
             <div className="form-row"><label>{form.id ? 'New password (optional)' : 'Password'}</label><input type="password" value={form.password} onChange={(event) => setForm({ ...form, password: event.target.value })} /></div>
             <label className="staff-active-toggle"><input type="checkbox" checked={form.active} onChange={(event) => setForm({ ...form, active: event.target.checked })} /> Active staff login</label>
           </div>
-          <button className="button primary" type="submit" disabled={loading}>{form.id ? 'Save staff changes' : 'Add staff member'}</button>
+          <button type="submit" disabled={loading} className={`button primary admin-busy-button ${loading ? 'is-loading' : ''}`}>{loading && <span className="admin-spinner" aria-hidden="true" />}{form.id ? 'Save staff changes' : 'Add staff member'}</button>
         </form>
       </section>
 
@@ -150,7 +154,7 @@ export default function AdminStaffPage() {
               <div><strong>{item.fullName}</strong><span>{item.email} · {item.role}</span></div>
               <span className={item.active ? 'staff-status active' : 'staff-status inactive'}>{item.active ? 'Active' : 'Inactive'}</span>
               <button className="pill" type="button" onClick={() => editStaff(item)}>Edit</button>
-              <button className="button danger" type="button" onClick={() => deleteStaff(item)} disabled={loading}>Delete</button>
+              <button type="button" onClick={() => deleteStaff(item)} disabled={loading} className={`button danger admin-busy-button ${loading ? 'is-loading' : ''}`}>{loading && <span className="admin-spinner" aria-hidden="true" />}Delete</button>
             </article>
           ))}
           {!staff.length && <p className="mini-copy">No staff records loaded yet.</p>}

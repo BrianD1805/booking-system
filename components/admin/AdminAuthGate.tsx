@@ -2,6 +2,7 @@
 
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { usePathname } from 'next/navigation';
+import { AdminToastHost, showAdminToast } from '@/components/admin/AdminToast';
 
 type Staff = { id: string; fullName: string; email: string; role: string; active: boolean };
 
@@ -108,6 +109,7 @@ export function AdminAuthGate({ children }: { children: React.ReactNode }) {
       window.sessionStorage.setItem(STAFF_PROFILE_STORAGE, JSON.stringify(payload.staff));
       setStaff(payload.staff as Staff);
       setMessage(`Signed in as ${payload.staff?.fullName ?? 'staff member'}.`);
+      showAdminToast(`Signed in as ${payload.staff?.fullName ?? 'staff member'}.`);
     } catch (loginError) {
       setError(loginError instanceof Error ? loginError.message : 'Staff login failed.');
     } finally {
@@ -130,6 +132,7 @@ export function AdminAuthGate({ children }: { children: React.ReactNode }) {
       setStaffCount(1);
       setStaffEmail(String(payload.staff?.email ?? setupEmail));
       setMessage('First staff login created. Now sign in with that staff email and password.');
+      showAdminToast('First staff login created.');
       setSetupPassword('');
     } catch (setupError) {
       setError(setupError instanceof Error ? setupError.message : 'Could not create first staff login.');
@@ -144,14 +147,17 @@ export function AdminAuthGate({ children }: { children: React.ReactNode }) {
     setStaff(null);
     setStaffPassword('');
     setMessage('Staff signed out. Master key is still stored for this browser session.');
+    showAdminToast('Staff signed out.', 'info');
   }
 
   if (checking) {
-    return <main className="shell fresh-shell admin-shell"><section className="card clean-panel"><p className="badge blue-badge">Admin security</p><h1 className="section-title">Checking admin login…</h1></section></main>;
+    return <><AdminToastHost /><main className="shell fresh-shell admin-shell"><section className="card clean-panel"><p className="badge blue-badge">Admin security</p><h1 className="section-title">Checking admin login…</h1></section></main></>;
   }
 
   if (!staff) {
     return (
+      <>
+      <AdminToastHost />
       <main className="shell fresh-shell admin-shell">
         <section className="admin-login-shell card clean-panel">
           <p className="badge blue-badge">Admin security · two-step login</p>
@@ -195,11 +201,13 @@ export function AdminAuthGate({ children }: { children: React.ReactNode }) {
           )}
         </section>
       </main>
+      </>
     );
   }
 
   return (
     <>
+      <AdminToastHost />
       <div className="admin-staff-bar">
         <span>Signed in: <strong>{staff.fullName}</strong> · {staff.role}</span>
         <nav>

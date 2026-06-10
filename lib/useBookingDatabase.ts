@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { fallbackBootstrap, type Booking, type BookingStatus, type BootstrapData } from '@/lib/mockData';
 import { makeAdminAuthHeaders } from '@/components/admin/AdminAuthGate';
+import { showAdminToast } from '@/components/admin/AdminToast';
 
 type BookingInput = {
   patientName: string;
@@ -100,6 +101,8 @@ export function useBookingDatabase(selectedDate?: string) {
       });
       const payload = await parseJsonResponse<{ booking: Booking }>(response);
       await loadBookings();
+      showAdminToast('Booking status updated.');
+      if (input.source !== 'client') showAdminToast('Booking saved to the diary.');
       return payload.booking;
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Could not create booking.';
@@ -133,6 +136,7 @@ export function useBookingDatabase(selectedDate?: string) {
       const response = await fetch(`/api/bookings/${encodeURIComponent(id)}`, { method: 'DELETE', headers: makeAdminAuthHeaders() });
       await parseJsonResponse<{ ok: boolean }>(response);
       await loadBookings();
+      showAdminToast('Booking deleted.');
     } catch (error) {
       setState((current) => ({ ...current, error: error instanceof Error ? error.message : 'Could not delete booking.' }));
     } finally {
