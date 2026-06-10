@@ -121,6 +121,20 @@ function slotStartsInsideSelectedAppointment(slotTime: string, selectedStartTime
   return slotStart > selectedStart && slotStart < selectedEnd;
 }
 
+
+function localToday(date = new Date()) {
+  const local = new Date(date.getTime() - (date.getTimezoneOffset() * 60000));
+  return local.toISOString().slice(0, 10);
+}
+
+function currentMinutes(date: Date) {
+  return (date.getHours() * 60) + date.getMinutes();
+}
+
+function slotHasPassed(selectedDate: string, endTime: string, now: Date) {
+  return selectedDate === localToday(now) && timeToMinutes(endTime) <= currentMinutes(now);
+}
+
 function phoneCountryLabel(country: PhoneCountry) {
   return `${country.name} (${country.dialCode})`;
 }
@@ -224,6 +238,7 @@ export default function BookPage() {
   const [selectedDate, setSelectedDate] = useState(todayInputValue);
   const [selectedTime, setSelectedTime] = useState('');
   const [selectedPractitionerId, setSelectedPractitionerId] = useState('');
+  const [now, setNow] = useState(() => new Date());
   const { bootstrap, bookings, loading, saving, error, createBooking, refresh } = useBookingDatabase(selectedDate);
   const { practiceSettings, procedures, blockedDates, blockedTimes, practitioners } = bootstrap;
   const selectedProcedure = useMemo(() => procedures.find((item) => item.id === procedureId) ?? procedures[0], [procedureId, procedures]);
@@ -243,7 +258,7 @@ export default function BookPage() {
     () => getAvailabilityForDate(bookings, selectedDate, activeProcedureId, context, practitionerChoice),
     [bookings, selectedDate, activeProcedureId, context, practitionerChoice]
   );
-  const availableSlots = slots.filter((slot) => slot.available);
+  const availableSlots = slots.filter((slot) => slot.available && !slotHasPassed(selectedDate, slot.endTime, now));
   const selectedSlot = slots.find((slot) => slot.time === selectedTime && slot.practitionerId === selectedPractitionerId);
   const selectedPractitioner = practitioners.find((item) => item.id === selectedPractitionerId);
   const selectedLoginCountry = findPhoneCountry(clientLoginCountryInput);
@@ -254,7 +269,13 @@ export default function BookPage() {
   const canCompletePasswordReset = Boolean(clientOtpCode.trim().length >= 4 && clientResetPassword.length >= 6);
   const canGoToTreatment = patientName.trim() && patientPhone.trim() && patientEmail.trim();
   const canGoToDiary = Boolean(activeProcedureId && practitionerChoice);
-  const canConfirm = Boolean(selectedTime && selectedPractitionerId);
+  const selectedSlotHasPassed = selectedSlot ? slotHasPassed(selectedDate, selectedSlot.endTime, now) : false;
+  const canConfirm = Boolean(selectedTime && selectedPractitionerId && !selectedSlotHasPassed);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(new Date()), 30000);
+    return () => window.clearInterval(timer);
+  }, []);
   const successCopyText = successBooking ? [
     'ZipBook appointment confirmed',
     `Booking ID: ${successBooking.id}`,
@@ -988,11 +1009,13 @@ export default function BookPage() {
                       selectedSlot.practitionerId === slot.practitionerId &&
                       slotStartsInsideSelectedAppointment(slot.time, selectedSlot.time, selectedSlot.endTime)
                     );
+                    const hasPassed = slotHasPassed(selectedDate, slot.endTime, now);
+                    const canSelectSlot = slot.available && !hasPassed;
                     return (
                       <button
                         key={`${slot.time}-${slot.endTime}-${slot.practitionerId ?? 'none'}`}
-                        className={`slot ${slot.available ? 'available' : 'unavailable'} ${isSelectedSlot ? 'selected' : ''} ${isCoveredBySelection ? 'covered' : ''}`}
-                        disabled={!slot.available || saving}
+                        className={`slot ${canSelectSlot ? 'available' : 'unavailable'} ${hasPassed ? 'past' : ''} ${isSelectedSlot ? 'selected' : ''} ${isCoveredBySelection ? 'covered' : ''}`}
+                        disabled={!canSelectSlot || saving}
                         type="button"
                         onClick={() => {
                           setSelectedTime(slot.time);
@@ -1000,7 +1023,7 @@ export default function BookPage() {
                         }}
                       >
                         <strong>{slot.time}</strong>
-                        <span>{isCoveredBySelection ? 'Included in selected appointment' : slot.available ? `${slot.endTime} · ${slot.practitionerName}` : slot.reason ?? 'Unavailable'}</span>
+                        <span>{hasPassed ? 'Time passed' : isCoveredBySelection ? 'Included in selected appointment' : slot.available ? `${slot.endTime} · ${slot.practitionerName}` : slot.reason ?? 'Unavailable'}</span>
                       </button>
                     );
                   })}

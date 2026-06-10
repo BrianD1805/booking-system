@@ -1,4 +1,4 @@
-# ZipBook Ver-0.028B - Clients Page Separate Edit Flow
+# ZipBook Ver-0.028C - Clients Page Separate Edit Flow
 
 ## Summary
 This patch polishes the Clients admin area after Ver-0.028.

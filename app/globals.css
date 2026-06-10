@@ -4165,3 +4165,27 @@ a.pill:active {
     justify-content: flex-start;
   }
 }
+
+/* Ver-0.028C: apply passed-time slot logic to add-booking and client time pickers */
+.reception-slot-grid .slot.past,
+.time-picker-slots .slot.past {
+  border-color: rgba(100, 116, 139, 0.18) !important;
+  background: linear-gradient(180deg, #f1f5f9 0%, #e5e7eb 100%) !important;
+  color: #7b8794 !important;
+  box-shadow: none !important;
+  opacity: 0.72;
+  cursor: not-allowed;
+}
+
+.reception-slot-grid .slot.past strong,
+.reception-slot-grid .slot.past span,
+.reception-slot-grid .slot.past em,
+.time-picker-slots .slot.past strong,
+.time-picker-slots .slot.past span {
+  color: #7b8794 !important;
+}
+
+.reception-slot-grid .slot.past::before,
+.time-picker-slots .slot.past::before {
+  opacity: 0;
+}

@@ -1,4 +1,4 @@
-# ZipBook Ver-0.028B - Admin UX Tidy Pass
+# ZipBook Ver-0.028C - Admin UX Tidy Pass
 
 - Added a compact admin mega menu in the signed-in staff bar for Diary, Add booking, Clients, Staff and Audit trail.
 - Removed client-facing navigation links from the admin header to avoid duplicate/confusing rows.

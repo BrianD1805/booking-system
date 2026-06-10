@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { FormEvent, KeyboardEvent, useMemo, useState } from 'react';
+import { FormEvent, KeyboardEvent, useEffect, useMemo, useState } from 'react';
 import { Header } from '@/components/Header';
 import { APP_VERSION, practitionerName, procedureDuration, procedureName, type Booking, type Customer } from '@/lib/mockData';
 import { FIRST_AVAILABLE, getAvailabilityForDate, getDateOffset, getDayLabel, practitionersForProcedure } from '@/lib/availability';
@@ -36,6 +36,20 @@ function slotStartsInsideSelectedAppointment(slotTime: string, selectedStartTime
   return slotStart > selectedStart && slotStart < selectedEnd;
 }
 
+
+function localToday(date = new Date()) {
+  const local = new Date(date.getTime() - (date.getTimezoneOffset() * 60000));
+  return local.toISOString().slice(0, 10);
+}
+
+function currentMinutes(date: Date) {
+  return (date.getHours() * 60) + date.getMinutes();
+}
+
+function slotHasPassed(selectedDate: string, endTime: string, now: Date) {
+  return selectedDate === localToday(now) && timeToMinutes(endTime) <= currentMinutes(now);
+}
+
 export default function ReceptionBookingPage() {
   const [selectedDate, setSelectedDate] = useState(getDateOffset(0));
   const [procedureId, setProcedureId] = useState('checkup');
@@ -55,6 +69,7 @@ export default function ReceptionBookingPage() {
   const [clientPopupOpen, setClientPopupOpen] = useState(false);
   const [successBooking, setSuccessBooking] = useState<ReceptionSuccessBooking | null>(null);
   const [copyStatus, setCopyStatus] = useState('');
+  const [now, setNow] = useState(() => new Date());
 
   const { bootstrap, bookings, loading, saving, error, createBooking, refresh } = useBookingDatabase(selectedDate);
   const { practiceSettings, procedures, blockedDates, blockedTimes, practitioners } = bootstrap;
@@ -87,9 +102,15 @@ export default function ReceptionBookingPage() {
   const selectedSlotPractitionerId = selectedSlot?.practitionerId ?? (activePractitionerId === FIRST_AVAILABLE ? '' : activePractitionerId);
   const bookingPractitionerId = selectedSlotPractitionerId || eligiblePractitioners[0]?.id || '';
   const hasPatientDetails = Boolean(patientName.trim() && patientPhone.trim() && patientEmail.trim());
-  const canSave = Boolean(selectedTime && bookingPractitionerId && hasPatientDetails);
+  const selectedSlotHasPassed = selectedSlot ? slotHasPassed(selectedDate, selectedSlot.endTime, now) : false;
+  const canSave = Boolean(selectedTime && bookingPractitionerId && hasPatientDetails && !selectedSlotHasPassed);
 
   const currentStep = !hasPatientDetails ? 1 : !selectedTime ? 2 : 3;
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(new Date()), 30000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   async function handleReceptionRefresh() {
     await refresh();
@@ -373,17 +394,20 @@ export default function ReceptionBookingPage() {
                 selectedSlot && slotStartsInsideSelectedAppointment(slot.time, selectedSlot.time, selectedSlot.endTime)
               );
               const slotPractitioner = slot.practitionerId ? practitionerName(slot.practitionerId, practitioners) : slot.practitionerName;
+              const hasPassed = slotHasPassed(selectedDate, slot.endTime, now);
+              const canSelectSlot = slot.available && !hasPassed;
               return (
                 <button
                   key={`${slot.time}-${slot.endTime}-reception`}
-                  className={`slot ${slot.available ? 'available' : 'unavailable'} ${isSelectedSlot ? 'selected' : ''} ${isCoveredBySelection ? 'covered' : ''}`}
-                  disabled={!slot.available || saving}
+                  className={`slot ${canSelectSlot ? 'available' : 'unavailable'} ${hasPassed ? 'past' : ''} ${isSelectedSlot ? 'selected' : ''} ${isCoveredBySelection ? 'covered' : ''}`}
+                  disabled={!canSelectSlot || saving}
                   type="button"
                   onClick={() => setSelectedTime(slot.time)}
                 >
                   <strong>{slot.time}</strong>
-                  <span>{isCoveredBySelection ? 'Included in selected appointment' : slot.available ? `${slot.time}–${slot.endTime}` : slot.reason ?? 'Unavailable'}</span>
-                  {slot.available && <em>{slotPractitioner || `${slot.availablePractitioners?.length ?? 1} clinician free`}</em>}
+                  <span>{hasPassed ? 'Time passed' : isCoveredBySelection ? 'Included in selected appointment' : slot.available ? `${slot.time}–${slot.endTime}` : slot.reason ?? 'Unavailable'}</span>
+                  {canSelectSlot && <em>{slotPractitioner || `${slot.availablePractitioners?.length ?? 1} clinician free`}</em>}
+                  {hasPassed && <em>No longer available today</em>}
                 </button>
               );
             })}
