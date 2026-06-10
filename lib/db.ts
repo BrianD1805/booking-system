@@ -455,7 +455,7 @@ async function getAdminDataCustomerById(customerId: string): Promise<AdminDataCu
   return rows[0] ? mapAdminDataCustomer(rows[0]) : null;
 }
 
-export async function updateAdminDataCustomer(input: { id: string; fullName: string; phone: string; email: string; notes?: string }): Promise<AdminDataCustomer> {
+export async function updateAdminDataCustomer(input: { id: string; fullName: string; phone: string; email: string; notes?: string; actor?: AdminActor }): Promise<AdminDataCustomer> {
   const database = db();
   const fullName = cleanLoginValue(input.fullName);
   const phone = cleanLoginValue(input.phone);
@@ -478,10 +478,11 @@ export async function updateAdminDataCustomer(input: { id: string; fullName: str
     WHERE practice_id = ${PRACTICE_ID} AND customer_id = ${input.id}
   `;
 
+  await writeAdminAuditLog({ action: 'customer_updated', entityType: 'customer', entityId: input.id, source: 'admin', details: { fullName, phone, email }, actor: input.actor });
   return await getAdminDataCustomerById(input.id) ?? { ...mapCustomer(rows[0]), passwordSet: false, bookingCount: 0 };
 }
 
-export async function setAdminDataCustomerPassword(input: { customerId: string; password: string }): Promise<AdminDataCustomer> {
+export async function setAdminDataCustomerPassword(input: { customerId: string; password: string; actor?: AdminActor }): Promise<AdminDataCustomer> {
   const database = db();
   const password = validateClientPassword(input.password);
   const customer = await findCustomerById(input.customerId);
@@ -527,10 +528,11 @@ export async function setAdminDataCustomerPassword(input: { customerId: string; 
 
   const updatedCustomer = await getAdminDataCustomerById(customer.id);
   if (!updatedCustomer?.passwordSet) throw new Error('Password update did not verify. Please reload the customer and try again.');
+  await writeAdminAuditLog({ action: 'customer_password_set', entityType: 'customer', entityId: customer.id, source: 'admin', details: { loginPhone, loginEmail }, actor: input.actor });
   return updatedCustomer;
 }
 
-export async function deleteAdminDataCustomerAndBookings(customerId: string): Promise<{ deletedSessions: number; deletedOtps: number; deletedBookings: number; deletedAccounts: number; deletedCustomers: number }> {
+export async function deleteAdminDataCustomerAndBookings(customerId: string, actor?: AdminActor): Promise<{ deletedSessions: number; deletedOtps: number; deletedBookings: number; deletedAccounts: number; deletedCustomers: number }> {
   const database = db();
   const customer = await findCustomerById(customerId);
   if (!customer) throw new Error('Customer not found.');
@@ -541,13 +543,15 @@ export async function deleteAdminDataCustomerAndBookings(customerId: string): Pr
   const accounts = await database.sql<{ count: number }>`WITH deleted AS (DELETE FROM client_accounts WHERE practice_id = ${PRACTICE_ID} AND customer_id = ${customerId} RETURNING id) SELECT COUNT(*)::int AS count FROM deleted`;
   const customers = await database.sql<{ count: number }>`WITH deleted AS (DELETE FROM customers WHERE practice_id = ${PRACTICE_ID} AND id = ${customerId} RETURNING id) SELECT COUNT(*)::int AS count FROM deleted`;
 
-  return {
+  const result = {
     deletedSessions: Number(sessions[0]?.count ?? 0),
     deletedOtps: Number(otps[0]?.count ?? 0),
     deletedBookings: Number(bookings[0]?.count ?? 0),
     deletedAccounts: Number(accounts[0]?.count ?? 0),
     deletedCustomers: Number(customers[0]?.count ?? 0)
   };
+  await writeAdminAuditLog({ action: 'customer_deleted', entityType: 'customer', entityId: customerId, source: 'admin', details: { fullName: customer.fullName, ...result }, actor });
+  return result;
 }
 
 export async function getBootstrapData(): Promise<BootstrapData> {
@@ -618,7 +622,7 @@ async function findCustomerById(customerId: string): Promise<Customer | null> {
   return rows[0] ? mapCustomer(rows[0]) : null;
 }
 
-async function findOrCreateCustomer(input: { customerId?: string; patientName: string; patientPhone: string; patientEmail: string; notes?: string }): Promise<string> {
+async function findOrCreateCustomer(input: { customerId?: string; patientName: string; patientPhone: string; patientEmail: string; notes?: string; actor?: AdminActor }): Promise<string> {
   const database = db();
 
   if (input.customerId) {
@@ -629,6 +633,7 @@ async function findOrCreateCustomer(input: { customerId?: string; patientName: s
         SET full_name = ${input.patientName}, phone = ${input.patientPhone}, email = ${input.patientEmail}, last_seen_at = NOW(), updated_at = NOW()
         WHERE practice_id = ${PRACTICE_ID} AND id = ${input.customerId}
       `;
+      await writeAdminAuditLog({ action: 'customer_updated_from_booking', entityType: 'customer', entityId: input.customerId, source: input.actor?.source ?? 'booking', details: { patientName: input.patientName, patientPhone: input.patientPhone, patientEmail: input.patientEmail }, actor: input.actor });
       return input.customerId;
     }
   }
@@ -648,6 +653,7 @@ async function findOrCreateCustomer(input: { customerId?: string; patientName: s
       SET full_name = ${input.patientName}, phone = ${input.patientPhone}, email = ${input.patientEmail}, last_seen_at = NOW(), updated_at = NOW()
       WHERE practice_id = ${PRACTICE_ID} AND id = ${matchingRows[0].id}
     `;
+    await writeAdminAuditLog({ action: 'customer_updated_from_booking', entityType: 'customer', entityId: matchingRows[0].id, source: input.actor?.source ?? 'booking', details: { patientName: input.patientName, patientPhone: input.patientPhone, patientEmail: input.patientEmail }, actor: input.actor });
     return matchingRows[0].id;
   }
 
@@ -656,6 +662,7 @@ async function findOrCreateCustomer(input: { customerId?: string; patientName: s
     INSERT INTO customers (id, practice_id, full_name, phone, email, notes, has_client_login, last_seen_at)
     VALUES (${id}, ${PRACTICE_ID}, ${input.patientName}, ${input.patientPhone}, ${input.patientEmail}, ${input.notes ?? ''}, ${false}, NOW())
   `;
+  await writeAdminAuditLog({ action: 'customer_created', entityType: 'customer', entityId: id, source: input.actor?.source ?? 'booking', details: { patientName: input.patientName, patientPhone: input.patientPhone, patientEmail: input.patientEmail }, actor: input.actor });
   return id;
 }
 
@@ -1180,6 +1187,7 @@ export async function createBookingInDatabase(input: {
   time: string;
   source: BookingSource;
   notes?: string;
+  actor?: AdminActor;
 }): Promise<Booking> {
   const bootstrap = await getBootstrapData();
   const duration = procedureDuration(input.procedureId, bootstrap.procedures);
@@ -1200,7 +1208,8 @@ export async function createBookingInDatabase(input: {
     patientName: input.patientName,
     patientPhone: input.patientPhone,
     patientEmail: input.patientEmail,
-    notes: input.notes
+    notes: input.notes,
+    actor: input.actor
   });
 
   const rows = await database.sql<BookingRow>`
@@ -1216,13 +1225,13 @@ export async function createBookingInDatabase(input: {
 
   await database.sql`
     INSERT INTO audit_logs (id, practice_id, action, entity_type, entity_id, source, details)
-    VALUES (${`audit-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`}, ${PRACTICE_ID}, ${'booking_created'}, ${'booking'}, ${id}, ${input.source}, ${JSON.stringify({ date: input.date, time: input.time, procedureId: input.procedureId, practitionerId: input.practitionerId, customerId })}::jsonb)
+    VALUES (${`audit-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`}, ${PRACTICE_ID}, ${'booking_created'}, ${'booking'}, ${id}, ${input.source}, ${JSON.stringify({ date: input.date, time: input.time, procedureId: input.procedureId, practitionerId: input.practitionerId, customerId, staffId: input.actor?.staffId, staffName: input.actor?.staffName })}::jsonb)
   `;
 
   return mapBooking(rows[0]);
 }
 
-export async function updateBookingStatusInDatabase(id: string, status: BookingStatus): Promise<Booking> {
+export async function updateBookingStatusInDatabase(id: string, status: BookingStatus, actor?: AdminActor): Promise<Booking> {
   const database = db();
   const rows = await database.sql<BookingRow>`
     UPDATE bookings
@@ -1235,7 +1244,7 @@ export async function updateBookingStatusInDatabase(id: string, status: BookingS
 
   await database.sql`
     INSERT INTO audit_logs (id, practice_id, action, entity_type, entity_id, source, details)
-    VALUES (${`audit-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`}, ${PRACTICE_ID}, ${'booking_status_updated'}, ${'booking'}, ${id}, ${'admin'}, ${JSON.stringify({ status })}::jsonb)
+    VALUES (${`audit-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`}, ${PRACTICE_ID}, ${'booking_status_updated'}, ${'booking'}, ${id}, ${'admin'}, ${JSON.stringify({ status, staffId: actor?.staffId, staffName: actor?.staffName })}::jsonb)
   `;
 
   return mapBooking(rows[0]);
@@ -1281,11 +1290,286 @@ export async function deletePastBookingsForDemo(): Promise<{ deletedBookings: nu
   return { deletedBookings, beforeDate };
 }
 
-export async function deleteBookingFromDatabase(id: string): Promise<void> {
+export async function deleteBookingFromDatabase(id: string, actor?: AdminActor): Promise<void> {
   const database = db();
   await database.sql`DELETE FROM bookings WHERE practice_id = ${PRACTICE_ID} AND id = ${id}`;
   await database.sql`
     INSERT INTO audit_logs (id, practice_id, action, entity_type, entity_id, source, details)
-    VALUES (${`audit-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`}, ${PRACTICE_ID}, ${'booking_deleted'}, ${'booking'}, ${id}, ${'admin'}, ${JSON.stringify({ deleted: true })}::jsonb)
+    VALUES (${`audit-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`}, ${PRACTICE_ID}, ${'booking_deleted'}, ${'booking'}, ${id}, ${'admin'}, ${JSON.stringify({ deleted: true, staffId: actor?.staffId, staffName: actor?.staffName })}::jsonb)
   `;
+}
+
+export type AdminStaffMember = {
+  id: string;
+  fullName: string;
+  email: string;
+  phone: string;
+  role: string;
+  active: boolean;
+  lastLoginAt?: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type AdminAuditLog = {
+  id: string;
+  action: string;
+  entityType: string;
+  entityId?: string;
+  source: string;
+  staffId?: string;
+  staffName?: string;
+  details: Record<string, unknown>;
+  createdAt: string;
+};
+
+type AdminStaffRow = {
+  id: string;
+  full_name: string;
+  email: string;
+  phone: string | null;
+  role: string;
+  active: boolean;
+  last_login_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+type AdminAuditLogRow = {
+  id: string;
+  action: string;
+  entity_type: string;
+  entity_id: string | null;
+  source: string;
+  staff_id: string | null;
+  staff_name: string | null;
+  details: Record<string, unknown> | string | null;
+  created_at: string;
+};
+
+export type AdminActor = {
+  staffId?: string;
+  staffName?: string;
+  source?: string;
+  requestIp?: string;
+  userAgent?: string;
+};
+
+function mapAdminStaff(row: AdminStaffRow): AdminStaffMember {
+  return {
+    id: row.id,
+    fullName: row.full_name,
+    email: row.email,
+    phone: row.phone ?? '',
+    role: row.role,
+    active: row.active,
+    lastLoginAt: row.last_login_at ?? undefined,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at
+  };
+}
+
+function hashAdminStaffPassword(staffId: string, password: string) {
+  return hashSecret(`zipbook-admin-staff-password:${staffId}:${password}`);
+}
+
+function validateAdminStaffPassword(value?: string) {
+  const password = value ?? '';
+  if (password.length < 6) throw new Error('Enter a staff password with at least 6 characters.');
+  return password;
+}
+
+function mapAdminAuditLog(row: AdminAuditLogRow): AdminAuditLog {
+  let details: Record<string, unknown> = {};
+  if (row.details && typeof row.details === 'object') details = row.details as Record<string, unknown>;
+  if (row.details && typeof row.details === 'string') {
+    try { details = JSON.parse(row.details) as Record<string, unknown>; } catch { details = {}; }
+  }
+  return {
+    id: row.id,
+    action: row.action,
+    entityType: row.entity_type,
+    entityId: row.entity_id ?? undefined,
+    source: row.source,
+    staffId: row.staff_id ?? undefined,
+    staffName: row.staff_name ?? undefined,
+    details,
+    createdAt: row.created_at
+  };
+}
+
+export async function writeAdminAuditLog(input: {
+  action: string;
+  entityType: string;
+  entityId?: string;
+  source?: string;
+  details?: Record<string, unknown>;
+  actor?: AdminActor;
+}) {
+  const database = db();
+  await database.sql`
+    INSERT INTO audit_logs (id, practice_id, action, entity_type, entity_id, source, staff_id, staff_name, request_ip, user_agent, details)
+    VALUES (
+      ${`audit-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`},
+      ${PRACTICE_ID},
+      ${input.action},
+      ${input.entityType},
+      ${input.entityId ?? null},
+      ${input.source ?? input.actor?.source ?? 'admin'},
+      ${input.actor?.staffId ?? null},
+      ${input.actor?.staffName ?? null},
+      ${input.actor?.requestIp ?? null},
+      ${input.actor?.userAgent ?? null},
+      ${JSON.stringify(input.details ?? {})}::jsonb
+    )
+  `;
+}
+
+export async function countAdminStaffMembers(): Promise<number> {
+  const database = db();
+  const rows = await database.sql<{ count: number }>`
+    SELECT COUNT(*)::int AS count
+    FROM admin_staff_members
+    WHERE practice_id = ${PRACTICE_ID}
+  `;
+  return Number(rows[0]?.count ?? 0);
+}
+
+export async function listAdminStaffMembers(): Promise<AdminStaffMember[]> {
+  const database = db();
+  const rows = await database.sql<AdminStaffRow>`
+    SELECT id, full_name, email, phone, role, active, last_login_at::text AS last_login_at, created_at::text AS created_at, updated_at::text AS updated_at
+    FROM admin_staff_members
+    WHERE practice_id = ${PRACTICE_ID}
+    ORDER BY active DESC, full_name
+  `;
+  return rows.map(mapAdminStaff);
+}
+
+export async function createAdminStaffMember(input: { fullName: string; email: string; phone?: string; role?: string; password?: string; active?: boolean; actor?: AdminActor }): Promise<AdminStaffMember> {
+  const database = db();
+  const fullName = cleanLoginValue(input.fullName);
+  const email = normaliseEmail(input.email);
+  const phone = cleanLoginValue(input.phone);
+  const role = cleanLoginValue(input.role) || 'Reception';
+  const password = validateAdminStaffPassword(input.password);
+  if (!fullName) throw new Error('Staff full name is required.');
+  if (!isValidEmail(email)) throw new Error('Enter a valid staff email address.');
+
+  const id = `staff-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  const rows = await database.sql<AdminStaffRow>`
+    INSERT INTO admin_staff_members (id, practice_id, full_name, email, phone, role, active, password_hash)
+    VALUES (${id}, ${PRACTICE_ID}, ${fullName}, ${email}, ${phone}, ${role}, ${input.active ?? true}, ${hashAdminStaffPassword(id, password)})
+    RETURNING id, full_name, email, phone, role, active, last_login_at::text AS last_login_at, created_at::text AS created_at, updated_at::text AS updated_at
+  `;
+  await writeAdminAuditLog({ action: 'staff_created', entityType: 'staff', entityId: id, source: 'admin', details: { fullName, email, role, active: input.active ?? true }, actor: input.actor });
+  return mapAdminStaff(rows[0]);
+}
+
+export async function updateAdminStaffMember(input: { id: string; fullName: string; email: string; phone?: string; role?: string; active?: boolean; password?: string; actor?: AdminActor }): Promise<AdminStaffMember> {
+  const database = db();
+  const fullName = cleanLoginValue(input.fullName);
+  const email = normaliseEmail(input.email);
+  const phone = cleanLoginValue(input.phone);
+  const role = cleanLoginValue(input.role) || 'Reception';
+  if (!fullName) throw new Error('Staff full name is required.');
+  if (!isValidEmail(email)) throw new Error('Enter a valid staff email address.');
+
+  if (input.password && input.password.trim()) {
+    const password = validateAdminStaffPassword(input.password);
+    const rows = await database.sql<AdminStaffRow>`
+      UPDATE admin_staff_members
+      SET full_name = ${fullName}, email = ${email}, phone = ${phone}, role = ${role}, active = ${input.active ?? true}, password_hash = ${hashAdminStaffPassword(input.id, password)}, updated_at = NOW()
+      WHERE practice_id = ${PRACTICE_ID} AND id = ${input.id}
+      RETURNING id, full_name, email, phone, role, active, last_login_at::text AS last_login_at, created_at::text AS created_at, updated_at::text AS updated_at
+    `;
+    if (!rows[0]) throw new Error('Staff member not found.');
+    await writeAdminAuditLog({ action: 'staff_updated', entityType: 'staff', entityId: input.id, source: 'admin', details: { fullName, email, role, active: input.active ?? true, passwordChanged: true }, actor: input.actor });
+    return mapAdminStaff(rows[0]);
+  }
+
+  const rows = await database.sql<AdminStaffRow>`
+    UPDATE admin_staff_members
+    SET full_name = ${fullName}, email = ${email}, phone = ${phone}, role = ${role}, active = ${input.active ?? true}, updated_at = NOW()
+    WHERE practice_id = ${PRACTICE_ID} AND id = ${input.id}
+    RETURNING id, full_name, email, phone, role, active, last_login_at::text AS last_login_at, created_at::text AS created_at, updated_at::text AS updated_at
+  `;
+  if (!rows[0]) throw new Error('Staff member not found.');
+  await writeAdminAuditLog({ action: 'staff_updated', entityType: 'staff', entityId: input.id, source: 'admin', details: { fullName, email, role, active: input.active ?? true, passwordChanged: false }, actor: input.actor });
+  return mapAdminStaff(rows[0]);
+}
+
+export async function deleteAdminStaffMember(input: { id: string; actor?: AdminActor }): Promise<void> {
+  const database = db();
+  const activeRows = await database.sql<{ count: number }>`
+    SELECT COUNT(*)::int AS count FROM admin_staff_members WHERE practice_id = ${PRACTICE_ID} AND active = TRUE AND id <> ${input.id}
+  `;
+  if (Number(activeRows[0]?.count ?? 0) < 1) throw new Error('You must keep at least one other active staff member before deleting this one.');
+
+  const rows = await database.sql<{ id: string; full_name: string; email: string }>`
+    DELETE FROM admin_staff_members
+    WHERE practice_id = ${PRACTICE_ID} AND id = ${input.id}
+    RETURNING id, full_name, email
+  `;
+  if (!rows[0]) throw new Error('Staff member not found.');
+  await writeAdminAuditLog({ action: 'staff_deleted', entityType: 'staff', entityId: input.id, source: 'admin', details: { fullName: rows[0].full_name, email: rows[0].email }, actor: input.actor });
+}
+
+export async function loginAdminStaff(input: { email?: string; password?: string; actor?: AdminActor }): Promise<{ sessionToken: string; staff: AdminStaffMember }> {
+  const database = db();
+  const email = normaliseEmail(input.email);
+  const password = input.password ?? '';
+  if (!isValidEmail(email) || !password) throw new Error('Enter staff email and password.');
+
+  const rows = await database.sql<(AdminStaffRow & { password_hash: string })>`
+    SELECT id, full_name, email, phone, role, active, password_hash, last_login_at::text AS last_login_at, created_at::text AS created_at, updated_at::text AS updated_at
+    FROM admin_staff_members
+    WHERE practice_id = ${PRACTICE_ID} AND lower(email) = ${email} AND active = TRUE
+    LIMIT 1
+  `;
+  const row = rows[0];
+  if (!row || row.password_hash !== hashAdminStaffPassword(row.id, password)) throw new Error('Staff login failed. Check the staff email and password.');
+
+  const sessionToken = makeToken('admin-staff');
+  const sessionId = `staff-sess-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  await database.sql`
+    INSERT INTO admin_staff_sessions (id, practice_id, staff_id, session_token_hash, expires_at)
+    VALUES (${sessionId}, ${PRACTICE_ID}, ${row.id}, ${hashSecret(sessionToken)}, NOW() + INTERVAL '12 hours')
+  `;
+  await database.sql`UPDATE admin_staff_members SET last_login_at = NOW(), updated_at = NOW() WHERE practice_id = ${PRACTICE_ID} AND id = ${row.id}`;
+  const staff = mapAdminStaff({ ...row, last_login_at: new Date().toISOString() });
+  await writeAdminAuditLog({ action: 'staff_login', entityType: 'staff', entityId: row.id, source: 'admin', details: { email }, actor: { ...input.actor, staffId: row.id, staffName: row.full_name } });
+  return { sessionToken, staff };
+}
+
+export async function getAdminStaffBySession(sessionToken?: string | null): Promise<AdminStaffMember | null> {
+  const token = cleanLoginValue(sessionToken ?? '');
+  if (!token) return null;
+  const database = db();
+  const rows = await database.sql<AdminStaffRow>`
+    SELECT s.id, s.full_name, s.email, s.phone, s.role, s.active, s.last_login_at::text AS last_login_at, s.created_at::text AS created_at, s.updated_at::text AS updated_at
+    FROM admin_staff_sessions sess
+    INNER JOIN admin_staff_members s ON s.id = sess.staff_id AND s.practice_id = sess.practice_id
+    WHERE sess.practice_id = ${PRACTICE_ID}
+      AND sess.session_token_hash = ${hashSecret(token)}
+      AND sess.revoked_at IS NULL
+      AND sess.expires_at > NOW()
+      AND s.active = TRUE
+    LIMIT 1
+  `;
+  if (!rows[0]) return null;
+  await database.sql`UPDATE admin_staff_sessions SET last_seen_at = NOW() WHERE practice_id = ${PRACTICE_ID} AND session_token_hash = ${hashSecret(token)}`;
+  return mapAdminStaff(rows[0]);
+}
+
+export async function listAdminAuditLogs(limit = 100): Promise<AdminAuditLog[]> {
+  const database = db();
+  const rows = await database.sql<AdminAuditLogRow>`
+    SELECT id, action, entity_type, entity_id, source, staff_id, staff_name, details, created_at::text AS created_at
+    FROM audit_logs
+    WHERE practice_id = ${PRACTICE_ID}
+    ORDER BY created_at DESC
+    LIMIT ${Math.max(20, Math.min(250, limit))}
+  `;
+  return rows.map(mapAdminAuditLog);
 }

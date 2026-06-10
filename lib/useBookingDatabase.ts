@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { fallbackBootstrap, type Booking, type BookingStatus, type BootstrapData } from '@/lib/mockData';
+import { makeAdminAuthHeaders } from '@/components/admin/AdminAuthGate';
 
 type BookingInput = {
   patientName: string;
@@ -94,7 +95,7 @@ export function useBookingDatabase(selectedDate?: string) {
     try {
       const response = await fetch('/api/bookings', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...(input.source === 'client' ? {} : makeAdminAuthHeaders()) },
         body: JSON.stringify(input)
       });
       const payload = await parseJsonResponse<{ booking: Booking }>(response);
@@ -114,7 +115,7 @@ export function useBookingDatabase(selectedDate?: string) {
     try {
       const response = await fetch(`/api/bookings/${encodeURIComponent(id)}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...makeAdminAuthHeaders() },
         body: JSON.stringify({ status })
       });
       await parseJsonResponse<{ booking: Booking }>(response);
@@ -129,7 +130,7 @@ export function useBookingDatabase(selectedDate?: string) {
   const deleteBooking = useCallback(async (id: string) => {
     setState((current) => ({ ...current, saving: true, error: '' }));
     try {
-      const response = await fetch(`/api/bookings/${encodeURIComponent(id)}`, { method: 'DELETE' });
+      const response = await fetch(`/api/bookings/${encodeURIComponent(id)}`, { method: 'DELETE', headers: makeAdminAuthHeaders() });
       await parseJsonResponse<{ ok: boolean }>(response);
       await loadBookings();
     } catch (error) {

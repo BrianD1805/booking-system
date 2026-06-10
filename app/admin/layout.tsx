@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import { ZIPBOOK_DOMAINS } from '@/lib/domains';
+import { AdminAuthGate } from '@/components/admin/AdminAuthGate';
 
 export const metadata: Metadata = {
   title: 'Admin Diary',
@@ -11,5 +12,5 @@ export const metadata: Metadata = {
 export const viewport: Viewport = { themeColor: '#113f8c' };
 
 export default function AdminLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return children;
+  return <AdminAuthGate>{children}</AdminAuthGate>;
 }

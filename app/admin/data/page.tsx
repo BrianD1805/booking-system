@@ -4,6 +4,7 @@ import { FormEvent, useState } from 'react';
 import Link from 'next/link';
 import { Header } from '@/components/Header';
 import { APP_VERSION } from '@/lib/mockData';
+import { makeAdminAuthHeaders } from '@/components/admin/AdminAuthGate';
 
 type AdminCustomer = {
   id: string;
@@ -25,7 +26,6 @@ type AdminCustomer = {
 type EditingCustomer = Pick<AdminCustomer, 'id' | 'fullName' | 'phone' | 'email' | 'notes'>;
 
 export default function AdminDataPage() {
-  const [adminKey, setAdminKey] = useState('');
   const [query, setQuery] = useState('');
   const [customers, setCustomers] = useState<AdminCustomer[]>([]);
   const [selectedCustomer, setSelectedCustomer] = useState<AdminCustomer | null>(null);
@@ -37,7 +37,7 @@ export default function AdminDataPage() {
   const [pastBookingCount, setPastBookingCount] = useState<number | null>(null);
   const [pastBookingBeforeDate, setPastBookingBeforeDate] = useState('');
 
-  const authHeaders: Record<string, string> = adminKey.trim() ? { 'x-zipbook-admin-key': adminKey.trim() } : {};
+  const authHeaders = makeAdminAuthHeaders();
 
   async function loadCustomers(nextQuery = query) {
     setLoading(true);
@@ -223,9 +223,9 @@ export default function AdminDataPage() {
       <section className="card clean-panel admin-data-panel">
         <div className="grid two controls-grid">
           <div className="form-row">
-            <label htmlFor="adminDataKey">Admin data key</label>
-            <input id="adminDataKey" type="password" value={adminKey} onChange={(event) => setAdminKey(event.target.value)} placeholder="Enter protected key" />
-            <p className="micro-copy">For local testing without an environment key, use zipbook-admin-dev.</p>
+            <label>Admin security</label>
+            <div className="readonly-admin-security">Master key and staff login verified for this browser session.</div>
+            <p className="micro-copy">Customer edits and deletes are now recorded against the signed-in staff member.</p>
           </div>
           <form className="form-row" onSubmit={handleSearch}>
             <label htmlFor="customerQuery">Search customers</label>

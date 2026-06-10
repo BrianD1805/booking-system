@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createBookingInDatabase, getBookings } from '@/lib/db';
+import { requireAdminStaff } from '@/lib/adminStaffAuth';
 
 export const dynamic = 'force-dynamic';
 
@@ -25,6 +26,9 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    const source = body.source === 'admin' ? 'admin' : body.source === 'staff' ? 'staff' : 'client';
+    const actor = source === 'client' ? undefined : (await requireAdminStaff(request)).actor;
+
     const booking = await createBookingInDatabase({
       patientName: String(body.patientName),
       patientPhone: String(body.patientPhone),
@@ -34,14 +38,14 @@ export async function POST(request: NextRequest) {
       practitionerId: String(body.practitionerId),
       date: String(body.date),
       time: String(body.time),
-      source: body.source === 'admin' ? 'admin' : body.source === 'staff' ? 'staff' : 'client',
-      notes: body.notes ? String(body.notes) : ''
+      source,
+      notes: body.notes ? String(body.notes) : '',
+      actor
     });
 
     return NextResponse.json({ booking }, { status: 201 });
   } catch (error) {
-    return NextResponse.json({
-      error: error instanceof Error ? error.message : 'Could not create booking in Netlify Database.'
-    }, { status: 500 });
+    const message = error instanceof Error ? error.message : 'Could not create booking in Netlify Database.';
+    return NextResponse.json({ error: message }, { status: message.includes('Staff login') || message.includes('Master admin') ? 401 : 500 });
   }
 }

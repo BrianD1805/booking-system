@@ -6,6 +6,7 @@ import { Header } from '@/components/Header';
 import { APP_VERSION, practitionerName, procedureDuration, procedureName, type Booking, type Customer } from '@/lib/mockData';
 import { FIRST_AVAILABLE, getAvailabilityForDate, getDateOffset, getDayLabel, practitionersForProcedure } from '@/lib/availability';
 import { useBookingDatabase } from '@/lib/useBookingDatabase';
+import { makeAdminAuthHeaders } from '@/components/admin/AdminAuthGate';
 
 type ReceptionMode = 'search' | 'adhoc';
 
@@ -102,7 +103,7 @@ export default function ReceptionBookingPage() {
     setCustomerSearching(true);
     setCustomerSearchMessage('Searching clients…');
     try {
-      const response = await fetch(`/api/customers?query=${encodeURIComponent(query)}`, { cache: 'no-store' });
+      const response = await fetch(`/api/customers?query=${encodeURIComponent(query)}`, { cache: 'no-store', headers: makeAdminAuthHeaders() });
       const payload = await response.json();
       if (!response.ok) throw new Error(typeof payload?.error === 'string' ? payload.error : 'Client search failed.');
       const results = Array.isArray(payload.customers) ? payload.customers as Customer[] : [];

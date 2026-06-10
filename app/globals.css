@@ -3307,3 +3307,176 @@ body {
 .reception-success-card .success-actions {
   justify-content: flex-end;
 }
+
+/* Ver-0.024 admin staff login and audit trail */
+.admin-staff-bar {
+  position: sticky;
+  top: 0;
+  z-index: 80;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 10px 18px;
+  background: rgba(255, 255, 255, 0.94);
+  border-bottom: 1px solid rgba(31, 93, 177, 0.16);
+  box-shadow: 0 12px 30px rgba(17, 63, 140, 0.08);
+  backdrop-filter: blur(16px);
+  color: #12345a;
+  font-size: 0.92rem;
+}
+
+.admin-staff-bar nav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.admin-staff-bar a,
+.admin-staff-bar button {
+  border: 1px solid rgba(31, 93, 177, 0.18);
+  background: #f6f9ff;
+  color: #123f8c;
+  border-radius: 999px;
+  padding: 7px 12px;
+  font-weight: 800;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.admin-staff-bar button { background: #fff; }
+
+.admin-login-shell {
+  max-width: 900px;
+  margin: 70px auto;
+  padding: 34px;
+}
+
+.admin-login-card {
+  margin-top: 18px;
+  padding: 20px;
+  border: 1px solid rgba(31, 93, 177, 0.16);
+  border-radius: 28px;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+}
+
+.admin-login-card h2 {
+  margin: 0 0 14px;
+  color: #092c57;
+}
+
+.readonly-admin-security {
+  width: 100%;
+  border: 1px solid rgba(31, 93, 177, 0.16);
+  background: #f6f9ff;
+  border-radius: 18px;
+  padding: 14px 16px;
+  color: #123f8c;
+  font-weight: 800;
+}
+
+.admin-staff-manager,
+.audit-panel {
+  margin-top: 18px;
+}
+
+.staff-edit-form {
+  display: grid;
+  gap: 18px;
+}
+
+.staff-active-toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 56px;
+  font-weight: 800;
+  color: #12345a;
+}
+
+.staff-list,
+.audit-list {
+  display: grid;
+  gap: 10px;
+}
+
+.staff-row,
+.audit-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto auto;
+  align-items: center;
+  gap: 12px;
+  padding: 13px 14px;
+  border: 1px solid rgba(31, 93, 177, 0.13);
+  border-radius: 18px;
+  background: #ffffff;
+}
+
+.staff-row strong,
+.audit-row strong {
+  display: block;
+  color: #092c57;
+}
+
+.staff-row span,
+.audit-row span {
+  display: block;
+  margin-top: 3px;
+  color: #607491;
+  font-size: 0.9rem;
+}
+
+.staff-status {
+  border-radius: 999px;
+  padding: 7px 11px;
+  font-weight: 900;
+  font-size: 0.82rem;
+}
+
+.staff-status.active {
+  color: #07643b;
+  background: #ddfbec;
+}
+
+.staff-status.inactive {
+  color: #7c2431;
+  background: #ffe7eb;
+}
+
+.audit-row {
+  grid-template-columns: minmax(0, 1fr) minmax(220px, 0.8fr);
+}
+
+.audit-row code {
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  background: #f6f9ff;
+  border-radius: 12px;
+  padding: 8px 10px;
+  color: #39506b;
+}
+
+@media (max-width: 760px) {
+  .admin-staff-bar {
+    position: static;
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .admin-login-shell {
+    margin: 25px auto;
+    padding: 22px;
+  }
+
+  .staff-row,
+  .audit-row {
+    grid-template-columns: 1fr;
+  }
+
+  .audit-row code {
+    white-space: normal;
+  }
+}

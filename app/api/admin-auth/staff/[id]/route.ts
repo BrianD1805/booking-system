@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { deleteAdminDataCustomerAndBookings, updateAdminDataCustomer } from '@/lib/db';
+import { deleteAdminStaffMember, updateAdminStaffMember } from '@/lib/db';
 import { requireAdminStaff } from '@/lib/adminStaffAuth';
 
 export const dynamic = 'force-dynamic';
@@ -9,17 +9,19 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ i
     const { actor } = await requireAdminStaff(request);
     const { id } = await context.params;
     const body = await request.json();
-    const customer = await updateAdminDataCustomer({
+    const staff = await updateAdminStaffMember({
       id,
       fullName: String(body.fullName ?? ''),
-      phone: String(body.phone ?? ''),
       email: String(body.email ?? ''),
-      notes: String(body.notes ?? ''),
+      phone: String(body.phone ?? ''),
+      role: String(body.role ?? 'Reception'),
+      active: body.active !== false,
+      password: body.password ? String(body.password) : undefined,
       actor
     });
-    return NextResponse.json({ customer });
+    return NextResponse.json({ staff });
   } catch (error) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : 'Could not update customer.' }, { status: 400 });
+    return NextResponse.json({ error: error instanceof Error ? error.message : 'Could not update staff member.' }, { status: 400 });
   }
 }
 
@@ -29,11 +31,11 @@ export async function DELETE(request: NextRequest, context: { params: Promise<{ 
     const { id } = await context.params;
     const confirm = request.nextUrl.searchParams.get('confirm') ?? '';
     if (confirm !== 'DELETE') {
-      return NextResponse.json({ error: 'Add ?confirm=DELETE to confirm customer and booking deletion.' }, { status: 400 });
+      return NextResponse.json({ error: 'Add ?confirm=DELETE to confirm staff deletion.' }, { status: 400 });
     }
-    const result = await deleteAdminDataCustomerAndBookings(id, actor);
-    return NextResponse.json({ ok: true, result });
+    await deleteAdminStaffMember({ id, actor });
+    return NextResponse.json({ ok: true });
   } catch (error) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : 'Could not delete customer data.' }, { status: 400 });
+    return NextResponse.json({ error: error instanceof Error ? error.message : 'Could not delete staff member.' }, { status: 400 });
   }
 }
