@@ -3046,3 +3046,66 @@ body {
     text-align: center;
   }
 }
+
+/* Ver-0.023B: repair reception client search modal overlay.
+   This must be a real centred popup, not a page card at the bottom. */
+.reception-client-popup-overlay {
+  position: fixed !important;
+  inset: 0 !important;
+  width: 100dvw !important;
+  height: 100dvh !important;
+  min-height: 100dvh !important;
+  z-index: 1600 !important;
+  display: grid !important;
+  place-items: center !important;
+  align-items: center !important;
+  justify-items: center !important;
+  padding: clamp(16px, 3vw, 28px) !important;
+  background: rgba(10, 24, 42, 0.38) !important;
+  backdrop-filter: blur(12px);
+  overflow: hidden !important;
+  overscroll-behavior: contain;
+}
+
+.reception-client-search-popup {
+  width: min(780px, calc(100dvw - clamp(32px, 6vw, 56px))) !important;
+  max-width: calc(100dvw - clamp(32px, 6vw, 56px)) !important;
+  max-height: calc(100dvh - clamp(32px, 6vw, 56px)) !important;
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
+  margin: 0 !important;
+}
+
+.reception-client-search-popup .reception-popup-header {
+  flex: 0 0 auto;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.reception-client-search-popup .reception-popup-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-top: clamp(16px, 2.5vw, 22px);
+  padding-bottom: clamp(20px, 3vw, 30px);
+}
+
+.reception-client-search-popup .reception-popup-actions {
+  flex: 0 0 auto;
+}
+
+@media (max-width: 760px) {
+  .reception-client-popup-overlay {
+    padding: 12px !important;
+  }
+
+  .reception-client-search-popup {
+    width: calc(100dvw - 24px) !important;
+    max-width: calc(100dvw - 24px) !important;
+    max-height: calc(100dvh - 24px) !important;
+  }
+}

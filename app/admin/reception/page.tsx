@@ -333,7 +333,7 @@ export default function ReceptionBookingPage() {
       </form>
 
       {clientPopupOpen && (
-        <div className="client-auth-overlay reception-client-popup-overlay" role="dialog" aria-modal="true" aria-label="Select client">
+        <div className="client-auth-popup reception-client-popup-overlay" role="dialog" aria-modal="true" aria-label="Select client">
           <div className="client-auth-card client-reset-card reception-client-search-popup">
             <div className="client-auth-header reception-popup-header">
               <div>
