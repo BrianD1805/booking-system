@@ -87,6 +87,43 @@ type CustomerRow = {
   updated_at: string;
 };
 
+type AdminCustomerExtendedRow = CustomerRow & {
+  date_of_birth: string | null;
+  id_passport_info: string | null;
+  address: string | null;
+  medical_insurance_name: string | null;
+  notification_app_push: boolean | null;
+  notification_email: boolean | null;
+  notification_sms: boolean | null;
+  emergency_contact_name: string | null;
+  emergency_contact_phone: string | null;
+  allergies_medical_alerts: string | null;
+  preferred_language: string | null;
+  preferred_contact_time: string | null;
+};
+
+type CustomerFamilyMemberRow = {
+  id: string;
+  customer_id: string;
+  full_name: string;
+  date_of_birth: string | null;
+  relationship: string | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+type CustomerDocumentRow = {
+  id: string;
+  customer_id: string;
+  file_name: string;
+  mime_type: string | null;
+  file_size: number | null;
+  file_data_base64: string | null;
+  notes: string | null;
+  uploaded_at: string;
+};
+
 type ClientLoginOtpRow = {
   id: string;
   customer_id: string;
@@ -356,6 +393,28 @@ function mapBlockedTime(row: BlockedTimeRow): BlockedTime {
 }
 
 
+export type CustomerFamilyMember = {
+  id: string;
+  customerId: string;
+  fullName: string;
+  dateOfBirth?: string;
+  relationship?: string;
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type CustomerDocument = {
+  id: string;
+  customerId: string;
+  fileName: string;
+  mimeType?: string;
+  fileSize: number;
+  fileDataBase64?: string;
+  notes?: string;
+  uploadedAt: string;
+};
+
 export type AdminDataCustomer = Customer & {
   loginPhone?: string;
   loginEmail?: string;
@@ -363,9 +422,23 @@ export type AdminDataCustomer = Customer & {
   passwordSet: boolean;
   bookingCount: number;
   latestBookingDate?: string;
+  dateOfBirth?: string;
+  idPassportInfo?: string;
+  address?: string;
+  medicalInsuranceName?: string;
+  notificationAppPush: boolean;
+  notificationEmail: boolean;
+  notificationSms: boolean;
+  emergencyContactName?: string;
+  emergencyContactPhone?: string;
+  allergiesMedicalAlerts?: string;
+  preferredLanguage?: string;
+  preferredContactTime?: string;
+  familyMembers: CustomerFamilyMember[];
+  documents: CustomerDocument[];
 };
 
-type AdminDataCustomerRow = CustomerRow & {
+type AdminDataCustomerRow = AdminCustomerExtendedRow & {
   login_phone: string | null;
   login_email: string | null;
   verified_at: string | null;
@@ -374,7 +447,33 @@ type AdminDataCustomerRow = CustomerRow & {
   latest_booking_date: string | null;
 };
 
-function mapAdminDataCustomer(row: AdminDataCustomerRow): AdminDataCustomer {
+function mapCustomerFamilyMember(row: CustomerFamilyMemberRow): CustomerFamilyMember {
+  return {
+    id: row.id,
+    customerId: row.customer_id,
+    fullName: row.full_name,
+    dateOfBirth: row.date_of_birth ? normaliseDate(row.date_of_birth) : undefined,
+    relationship: row.relationship ?? '',
+    notes: row.notes ?? '',
+    createdAt: row.created_at,
+    updatedAt: row.updated_at
+  };
+}
+
+function mapCustomerDocument(row: CustomerDocumentRow): CustomerDocument {
+  return {
+    id: row.id,
+    customerId: row.customer_id,
+    fileName: row.file_name,
+    mimeType: row.mime_type ?? '',
+    fileSize: Number(row.file_size ?? 0),
+    fileDataBase64: row.file_data_base64 ?? '',
+    notes: row.notes ?? '',
+    uploadedAt: row.uploaded_at
+  };
+}
+
+function mapAdminDataCustomer(row: AdminDataCustomerRow, familyMembers: CustomerFamilyMember[] = [], documents: CustomerDocument[] = []): AdminDataCustomer {
   return {
     ...mapCustomer(row),
     loginPhone: row.login_phone ?? undefined,
@@ -382,7 +481,21 @@ function mapAdminDataCustomer(row: AdminDataCustomerRow): AdminDataCustomer {
     verifiedAt: row.verified_at ?? undefined,
     passwordSet: Boolean(row.password_set),
     bookingCount: Number(row.booking_count ?? 0),
-    latestBookingDate: row.latest_booking_date ? normaliseDate(row.latest_booking_date) : undefined
+    latestBookingDate: row.latest_booking_date ? normaliseDate(row.latest_booking_date) : undefined,
+    dateOfBirth: row.date_of_birth ? normaliseDate(row.date_of_birth) : undefined,
+    idPassportInfo: row.id_passport_info ?? '',
+    address: row.address ?? '',
+    medicalInsuranceName: row.medical_insurance_name ?? '',
+    notificationAppPush: row.notification_app_push !== false,
+    notificationEmail: row.notification_email !== false,
+    notificationSms: row.notification_sms !== false,
+    emergencyContactName: row.emergency_contact_name ?? '',
+    emergencyContactPhone: row.emergency_contact_phone ?? '',
+    allergiesMedicalAlerts: row.allergies_medical_alerts ?? '',
+    preferredLanguage: row.preferred_language ?? '',
+    preferredContactTime: row.preferred_contact_time ?? '',
+    familyMembers,
+    documents
   };
 }
 
@@ -393,8 +506,11 @@ export async function listAdminDataCustomers(query?: string): Promise<AdminDataC
   const rows = trimmed.length >= 2
     ? await database.sql<AdminDataCustomerRow>`
       SELECT c.id, c.full_name, c.phone, c.email, c.notes, c.has_client_login, c.last_seen_at::text AS last_seen_at, c.created_at::text AS created_at, c.updated_at::text AS updated_at,
+             c.date_of_birth::text AS date_of_birth, c.id_passport_info, c.address, c.medical_insurance_name,
+             c.notification_app_push, c.notification_email, c.notification_sms, c.emergency_contact_name, c.emergency_contact_phone,
+             c.allergies_medical_alerts, c.preferred_language, c.preferred_contact_time,
              ca.login_phone, ca.login_email, ca.verified_at::text AS verified_at, (ca.password_hash IS NOT NULL AND ca.password_hash <> '') AS password_set,
-             COUNT(b.id)::int AS booking_count, MAX(b.booking_date)::text AS latest_booking_date
+             COUNT(DISTINCT b.id)::int AS booking_count, MAX(b.booking_date)::text AS latest_booking_date
       FROM customers c
       LEFT JOIN LATERAL (
         SELECT login_phone, login_email, verified_at, password_hash, updated_at, created_at
@@ -405,15 +521,18 @@ export async function listAdminDataCustomers(query?: string): Promise<AdminDataC
       ) ca ON TRUE
       LEFT JOIN bookings b ON b.customer_id = c.id
       WHERE c.practice_id = ${PRACTICE_ID}
-        AND (lower(c.full_name) LIKE ${pattern} OR lower(c.phone) LIKE ${pattern} OR lower(c.email) LIKE ${pattern} OR lower(ca.login_phone) LIKE ${pattern} OR lower(ca.login_email) LIKE ${pattern})
-      GROUP BY c.id, c.full_name, c.phone, c.email, c.notes, c.has_client_login, c.last_seen_at, c.created_at, c.updated_at, ca.login_phone, ca.login_email, ca.verified_at, ca.password_hash
+        AND (lower(c.full_name) LIKE ${pattern} OR lower(c.phone) LIKE ${pattern} OR lower(c.email) LIKE ${pattern} OR lower(ca.login_phone) LIKE ${pattern} OR lower(ca.login_email) LIKE ${pattern} OR EXISTS (SELECT 1 FROM customer_family_members fm WHERE fm.practice_id = c.practice_id AND fm.customer_id = c.id AND lower(fm.full_name) LIKE ${pattern}))
+      GROUP BY c.id, c.full_name, c.phone, c.email, c.notes, c.has_client_login, c.last_seen_at, c.created_at, c.updated_at, ca.login_phone, ca.login_email, ca.verified_at, ca.password_hash, c.date_of_birth, c.id_passport_info, c.address, c.medical_insurance_name, c.notification_app_push, c.notification_email, c.notification_sms, c.emergency_contact_name, c.emergency_contact_phone, c.allergies_medical_alerts, c.preferred_language, c.preferred_contact_time
       ORDER BY c.updated_at DESC, c.created_at DESC
       LIMIT 50
     `
     : await database.sql<AdminDataCustomerRow>`
       SELECT c.id, c.full_name, c.phone, c.email, c.notes, c.has_client_login, c.last_seen_at::text AS last_seen_at, c.created_at::text AS created_at, c.updated_at::text AS updated_at,
+             c.date_of_birth::text AS date_of_birth, c.id_passport_info, c.address, c.medical_insurance_name,
+             c.notification_app_push, c.notification_email, c.notification_sms, c.emergency_contact_name, c.emergency_contact_phone,
+             c.allergies_medical_alerts, c.preferred_language, c.preferred_contact_time,
              ca.login_phone, ca.login_email, ca.verified_at::text AS verified_at, (ca.password_hash IS NOT NULL AND ca.password_hash <> '') AS password_set,
-             COUNT(b.id)::int AS booking_count, MAX(b.booking_date)::text AS latest_booking_date
+             COUNT(DISTINCT b.id)::int AS booking_count, MAX(b.booking_date)::text AS latest_booking_date
       FROM customers c
       LEFT JOIN LATERAL (
         SELECT login_phone, login_email, verified_at, password_hash, updated_at, created_at
@@ -424,20 +543,23 @@ export async function listAdminDataCustomers(query?: string): Promise<AdminDataC
       ) ca ON TRUE
       LEFT JOIN bookings b ON b.customer_id = c.id
       WHERE c.practice_id = ${PRACTICE_ID}
-      GROUP BY c.id, c.full_name, c.phone, c.email, c.notes, c.has_client_login, c.last_seen_at, c.created_at, c.updated_at, ca.login_phone, ca.login_email, ca.verified_at, ca.password_hash
+      GROUP BY c.id, c.full_name, c.phone, c.email, c.notes, c.has_client_login, c.last_seen_at, c.created_at, c.updated_at, ca.login_phone, ca.login_email, ca.verified_at, ca.password_hash, c.date_of_birth, c.id_passport_info, c.address, c.medical_insurance_name, c.notification_app_push, c.notification_email, c.notification_sms, c.emergency_contact_name, c.emergency_contact_phone, c.allergies_medical_alerts, c.preferred_language, c.preferred_contact_time
       ORDER BY c.updated_at DESC, c.created_at DESC
       LIMIT 50
     `;
 
-  return rows.map(mapAdminDataCustomer);
+  return await Promise.all(rows.map(hydrateAdminDataCustomer));
 }
 
 async function getAdminDataCustomerById(customerId: string): Promise<AdminDataCustomer | null> {
   const database = db();
   const rows = await database.sql<AdminDataCustomerRow>`
     SELECT c.id, c.full_name, c.phone, c.email, c.notes, c.has_client_login, c.last_seen_at::text AS last_seen_at, c.created_at::text AS created_at, c.updated_at::text AS updated_at,
+           c.date_of_birth::text AS date_of_birth, c.id_passport_info, c.address, c.medical_insurance_name,
+           c.notification_app_push, c.notification_email, c.notification_sms, c.emergency_contact_name, c.emergency_contact_phone,
+           c.allergies_medical_alerts, c.preferred_language, c.preferred_contact_time,
            ca.login_phone, ca.login_email, ca.verified_at::text AS verified_at, (ca.password_hash IS NOT NULL AND ca.password_hash <> '') AS password_set,
-           COUNT(b.id)::int AS booking_count, MAX(b.booking_date)::text AS latest_booking_date
+           COUNT(DISTINCT b.id)::int AS booking_count, MAX(b.booking_date)::text AS latest_booking_date
     FROM customers c
     LEFT JOIN LATERAL (
       SELECT login_phone, login_email, verified_at, password_hash, updated_at, created_at
@@ -448,29 +570,185 @@ async function getAdminDataCustomerById(customerId: string): Promise<AdminDataCu
     ) ca ON TRUE
     LEFT JOIN bookings b ON b.customer_id = c.id
     WHERE c.practice_id = ${PRACTICE_ID} AND c.id = ${customerId}
-    GROUP BY c.id, c.full_name, c.phone, c.email, c.notes, c.has_client_login, c.last_seen_at, c.created_at, c.updated_at, ca.login_phone, ca.login_email, ca.verified_at, ca.password_hash
+    GROUP BY c.id, c.full_name, c.phone, c.email, c.notes, c.has_client_login, c.last_seen_at, c.created_at, c.updated_at, ca.login_phone, ca.login_email, ca.verified_at, ca.password_hash, c.date_of_birth, c.id_passport_info, c.address, c.medical_insurance_name, c.notification_app_push, c.notification_email, c.notification_sms, c.emergency_contact_name, c.emergency_contact_phone, c.allergies_medical_alerts, c.preferred_language, c.preferred_contact_time
     LIMIT 1
   `;
 
-  return rows[0] ? mapAdminDataCustomer(rows[0]) : null;
+  return rows[0] ? await hydrateAdminDataCustomer(rows[0]) : null;
 }
 
-export async function updateAdminDataCustomer(input: { id: string; fullName: string; phone: string; email: string; notes?: string; actor?: AdminActor }): Promise<AdminDataCustomer> {
+
+async function getCustomerFamilyMembers(customerId: string): Promise<CustomerFamilyMember[]> {
+  const database = db();
+  const rows = await database.sql<CustomerFamilyMemberRow>`
+    SELECT id, customer_id, full_name, date_of_birth::text AS date_of_birth, relationship, notes, created_at::text AS created_at, updated_at::text AS updated_at
+    FROM customer_family_members
+    WHERE practice_id = ${PRACTICE_ID} AND customer_id = ${customerId}
+    ORDER BY full_name
+  `;
+  return rows.map(mapCustomerFamilyMember);
+}
+
+async function getCustomerDocuments(customerId: string): Promise<CustomerDocument[]> {
+  const database = db();
+  const rows = await database.sql<CustomerDocumentRow>`
+    SELECT id, customer_id, file_name, mime_type, file_size, file_data_base64, notes, uploaded_at::text AS uploaded_at
+    FROM customer_documents
+    WHERE practice_id = ${PRACTICE_ID} AND customer_id = ${customerId}
+    ORDER BY uploaded_at DESC
+  `;
+  return rows.map(mapCustomerDocument);
+}
+
+async function hydrateAdminDataCustomer(row: AdminDataCustomerRow): Promise<AdminDataCustomer> {
+  const [familyMembers, documents] = await Promise.all([
+    getCustomerFamilyMembers(row.id),
+    getCustomerDocuments(row.id)
+  ]);
+  return mapAdminDataCustomer(row, familyMembers, documents);
+}
+
+export type SaveAdminDataCustomerInput = {
+  id?: string;
+  fullName: string;
+  phone: string;
+  email: string;
+  notes?: string;
+  dateOfBirth?: string;
+  idPassportInfo?: string;
+  address?: string;
+  medicalInsuranceName?: string;
+  notificationAppPush?: boolean;
+  notificationEmail?: boolean;
+  notificationSms?: boolean;
+  emergencyContactName?: string;
+  emergencyContactPhone?: string;
+  allergiesMedicalAlerts?: string;
+  preferredLanguage?: string;
+  preferredContactTime?: string;
+  familyMembers?: Array<{ id?: string; fullName: string; dateOfBirth?: string; relationship?: string; notes?: string }>;
+  documents?: Array<{ id?: string; fileName: string; mimeType?: string; fileSize?: number; fileDataBase64?: string; notes?: string }>;
+  actor?: AdminActor;
+};
+
+function normaliseOptionalDate(value?: string) {
+  const trimmed = cleanLoginValue(value);
+  return /^\d{4}-\d{2}-\d{2}$/.test(trimmed) ? trimmed : null;
+}
+
+function cleanFamilyMembers(value?: SaveAdminDataCustomerInput['familyMembers']) {
+  return (Array.isArray(value) ? value : [])
+    .map((item) => ({
+      id: item.id && item.id.startsWith('fam-') ? item.id : `fam-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      fullName: cleanLoginValue(item.fullName),
+      dateOfBirth: normaliseOptionalDate(item.dateOfBirth),
+      relationship: cleanLoginValue(item.relationship),
+      notes: String(item.notes ?? '').trim()
+    }))
+    .filter((item) => item.fullName);
+}
+
+function cleanDocuments(value?: SaveAdminDataCustomerInput['documents']) {
+  return (Array.isArray(value) ? value : [])
+    .map((item) => ({
+      id: item.id && item.id.startsWith('doc-') ? item.id : `doc-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      fileName: cleanLoginValue(item.fileName),
+      mimeType: cleanLoginValue(item.mimeType),
+      fileSize: Math.max(0, Number(item.fileSize ?? 0)),
+      fileDataBase64: String(item.fileDataBase64 ?? ''),
+      notes: String(item.notes ?? '').trim()
+    }))
+    .filter((item) => item.fileName);
+}
+
+async function replaceCustomerFamilyMembers(customerId: string, familyMembers: ReturnType<typeof cleanFamilyMembers>) {
+  const database = db();
+  await database.sql`DELETE FROM customer_family_members WHERE practice_id = ${PRACTICE_ID} AND customer_id = ${customerId}`;
+  for (const member of familyMembers) {
+    await database.sql`
+      INSERT INTO customer_family_members (id, practice_id, customer_id, full_name, date_of_birth, relationship, notes)
+      VALUES (${member.id}, ${PRACTICE_ID}, ${customerId}, ${member.fullName}, ${member.dateOfBirth}::date, ${member.relationship}, ${member.notes})
+    `;
+  }
+}
+
+async function replaceCustomerDocuments(customerId: string, documents: ReturnType<typeof cleanDocuments>) {
+  const database = db();
+  await database.sql`DELETE FROM customer_documents WHERE practice_id = ${PRACTICE_ID} AND customer_id = ${customerId}`;
+  for (const document of documents) {
+    await database.sql`
+      INSERT INTO customer_documents (id, practice_id, customer_id, file_name, mime_type, file_size, file_data_base64, notes)
+      VALUES (${document.id}, ${PRACTICE_ID}, ${customerId}, ${document.fileName}, ${document.mimeType}, ${document.fileSize}, ${document.fileDataBase64}, ${document.notes})
+    `;
+  }
+}
+
+export async function createAdminDataCustomer(input: SaveAdminDataCustomerInput): Promise<AdminDataCustomer> {
   const database = db();
   const fullName = cleanLoginValue(input.fullName);
   const phone = cleanLoginValue(input.phone);
   const email = normaliseEmail(input.email);
-  if (!fullName) throw new Error('Customer name is required.');
-  if (!phone) throw new Error('Customer phone is required.');
-  if (!isValidEmail(email)) throw new Error('Enter a valid customer email address.');
+  if (!fullName) throw new Error('Client name is required.');
+  if (!phone) throw new Error('Client phone is required.');
+  if (!isValidEmail(email)) throw new Error('Enter a valid client email address.');
+
+  const id = `cust-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  await database.sql`
+    INSERT INTO customers (
+      id, practice_id, full_name, phone, email, notes, has_client_login, date_of_birth, id_passport_info, address,
+      medical_insurance_name, notification_app_push, notification_email, notification_sms, emergency_contact_name,
+      emergency_contact_phone, allergies_medical_alerts, preferred_language, preferred_contact_time
+    )
+    VALUES (
+      ${id}, ${PRACTICE_ID}, ${fullName}, ${phone}, ${email}, ${input.notes ?? ''}, FALSE, ${normaliseOptionalDate(input.dateOfBirth)}::date,
+      ${input.idPassportInfo ?? ''}, ${input.address ?? ''}, ${input.medicalInsuranceName ?? ''}, ${input.notificationAppPush !== false},
+      ${input.notificationEmail !== false}, ${input.notificationSms !== false}, ${input.emergencyContactName ?? ''}, ${input.emergencyContactPhone ?? ''},
+      ${input.allergiesMedicalAlerts ?? ''}, ${input.preferredLanguage ?? ''}, ${input.preferredContactTime ?? ''}
+    )
+  `;
+  await replaceCustomerFamilyMembers(id, cleanFamilyMembers(input.familyMembers));
+  await replaceCustomerDocuments(id, cleanDocuments(input.documents));
+  await writeAdminAuditLog({ action: 'customer_created', entityType: 'customer', entityId: id, source: 'admin', details: { fullName, phone, email }, actor: input.actor });
+  const customer = await getAdminDataCustomerById(id);
+  if (!customer) throw new Error('Client was created but could not be reloaded.');
+  return customer;
+}
+
+export async function updateAdminDataCustomer(input: SaveAdminDataCustomerInput & { id: string }): Promise<AdminDataCustomer> {
+  const database = db();
+  const fullName = cleanLoginValue(input.fullName);
+  const phone = cleanLoginValue(input.phone);
+  const email = normaliseEmail(input.email);
+  if (!fullName) throw new Error('Client name is required.');
+  if (!phone) throw new Error('Client phone is required.');
+  if (!isValidEmail(email)) throw new Error('Enter a valid client email address.');
 
   const rows = await database.sql<CustomerRow>`
     UPDATE customers
-    SET full_name = ${fullName}, phone = ${phone}, email = ${email}, notes = ${input.notes ?? ''}, updated_at = NOW()
+    SET full_name = ${fullName},
+        phone = ${phone},
+        email = ${email},
+        notes = ${input.notes ?? ''},
+        date_of_birth = ${normaliseOptionalDate(input.dateOfBirth)}::date,
+        id_passport_info = ${input.idPassportInfo ?? ''},
+        address = ${input.address ?? ''},
+        medical_insurance_name = ${input.medicalInsuranceName ?? ''},
+        notification_app_push = ${input.notificationAppPush !== false},
+        notification_email = ${input.notificationEmail !== false},
+        notification_sms = ${input.notificationSms !== false},
+        emergency_contact_name = ${input.emergencyContactName ?? ''},
+        emergency_contact_phone = ${input.emergencyContactPhone ?? ''},
+        allergies_medical_alerts = ${input.allergiesMedicalAlerts ?? ''},
+        preferred_language = ${input.preferredLanguage ?? ''},
+        preferred_contact_time = ${input.preferredContactTime ?? ''},
+        updated_at = NOW()
     WHERE practice_id = ${PRACTICE_ID} AND id = ${input.id}
     RETURNING id, full_name, phone, email, notes, has_client_login, last_seen_at::text AS last_seen_at, created_at::text AS created_at, updated_at::text AS updated_at
   `;
-  if (!rows[0]) throw new Error('Customer not found.');
+  if (!rows[0]) throw new Error('Client not found.');
+
+  await replaceCustomerFamilyMembers(input.id, cleanFamilyMembers(input.familyMembers));
+  await replaceCustomerDocuments(input.id, cleanDocuments(input.documents));
 
   await database.sql`
     UPDATE client_accounts
@@ -478,8 +756,10 @@ export async function updateAdminDataCustomer(input: { id: string; fullName: str
     WHERE practice_id = ${PRACTICE_ID} AND customer_id = ${input.id}
   `;
 
-  await writeAdminAuditLog({ action: 'customer_updated', entityType: 'customer', entityId: input.id, source: 'admin', details: { fullName, phone, email }, actor: input.actor });
-  return await getAdminDataCustomerById(input.id) ?? { ...mapCustomer(rows[0]), passwordSet: false, bookingCount: 0 };
+  await writeAdminAuditLog({ action: 'customer_updated', entityType: 'customer', entityId: input.id, source: 'admin', details: { fullName, phone, email, familyMembers: input.familyMembers?.length ?? 0, documents: input.documents?.length ?? 0 }, actor: input.actor });
+  const customer = await getAdminDataCustomerById(input.id);
+  if (!customer) throw new Error('Client was saved but could not be reloaded.');
+  return customer;
 }
 
 export async function setAdminDataCustomerPassword(input: { customerId: string; password: string; actor?: AdminActor }): Promise<AdminDataCustomer> {

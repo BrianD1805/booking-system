@@ -23,7 +23,7 @@ export function Header({ area }: { area: 'client' | 'admin' | 'landing' }) {
           {area !== 'admin' && <Link className="pill" href="/admin">Admin app</Link>}
           <Link className="pill" href="/widget">Website embed</Link>
           {area === 'admin' && <Link className="pill" href="/admin/reception">Reception</Link>}
-          {area === 'admin' && <Link className="pill" href="/admin/data">Data tool</Link>}
+          {area === 'admin' && <Link className="pill" href="/admin/data">Clients</Link>}
           <span className="pill">{contextLabel}</span>
         </nav>
       )}
