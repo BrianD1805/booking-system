@@ -2654,3 +2654,226 @@ body {
     display: none;
   }
 }
+
+/* Ver-0.023: full-page reception booking workflow. Client home remains locked. */
+.reception-shell {
+  max-width: 1180px;
+}
+
+.reception-command .hero-copy {
+  max-width: 720px;
+}
+
+.reception-booking-page {
+  display: grid;
+  grid-template-columns: minmax(300px, 0.9fr) minmax(420px, 1.35fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.reception-card {
+  padding: 20px;
+}
+
+.reception-client-card,
+.reception-slot-card,
+.reception-confirm-card {
+  display: grid;
+  gap: 16px;
+}
+
+.reception-client-card {
+  position: sticky;
+  top: 16px;
+}
+
+.reception-slot-card {
+  min-width: 0;
+}
+
+.reception-confirm-card {
+  grid-column: 1 / -1;
+}
+
+.reception-mode-tabs {
+  display: inline-grid;
+  grid-template-columns: 1fr 1fr;
+  width: min(100%, 360px);
+  padding: 5px;
+  border: 1px solid rgba(51, 102, 153, 0.14);
+  border-radius: 999px;
+  background: #eff6ff;
+}
+
+.reception-mode-tabs button {
+  appearance: none;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  font-weight: 900;
+  padding: 9px 12px;
+}
+
+.reception-mode-tabs button.active {
+  background: #ffffff;
+  color: var(--zw-blue-deep);
+  box-shadow: 0 8px 18px rgba(51, 102, 153, 0.12);
+}
+
+.reception-search-row {
+  width: 100%;
+}
+
+.selected-client-card {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  align-items: flex-start;
+  padding: 14px;
+  border: 1px solid rgba(51, 102, 153, 0.16);
+  border-radius: 20px;
+  background: linear-gradient(135deg, #f8fbff 0%, #ffffff 100%);
+}
+
+.selected-client-card div {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.selected-client-card span,
+.selected-client-card small {
+  color: var(--muted);
+  font-size: 0.84rem;
+}
+
+.selected-client-card strong {
+  color: var(--zw-blue-deep);
+  font-size: 1.05rem;
+}
+
+.reception-details-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px 14px;
+}
+
+.reception-details-grid .full {
+  grid-column: 1 / -1;
+}
+
+.reception-controls-grid {
+  align-items: end;
+}
+
+.duration-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 38px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(51, 102, 153, 0.16);
+  background: #f8fbff;
+  color: var(--zw-blue-deep);
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.reception-day-note {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  padding: 12px 14px;
+  border-radius: 18px;
+  background: #f8fbff;
+  border: 1px solid rgba(51, 102, 153, 0.12);
+}
+
+.reception-day-note strong {
+  color: var(--zw-blue-deep);
+}
+
+.reception-day-note span {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.reception-slot-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  max-height: 520px;
+  overflow: auto;
+  padding-right: 4px;
+}
+
+.reception-slot-grid .slot {
+  min-height: 96px;
+}
+
+.reception-slot-grid .slot em {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-style: normal;
+}
+
+.reception-slot-grid .slot.covered {
+  border-color: rgba(51, 102, 153, 0.35);
+  background: #eaf3ff;
+  color: var(--zw-blue-deep);
+}
+
+.reception-summary-card {
+  margin: 0;
+}
+
+.reception-save-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 980px) {
+  .reception-booking-page {
+    grid-template-columns: 1fr;
+  }
+
+  .reception-client-card {
+    position: static;
+  }
+
+  .reception-slot-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    max-height: none;
+  }
+}
+
+@media (max-width: 620px) {
+  .reception-card {
+    padding: 16px;
+  }
+
+  .selected-client-card,
+  .reception-day-note,
+  .reception-save-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .reception-details-grid,
+  .reception-slot-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .reception-save-actions .button,
+  .reception-save-actions .pill {
+    width: 100%;
+    text-align: center;
+  }
+}

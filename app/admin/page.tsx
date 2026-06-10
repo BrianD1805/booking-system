@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { FormEvent, useMemo, useState } from 'react';
 import { Header } from '@/components/Header';
 import { APP_VERSION, practitionerName, procedureName, type BookingStatus, type Customer } from '@/lib/mockData';
@@ -179,7 +180,7 @@ export default function AdminPage() {
           <p className="hero-copy tight-copy">A cleaner receptionist view for live appointments, practitioner diaries and fast patient updates.</p>
         </div>
         <div className="command-actions">
-          <button className="button primary large-cta" type="button" onClick={() => setAdminBookingOpen(true)}>Add booking</button>
+          <Link className="button primary large-cta" href="/admin/reception">Add booking</Link>
           <button className="pill" type="button" onClick={refresh} disabled={saving}>Refresh diary</button>
         </div>
       </section>
