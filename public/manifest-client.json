@@ -4,7 +4,7 @@
   "short_name": "ZipBook",
   "description": "Book appointments online with live availability.",
   "start_url": "/book",
-  "scope": "/",
+  "scope": "/book",
   "display": "standalone",
   "display_override": [
     "standalone",

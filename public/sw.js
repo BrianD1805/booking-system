@@ -1,4 +1,4 @@
-const CACHE_NAME = 'zipbook-v0.028D';
+const CACHE_NAME = 'zipbook-v0.029';
 const CORE_ASSETS = [
   '/',
   '/book',
@@ -47,7 +47,7 @@ self.addEventListener('fetch', (event) => {
           caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy)).catch(() => undefined);
           return response;
         })
-        .catch(() => caches.match(event.request).then((cached) => cached || caches.match('/book') || caches.match('/offline.html')))
+        .catch(() => caches.match(event.request).then((cached) => cached || caches.match('/') || caches.match('/book') || caches.match('/offline.html')))
     );
     return;
   }

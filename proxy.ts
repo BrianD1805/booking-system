@@ -41,8 +41,10 @@ export function proxy(request: NextRequest) {
   }
 
   if (CLIENT_HOSTS.has(host)) {
+    // Public ZipBook domain root must stay as the marketing landing page.
+    // The client booking PWA lives deliberately at /book.
     if (pathname === '/' || pathname === '') {
-      return NextResponse.rewrite(new URL('/book', request.url));
+      return NextResponse.next();
     }
 
     if (pathname === '/admin' || pathname.startsWith('/admin/')) {
