@@ -111,6 +111,21 @@ export type PracticeSettings = {
   fallbackSms: boolean;
   mobilePush: boolean;
   medicalDataMode: string;
+  tenantSlug?: string;
+  publicBookingPath?: string;
+  clientAppUrl?: string;
+  adminAppUrl?: string;
+  adminSubdomain?: string;
+  primaryDomain?: string;
+  customDomain?: string;
+  tenantStatus?: string;
+  subscriptionStatus?: string;
+  planCode?: string;
+  timezone?: string;
+  locale?: string;
+  currencyCode?: string;
+  countryCode?: string;
+  onboardingCompleted?: boolean;
 };
 
 export type BootstrapData = {
@@ -124,7 +139,7 @@ export type BootstrapData = {
   practitionerBlockedTimes: PractitionerBlockedTime[];
 };
 
-export const APP_VERSION = 'Ver-0.029';
+export const APP_VERSION = 'Ver-0.030';
 
 export const fallbackProcedures: Procedure[] = [
   { id: 'checkup', name: 'Dental check-up', durationMinutes: 30, priceGuide: 'Standard consultation' },
@@ -191,7 +206,21 @@ export const fallbackPracticeSettings: PracticeSettings = {
   maxBookingAheadDays: 90,
   fallbackSms: true,
   mobilePush: true,
-  medicalDataMode: 'Dedicated Netlify Database first, later expandable to a shared SaaS database with strict tenant separation.'
+  medicalDataMode: 'Dedicated Netlify Database first, now with SaaS tenant metadata and domain mapping foundation.',
+  tenantSlug: 'zippy-dental-demo',
+  publicBookingPath: '/book',
+  clientAppUrl: 'https://zipbook.app/book',
+  adminAppUrl: 'https://admin.zipbook.app',
+  adminSubdomain: 'admin.zipbook.app',
+  primaryDomain: 'zipbook.app',
+  tenantStatus: 'active',
+  subscriptionStatus: 'foundation',
+  planCode: 'demo',
+  timezone: 'Africa/Nairobi',
+  locale: 'en-GB',
+  currencyCode: 'KES',
+  countryCode: 'KE',
+  onboardingCompleted: true
 };
 
 export const fallbackBootstrap: BootstrapData = {

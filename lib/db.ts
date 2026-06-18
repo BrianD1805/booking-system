@@ -1,6 +1,7 @@
 import { createHash, randomBytes, randomInt } from 'crypto';
 import { getDatabase } from '@netlify/database';
 import { deliverClientOtp } from './otpDelivery';
+import { getDefaultPracticeId } from './tenant';
 import { addMinutes } from '@/lib/availability';
 import {
   procedureDuration,
@@ -21,7 +22,7 @@ import {
   type Procedure
 } from '@/lib/mockData';
 
-const PRACTICE_ID = 'practice_001';
+const PRACTICE_ID = getDefaultPracticeId();
 
 type PracticeRow = {
   id: string;
@@ -36,6 +37,23 @@ type PracticeRow = {
   fallback_sms: boolean;
   mobile_push: boolean;
   medical_data_mode: string;
+  tenant_slug?: string | null;
+  public_booking_path?: string | null;
+  client_app_url?: string | null;
+  admin_app_url?: string | null;
+  admin_subdomain?: string | null;
+  primary_domain?: string | null;
+  custom_domain?: string | null;
+  owner_name?: string | null;
+  owner_email?: string | null;
+  tenant_status?: string | null;
+  subscription_status?: string | null;
+  plan_code?: string | null;
+  timezone?: string | null;
+  locale?: string | null;
+  currency_code?: string | null;
+  country_code?: string | null;
+  onboarding_completed?: boolean | null;
 };
 
 type ProcedureRow = {
@@ -293,7 +311,22 @@ function mapPractice(row: PracticeRow): PracticeSettings {
     maxBookingAheadDays: row.max_booking_ahead_days,
     fallbackSms: row.fallback_sms,
     mobilePush: row.mobile_push,
-    medicalDataMode: row.medical_data_mode
+    medicalDataMode: row.medical_data_mode,
+    tenantSlug: row.tenant_slug ?? 'zippy-dental-demo',
+    publicBookingPath: row.public_booking_path ?? '/book',
+    clientAppUrl: row.client_app_url ?? 'https://zipbook.app/book',
+    adminAppUrl: row.admin_app_url ?? 'https://admin.zipbook.app',
+    adminSubdomain: row.admin_subdomain ?? 'admin.zipbook.app',
+    primaryDomain: row.primary_domain ?? 'zipbook.app',
+    customDomain: row.custom_domain ?? undefined,
+    tenantStatus: row.tenant_status ?? 'active',
+    subscriptionStatus: row.subscription_status ?? 'foundation',
+    planCode: row.plan_code ?? 'demo',
+    timezone: row.timezone ?? 'Africa/Nairobi',
+    locale: row.locale ?? 'en-GB',
+    currencyCode: row.currency_code ?? 'KES',
+    countryCode: row.country_code ?? 'KE',
+    onboardingCompleted: row.onboarding_completed ?? true
   };
 }
 
