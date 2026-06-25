@@ -26,9 +26,9 @@ export default function AdminAuditPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  useEffect(() => { void loadAudit(); }, []);
+  useEffect(() => { void loadAudit({ silent: true }); }, []);
 
-  async function loadAudit() {
+  async function loadAudit(options: { silent?: boolean } = {}) {
     setLoading(true);
     setError('');
     try {
@@ -36,7 +36,7 @@ export default function AdminAuditPage() {
       const payload = await response.json();
       if (!response.ok) throw new Error(typeof payload?.error === 'string' ? payload.error : 'Could not load audit trail.');
       setAudit(Array.isArray(payload.audit) ? payload.audit as AuditLog[] : []);
-      showAdminToast('Audit trail refreshed.', 'info');
+      if (!options.silent) showAdminToast('Audit trail refreshed.', 'info');
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : 'Could not load audit trail.');
     } finally {
@@ -54,7 +54,7 @@ export default function AdminAuditPage() {
           <p className="hero-copy tight-copy">Bookings, client changes, staff changes and admin transactions are recorded here with the signed-in staff identity where available.</p>
         </div>
         <div className="command-actions admin-compact-actions">
-          <button type="button" onClick={loadAudit} disabled={loading} className={`pill admin-action-button admin-compact-button ${loading ? 'is-loading' : ''}`}><span className="refresh-icon" aria-hidden="true">↻</span>{loading ? 'Refreshing…' : 'Refresh audit'}</button>
+          <button type="button" onClick={() => void loadAudit()} disabled={loading} className={`pill admin-action-button admin-compact-button ${loading ? 'is-loading' : ''}`}><span className="refresh-icon" aria-hidden="true">↻</span>{loading ? 'Refreshing…' : 'Refresh audit'}</button>
         </div>
       </section>
 

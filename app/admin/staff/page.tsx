@@ -35,9 +35,9 @@ export default function AdminStaffPage() {
   const [message, setMessage] = useState('Manage the staff accounts allowed to use the admin system after the master key gate.');
   const [error, setError] = useState('');
 
-  useEffect(() => { void loadStaff(); }, []);
+  useEffect(() => { void loadStaff({ silent: true }); }, []);
 
-  async function loadStaff() {
+  async function loadStaff(options: { silent?: boolean } = {}) {
     setLoading(true);
     setError('');
     try {
@@ -46,7 +46,7 @@ export default function AdminStaffPage() {
       if (!response.ok) throw new Error(typeof payload?.error === 'string' ? payload.error : 'Could not load staff.');
       setStaff(Array.isArray(payload.staff) ? payload.staff as Staff[] : []);
       setMessage('Staff list loaded.');
-      showAdminToast('Staff list refreshed.', 'info');
+      if (!options.silent) showAdminToast('Staff list refreshed.', 'info');
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : 'Could not load staff.');
     } finally {
@@ -116,7 +116,7 @@ export default function AdminStaffPage() {
           <p className="hero-copy tight-copy">Add, edit or remove the reception/admin staff who can use ZipBook after the master key has unlocked the admin system.</p>
         </div>
         <div className="command-actions admin-compact-actions">
-          <button type="button" onClick={loadStaff} disabled={loading} className={`pill admin-action-button admin-compact-button ${loading ? 'is-loading' : ''}`}><span className="refresh-icon" aria-hidden="true">↻</span>{loading ? 'Refreshing…' : 'Refresh staff'}</button>
+          <button type="button" onClick={() => void loadStaff()} disabled={loading} className={`pill admin-action-button admin-compact-button ${loading ? 'is-loading' : ''}`}><span className="refresh-icon" aria-hidden="true">↻</span>{loading ? 'Refreshing…' : 'Refresh staff'}</button>
         </div>
       </section>
 

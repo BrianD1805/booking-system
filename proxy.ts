@@ -3,12 +3,47 @@ import { ADMIN_HOSTS, CLIENT_HOSTS, ZIPBOOK_DOMAINS, isLocalHost, normaliseHost 
 
 const PUBLIC_FILE = /\.(.*)$/;
 
+type ApiLogState = { total: number; routes: Record<string, number>; startedAt: number };
+
+function shouldLogApiRequests() {
+  try {
+    return process.env.ZIPBOOK_API_ROUTE_LOGGING !== '0';
+  } catch {
+    return true;
+  }
+}
+
+function logApiRequest(pathname: string) {
+  if (!shouldLogApiRequests()) return;
+  const key = pathname.replace(/\/[^/]+(?=\/|$)/g, (part) => (/^\/[a-z0-9-]{10,}$/i.test(part) ? '/:id' : part));
+  const globalStore = globalThis as typeof globalThis & { __zipbookApiLogState?: ApiLogState };
+  const state = globalStore.__zipbookApiLogState ?? { total: 0, routes: {}, startedAt: Date.now() };
+  state.total += 1;
+  state.routes[key] = (state.routes[key] ?? 0) + 1;
+  globalStore.__zipbookApiLogState = state;
+
+  if (state.total === 1 || state.total % 25 === 0) {
+    const topRoutes = Object.entries(state.routes)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 8)
+      .map(([route, count]) => `${route}=${count}`)
+      .join(', ');
+    console.info(`[ZipBook API route counts] total=${state.total}; top=${topRoutes}`);
+  }
+}
+
+
 export function proxy(request: NextRequest) {
   const host = normaliseHost(request.headers.get('host'));
   const { pathname } = request.nextUrl;
 
+  if (pathname.startsWith('/api')) {
+    logApiRequest(pathname);
+    return NextResponse.next();
+  }
+
   if (
-    pathname.startsWith('/api') ||
+    
     pathname.startsWith('/_next') ||
     pathname.startsWith('/icons') ||
     pathname.startsWith('/favicon') ||

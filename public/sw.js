@@ -1,9 +1,10 @@
-const CACHE_NAME = 'zipbook-v0.030';
+const CACHE_NAME = 'zipbook-v0.032';
 const CORE_ASSETS = [
   '/',
   '/book',
   '/admin',
   '/admin/data',
+  '/admin/settings',
   '/widget',
   '/offline.html',
   '/favicon.ico',

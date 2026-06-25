@@ -867,7 +867,20 @@ export async function deleteAdminDataCustomerAndBookings(customerId: string, act
   return result;
 }
 
+
+const BOOTSTRAP_CACHE_TTL_MS = 60_000;
+let cachedBootstrap: { data: BootstrapData; expiresAt: number } | null = null;
+
+function cloneBootstrapData(data: BootstrapData): BootstrapData {
+  return JSON.parse(JSON.stringify(data)) as BootstrapData;
+}
+
 export async function getBootstrapData(): Promise<BootstrapData> {
+  const now = Date.now();
+  if (cachedBootstrap && cachedBootstrap.expiresAt > now) {
+    return cloneBootstrapData(cachedBootstrap.data);
+  }
+
   const database = db();
   const [practiceRows, procedureRows, blockedDateRows, blockedTimeRows, practitionerRows, practitionerWorkingHourRows, practitionerProcedureRows, practitionerBlockedTimeRows] = await Promise.all([
     database.sql<PracticeRow>`SELECT * FROM practices WHERE id = ${PRACTICE_ID} LIMIT 1`,
@@ -882,7 +895,7 @@ export async function getBootstrapData(): Promise<BootstrapData> {
 
   if (!practiceRows[0]) throw new Error('Practice settings were not found. Check that the Netlify Database migration has run.');
 
-  return {
+  const data = {
     practiceSettings: mapPractice(practiceRows[0]),
     procedures: procedureRows.map(mapProcedure),
     blockedDates: blockedDateRows.map(mapBlockedDate),
@@ -892,6 +905,9 @@ export async function getBootstrapData(): Promise<BootstrapData> {
     practitionerProcedures: practitionerProcedureRows.map(mapPractitionerProcedure),
     practitionerBlockedTimes: practitionerBlockedTimeRows.map(mapPractitionerBlockedTime)
   };
+
+  cachedBootstrap = { data: cloneBootstrapData(data), expiresAt: now + BOOTSTRAP_CACHE_TTL_MS };
+  return data;
 }
 
 export async function getBookings(date?: string): Promise<Booking[]> {

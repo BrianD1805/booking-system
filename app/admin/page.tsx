@@ -99,7 +99,7 @@ export default function AdminPage() {
   const [lateMessage, setLateMessage] = useState('The dentist is running around 15 minutes late. Thank you for your patience.');
   const [bookingActionKey, setBookingActionKey] = useState('');
   const [now, setNow] = useState(() => new Date());
-  const { bootstrap, bookings, loading, saving, error, createBooking, updateBookingStatus, deleteBooking, refresh } = useBookingDatabase(selectedDate);
+  const { bootstrap, bookings, loading, saving, error, lastRefreshedAt, createBooking, updateBookingStatus, deleteBooking, refresh } = useBookingDatabase(selectedDate);
   const { practiceSettings, procedures, blockedDates, blockedTimes, practitioners } = bootstrap;
   const activeProcedureId = procedures.find((procedure) => procedure.id === procedureId)?.id ?? procedures[0]?.id ?? procedureId;
   const context = useMemo(() => ({
@@ -141,6 +141,7 @@ export default function AdminPage() {
   const visibleOpenSlots = diarySlots.filter((slot) => slot.available && !slotHasPassed(selectedDate, slot.endTime, now));
   const upcomingBookingCount = dateBookings.filter((booking) => !bookingHasPassed(selectedDate, booking.endTime, now)).length;
   const currentClockLabel = formatTwelveHourClock(now);
+  const lastRefreshedLabel = lastRefreshedAt ? new Date(lastRefreshedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true }) : 'Not refreshed yet';
   const canSave = Boolean(selectedTime && activePractitionerId && patientName.trim() && patientPhone.trim() && patientEmail.trim());
 
   useEffect(() => {
@@ -324,7 +325,7 @@ export default function AdminPage() {
               <h3 className="mini-section-title">Slots view</h3>
               <p className="mini-copy">Visual 30-minute diary preview for the selected date and practitioner filter.</p>
             </div>
-            <div className="admin-refresh-cluster"><span className="admin-clock-pill" aria-label="Current time">{currentClockLabel}</span><button type="button" onClick={() => void handleDiaryRefresh()} disabled={saving || loading} className={`pill admin-action-button ${loading ? 'is-loading' : ''}`}><span className="refresh-icon" aria-hidden="true">↻</span>{loading ? 'Refreshing…' : 'Refresh'}</button></div>
+            <div className="admin-refresh-cluster"><span className="admin-clock-pill" aria-label="Current time">{currentClockLabel}</span><span className="admin-last-refreshed">Last refreshed {lastRefreshedLabel}</span><button type="button" onClick={() => void handleDiaryRefresh()} disabled={saving || loading} className={`pill admin-action-button ${loading ? 'is-loading' : ''}`}><span className="refresh-icon" aria-hidden="true">↻</span>{loading ? 'Refreshing…' : 'Refresh'}</button></div>
           </div>
           <div className="slot-grid admin-slot-grid">
             {diarySlots.map((slot) => {

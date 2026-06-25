@@ -24,6 +24,7 @@ type HookState = {
   loading: boolean;
   saving: boolean;
   error: string;
+  lastRefreshedAt: string;
 };
 
 async function parseJsonResponse<T>(response: Response): Promise<T> {
@@ -41,7 +42,8 @@ export function useBookingDatabase(selectedDate?: string) {
     bookings: [],
     loading: true,
     saving: false,
-    error: ''
+    error: '',
+    lastRefreshedAt: ''
   });
 
   const loadBootstrap = useCallback(async () => {
@@ -55,7 +57,7 @@ export function useBookingDatabase(selectedDate?: string) {
     const query = selectedDate ? `?date=${encodeURIComponent(selectedDate)}` : '';
     const response = await fetch(`/api/bookings${query}`, { cache: 'no-store' });
     const payload = await parseJsonResponse<{ bookings: Booking[] }>(response);
-    setState((current) => ({ ...current, bookings: payload.bookings }));
+    setState((current) => ({ ...current, bookings: payload.bookings, lastRefreshedAt: new Date().toISOString() }));
     return payload.bookings;
   }, [selectedDate]);
 
@@ -78,18 +80,10 @@ export function useBookingDatabase(selectedDate?: string) {
     void refresh();
   }, [refresh]);
 
-  useEffect(() => {
-    const timer = window.setInterval(() => {
-      void loadBookings().catch((error) => {
-        setState((current) => ({
-          ...current,
-          error: error instanceof Error ? error.message : 'Could not refresh bookings.'
-        }));
-      });
-    }, 10000);
-
-    return () => window.clearInterval(timer);
-  }, [loadBookings]);
+  // Ver-0.032 database compute guardrail:
+  // No automatic polling. Admin diary/reception/client booking screens load once
+  // and then update only after a user action such as Refresh, Save or Delete.
+  // This prevents an idle browser tab from waking Netlify Database every few seconds.
 
   const createBooking = useCallback(async (input: BookingInput) => {
     setState((current) => ({ ...current, saving: true, error: '' }));

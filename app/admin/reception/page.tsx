@@ -71,7 +71,7 @@ export default function ReceptionBookingPage() {
   const [copyStatus, setCopyStatus] = useState('');
   const [now, setNow] = useState(() => new Date());
 
-  const { bootstrap, bookings, loading, saving, error, createBooking, refresh } = useBookingDatabase(selectedDate);
+  const { bootstrap, bookings, loading, saving, error, lastRefreshedAt, createBooking, refresh } = useBookingDatabase(selectedDate);
   const { practiceSettings, procedures, blockedDates, blockedTimes, practitioners } = bootstrap;
 
   const activeProcedureId = procedures.find((procedure) => procedure.id === procedureId)?.id ?? procedures[0]?.id ?? procedureId;
@@ -106,6 +106,7 @@ export default function ReceptionBookingPage() {
   const canSave = Boolean(selectedTime && bookingPractitionerId && hasPatientDetails && !selectedSlotHasPassed);
 
   const currentStep = !hasPatientDetails ? 1 : !selectedTime ? 2 : 3;
+  const lastRefreshedLabel = lastRefreshedAt ? new Date(lastRefreshedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true }) : 'Not refreshed yet';
 
   useEffect(() => {
     const timer = window.setInterval(() => setNow(new Date()), 30000);
@@ -285,7 +286,7 @@ export default function ReceptionBookingPage() {
           <p className="hero-copy tight-copy">A guided receptionist flow: choose the client, choose the appointment, then confirm the live booking.</p>
         </div>
         <div className="command-actions admin-compact-actions">
-          <button type="button" onClick={() => void handleReceptionRefresh()} disabled={saving || loading} className={`pill admin-action-button admin-compact-button ${loading ? 'is-loading' : ''}`}><span className="refresh-icon" aria-hidden="true">↻</span>{loading ? 'Refreshing…' : 'Refresh diary'}</button>
+          <span className="admin-last-refreshed">Last refreshed {lastRefreshedLabel}</span><button type="button" onClick={() => void handleReceptionRefresh()} disabled={saving || loading} className={`pill admin-action-button admin-compact-button ${loading ? 'is-loading' : ''}`}><span className="refresh-icon" aria-hidden="true">↻</span>{loading ? 'Refreshing…' : 'Refresh diary'}</button>
         </div>
       </section>
 

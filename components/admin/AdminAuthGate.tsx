@@ -52,6 +52,7 @@ export function AdminAuthGate({ children }: { children: React.ReactNode }) {
     { href: '/admin', label: 'Diary', helper: 'Daily slots and bookings' },
     { href: '/admin/reception', label: 'Add booking', helper: 'Reception booking flow' },
     { href: '/admin/data', label: 'Clients', helper: 'Search and manage clients' },
+    { href: '/admin/settings', label: 'Settings', helper: 'Practice setup and booking rules' },
     { href: '/admin/staff', label: 'Staff', helper: 'Admin users and roles' },
     { href: '/admin/audit', label: 'Audit trail', helper: 'Changes and transactions' }
   ], []);
