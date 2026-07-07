@@ -1,6 +1,6 @@
 {
   "name": "zippyweb-booking-system",
-  "version": "0.0.36-a",
+  "version": "0.0.37",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -9,7 +9,6 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@netlify/database": "latest",
     "@netlify/plugin-nextjs": "latest",
     "next": "latest",
     "react": "latest",

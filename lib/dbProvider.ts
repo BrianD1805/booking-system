@@ -1,4 +1,3 @@
-import { getDatabase } from '@netlify/database';
 import { Pool, type PoolConfig } from 'pg';
 
 type SqlQueryResult<T> = T[];
@@ -7,19 +6,10 @@ type SqlTag = <T = Record<string, unknown>>(strings: TemplateStringsArray, ...va
 
 export type ZipBookDatabase = {
   sql: SqlTag;
-  provider: 'netlify' | 'supabase';
-};
-
-type NetlifyDatabaseLike = {
-  sql: SqlTag;
+  provider: 'supabase';
 };
 
 let supabasePool: Pool | null = null;
-
-function selectedProvider() {
-  const raw = (process.env.DATABASE_PROVIDER ?? process.env.ZIPBOOK_DATABASE_PROVIDER ?? 'netlify').trim().toLowerCase();
-  return raw === 'supabase' ? 'supabase' : 'netlify';
-}
 
 function getSupabaseConnectionString() {
   return (
@@ -35,7 +25,7 @@ function getSupabasePool() {
 
   const connectionString = getSupabaseConnectionString();
   if (!connectionString) {
-    throw new Error('DATABASE_PROVIDER is set to supabase, but SUPABASE_DB_POOLER_URL is not configured.');
+    throw new Error('ZipBook is now locked to Supabase. Configure SUPABASE_DB_POOLER_URL with the Supabase transaction pooler connection string.');
   }
 
   const poolConfig: PoolConfig = {
@@ -62,7 +52,7 @@ function buildParameterizedQuery(strings: TemplateStringsArray, values: unknown[
   return { text, values };
 }
 
-function createSupabaseDatabase(): ZipBookDatabase {
+export function getZipBookDatabase(): ZipBookDatabase {
   return {
     provider: 'supabase',
     async sql<T = Record<string, unknown>>(strings: TemplateStringsArray, ...values: unknown[]) {
@@ -74,18 +64,23 @@ function createSupabaseDatabase(): ZipBookDatabase {
   };
 }
 
-function createNetlifyDatabase(): ZipBookDatabase {
-  const database = getDatabase() as unknown as NetlifyDatabaseLike;
-  return {
-    provider: 'netlify',
-    sql: database.sql
-  };
-}
-
-export function getZipBookDatabase(): ZipBookDatabase {
-  return selectedProvider() === 'supabase' ? createSupabaseDatabase() : createNetlifyDatabase();
-}
-
 export function getZipBookDatabaseProvider() {
-  return selectedProvider();
+  return 'supabase' as const;
+}
+
+export function isSupabaseConfigured() {
+  return Boolean(getSupabaseConnectionString());
+}
+
+export function getMaskedSupabaseConnectionString() {
+  const text = getSupabaseConnectionString();
+  if (!text) return '';
+  try {
+    const url = new URL(text);
+    const host = url.host;
+    const username = url.username ? `${url.username.slice(0, 12)}${url.username.length > 12 ? '…' : ''}` : '';
+    return `${url.protocol}//${username ? `${username}:***@` : ''}${host}${url.pathname}`;
+  } catch {
+    return text.slice(0, 12) + '…';
+  }
 }

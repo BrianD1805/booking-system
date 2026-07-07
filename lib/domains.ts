@@ -1,4 +1,4 @@
-export const APP_VERSION = 'Ver-0.036A';
+export const APP_VERSION = 'Ver-0.037';
 
 export const ZIPBOOK_DOMAINS = {
   client: 'https://zipbook.app',

@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { getDefaultPracticeId } from '@/lib/tenant';
-import { getZipBookDatabase, getZipBookDatabaseProvider } from '@/lib/dbProvider';
+import { getMaskedSupabaseConnectionString, getZipBookDatabase, getZipBookDatabaseProvider, isSupabaseConfigured } from '@/lib/dbProvider';
 import { APP_VERSION } from '@/lib/domains';
 
 export const dynamic = 'force-dynamic';
@@ -28,27 +28,6 @@ const FULL_API_TABLES = [
   'admin_staff_sessions',
   'audit_logs'
 ];
-
-function booleanEnv(value: string | undefined) {
-  return value === '1' || value?.toLowerCase() === 'true';
-}
-
-function maskConnectionString(value: string | undefined) {
-  const text = String(value ?? '').trim();
-  if (!text) return '';
-  try {
-    const url = new URL(text);
-    const host = url.host;
-    const username = url.username ? `${url.username.slice(0, 12)}${url.username.length > 12 ? '…' : ''}` : '';
-    return `${url.protocol}//${username ? `${username}:***@` : ''}${host}${url.pathname}`;
-  } catch {
-    return text.slice(0, 12) + '…';
-  }
-}
-
-function hasSupabaseEnv() {
-  return Boolean(process.env.SUPABASE_DB_POOLER_URL || process.env.SUPABASE_DATABASE_URL || process.env.DATABASE_URL);
-}
 
 async function getSmokeChecks() {
   const database = getZipBookDatabase();
@@ -122,18 +101,17 @@ export async function GET(request: NextRequest) {
         durationMs: Date.now() - startedAt
       },
       supabase: {
-        configured: hasSupabaseEnv(),
-        poolerUrl: maskConnectionString(process.env.SUPABASE_DB_POOLER_URL || process.env.SUPABASE_DATABASE_URL || process.env.DATABASE_URL),
+        configured: isSupabaseConfigured(),
+        poolerUrl: getMaskedSupabaseConnectionString(),
         ssl: process.env.SUPABASE_DB_SSL === '0' ? 'off' : 'on',
         poolMax: Number(process.env.SUPABASE_DB_POOL_MAX ?? 3)
-      },
-      netlify: {
-        defaultProvider: provider === 'netlify'
       },
       cutover: {
         fullApiProviderLayer: true,
         remainingDirectNetlifyRoutes: 0,
-        note: 'All server database work now runs through the ZipBook provider layer. Set DATABASE_PROVIDER=supabase to test Supabase.'
+        supabaseLockedIn: true,
+        netlifyDatabaseFallbackRemoved: true,
+        note: 'ZipBook production database is locked to Supabase. Netlify Database fallback has been removed.'
       },
       checks: {
         practices: Number(practiceCountRows[0]?.count ?? 0),
@@ -154,10 +132,10 @@ export async function GET(request: NextRequest) {
         provider,
         durationMs: Date.now() - startedAt,
         supabase: {
-          configured: hasSupabaseEnv(),
-          poolerUrl: maskConnectionString(process.env.SUPABASE_DB_POOLER_URL || process.env.SUPABASE_DATABASE_URL || process.env.DATABASE_URL),
-          usingSupabaseProvider: provider === 'supabase',
-          envProviderSupabase: booleanEnv(process.env.DATABASE_PROVIDER === 'supabase' ? '1' : process.env.ZIPBOOK_DATABASE_PROVIDER === 'supabase' ? '1' : undefined)
+          configured: isSupabaseConfigured(),
+          poolerUrl: getMaskedSupabaseConnectionString(),
+          usingSupabaseProvider: true,
+          supabaseLockedIn: true
         },
         error: error instanceof Error ? error.message : 'Database health check failed.'
       },
