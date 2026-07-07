@@ -23,7 +23,8 @@ export async function POST(request: NextRequest) {
       deliveryMessage: result.deliveryMessage,
       deliveryMode: result.deliveryMode,
       deliveryProvider: result.deliveryProvider,
-      deliveryReady: result.deliveryReady
+      deliveryReady: result.deliveryReady,
+      ...(result.testOtpCode ? { testOtpCode: result.testOtpCode } : {})
     });
   } catch (error) {
     return NextResponse.json({

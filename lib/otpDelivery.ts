@@ -3,8 +3,8 @@ export type OtpDeliveryChannel = 'sms' | 'email';
 export type OtpDeliveryResult = {
   attempted: boolean;
   delivered: boolean;
-  provider: 'console' | 'resend' | 'email-not-configured' | 'sms-planned';
-  mode: 'server-console-preview' | 'email-provider' | 'email-provider-not-configured' | 'provider-not-connected';
+  provider: 'console' | 'test-mode' | 'resend' | 'email-not-configured' | 'sms-planned';
+  mode: 'server-console-preview' | 'test-mode-preview' | 'email-provider' | 'email-provider-not-configured' | 'provider-not-connected';
   message: string;
 };
 
@@ -22,6 +22,10 @@ function getEmailFromAddress() {
 
 function getEmailReplyTo() {
   return process.env.ZIPBOOK_EMAIL_REPLY_TO || process.env.RESEND_REPLY_TO || '';
+}
+
+export function isOtpTestModeEnabled() {
+  return process.env.ZIPBOOK_OTP_TEST_MODE === 'true' || process.env.ZIPBOOK_OTP_TEST_MODE === '1';
 }
 
 function buildEmailHtml(code: string) {
@@ -96,6 +100,17 @@ export async function deliverClientOtp(input: {
   otpId: string;
 }): Promise<OtpDeliveryResult> {
   const maskedDestination = maskDestination(input.destination);
+
+  if (isOtpTestModeEnabled()) {
+    console.info(`[ZipBook OTP TEST MODE] ${input.channel.toUpperCase()} code for ${maskedDestination}: ${input.code} (OTP ${input.otpId})`);
+    return {
+      attempted: true,
+      delivered: true,
+      provider: 'test-mode',
+      mode: 'test-mode-preview',
+      message: 'Temporary OTP test mode is enabled. Use the verification code shown on screen.'
+    };
+  }
 
   if (input.channel === 'email') {
     const emailResult = await sendEmailOtp({ destination: input.destination, code: input.code });

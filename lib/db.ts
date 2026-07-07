@@ -1,6 +1,6 @@
 import { createHash, randomBytes, randomInt } from 'crypto';
 import { getZipBookDatabase } from './dbProvider';
-import { deliverClientOtp } from './otpDelivery';
+import { deliverClientOtp, isOtpTestModeEnabled } from './otpDelivery';
 import { getDefaultPracticeId } from './tenant';
 import { addMinutes } from '@/lib/availability';
 import {
@@ -1153,7 +1153,7 @@ async function findClientAccountByPhone(phone: string): Promise<ClientAccountRow
   return rows[0] ?? null;
 }
 
-export async function requestClientSignupOtp(input: { phone?: string; localPhone?: string; countryDialCode?: string; email?: string; password?: string }): Promise<{ otpId: string; channel: 'sms' | 'email'; destination: string; accountPhone: string; expiresAt: string; deliveryMessage: string; deliveryMode: string; deliveryProvider: string; deliveryReady: boolean }> {
+export async function requestClientSignupOtp(input: { phone?: string; localPhone?: string; countryDialCode?: string; email?: string; password?: string }): Promise<{ otpId: string; channel: 'sms' | 'email'; destination: string; accountPhone: string; expiresAt: string; deliveryMessage: string; deliveryMode: string; deliveryProvider: string; deliveryReady: boolean; testOtpCode?: string }> {
   const phone = normaliseClientLoginPhone(input);
   const email = normaliseEmail(input.email);
   const password = validateClientPassword(input.password);
@@ -1204,7 +1204,8 @@ export async function requestClientSignupOtp(input: { phone?: string; localPhone
     deliveryMessage: delivery.message,
     deliveryMode: delivery.mode,
     deliveryProvider: delivery.provider,
-    deliveryReady: delivery.delivered
+    deliveryReady: delivery.delivered,
+    ...(isOtpTestModeEnabled() ? { testOtpCode: code } : {})
   };
 }
 
@@ -1269,7 +1270,7 @@ export async function loginClientWithPassword(input: { phone?: string; localPhon
 }
 
 
-export async function requestClientPasswordResetOtp(input: { phone?: string; localPhone?: string; countryDialCode?: string; email?: string }): Promise<{ otpId: string; channel: 'sms' | 'email'; destination: string; accountPhone: string; expiresAt: string; deliveryMessage: string; deliveryMode: string; deliveryProvider: string; deliveryReady: boolean }> {
+export async function requestClientPasswordResetOtp(input: { phone?: string; localPhone?: string; countryDialCode?: string; email?: string }): Promise<{ otpId: string; channel: 'sms' | 'email'; destination: string; accountPhone: string; expiresAt: string; deliveryMessage: string; deliveryMode: string; deliveryProvider: string; deliveryReady: boolean; testOtpCode?: string }> {
   const phone = normaliseClientLoginPhone(input);
   const email = normaliseEmail(input.email);
   if (!phone) throw new Error('Select your country and enter your mobile number.');
@@ -1310,7 +1311,8 @@ export async function requestClientPasswordResetOtp(input: { phone?: string; loc
     deliveryMessage: delivery.message,
     deliveryMode: delivery.mode,
     deliveryProvider: delivery.provider,
-    deliveryReady: delivery.delivered
+    deliveryReady: delivery.delivered,
+    ...(isOtpTestModeEnabled() ? { testOtpCode: code } : {})
   };
 }
 
@@ -1369,7 +1371,7 @@ export async function confirmClientPasswordReset(input: { otpId: string; code: s
   return { sessionToken, profile };
 }
 
-export async function requestClientLoginOtp(input: { phone?: string; localPhone?: string; countryDialCode?: string; email?: string }): Promise<{ otpId: string; channel: 'sms' | 'email'; destination: string; accountPhone: string; expiresAt: string; deliveryMessage: string; deliveryMode: string; deliveryProvider: string; deliveryReady: boolean }> {
+export async function requestClientLoginOtp(input: { phone?: string; localPhone?: string; countryDialCode?: string; email?: string }): Promise<{ otpId: string; channel: 'sms' | 'email'; destination: string; accountPhone: string; expiresAt: string; deliveryMessage: string; deliveryMode: string; deliveryProvider: string; deliveryReady: boolean; testOtpCode?: string }> {
   const phone = normaliseClientLoginPhone(input);
   const email = normaliseEmail(input.email);
   if (!phone) throw new Error('Select a country and enter your mobile number.');
@@ -1408,7 +1410,8 @@ export async function requestClientLoginOtp(input: { phone?: string; localPhone?
     deliveryMessage: delivery.message,
     deliveryMode: delivery.mode,
     deliveryProvider: delivery.provider,
-    deliveryReady: delivery.delivered
+    deliveryReady: delivery.delivered,
+    ...(isOtpTestModeEnabled() ? { testOtpCode: code } : {})
   };
 }
 

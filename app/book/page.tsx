@@ -186,6 +186,7 @@ type ClientCodeResponse = {
   deliveryMode?: string;
   deliveryProvider?: string;
   deliveryReady?: boolean;
+  testOtpCode?: string;
 };
 
 type ClientVerifyResponse = {
@@ -755,6 +756,7 @@ export default function BookPage() {
                       <label htmlFor="clientOtpCode">Sign-up code</label>
                       <input id="clientOtpCode" value={clientOtpCode} onChange={(event) => setClientOtpCode(event.target.value)} inputMode="numeric" maxLength={6} placeholder="6-digit code" />
                     </div>
+                    {clientOtp?.testOtpCode && <p className="delivery-note-pill">Temporary test-mode code: <strong>{clientOtp.testOtpCode}</strong></p>}
                     {clientOtp?.deliveryMode === 'server-console-preview' && <p className="delivery-note-pill">Local testing without email settings: check the Netlify dev terminal for the sign-up code.</p>}
                   </div>
                 )}
@@ -858,6 +860,7 @@ export default function BookPage() {
                   <input id="clientResetNewPassword" value={clientResetPassword} onChange={(event) => setClientResetPassword(event.target.value)} type="password" autoComplete="new-password" placeholder="At least 6 characters" />
                   <small>Your old password will stop working after this reset.</small>
                 </div>
+                {clientOtp?.testOtpCode && <p className="delivery-note-pill">Temporary test-mode code: <strong>{clientOtp.testOtpCode}</strong></p>}
                 {clientOtp?.deliveryMode === 'server-console-preview' && <p className="delivery-note-pill">Local testing without email settings: check the Netlify dev terminal for the reset code.</p>}
               </div>
             )}
