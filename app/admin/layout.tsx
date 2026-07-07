@@ -9,7 +9,7 @@ export const metadata: Metadata = {
   alternates: { canonical: ZIPBOOK_DOMAINS.admin }
 };
 
-export const viewport: Viewport = { themeColor: '#113f8c' };
+export const viewport: Viewport = { themeColor: '#336699' };
 
 export default function AdminLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return <AdminAuthGate>{children}</AdminAuthGate>;

@@ -16,7 +16,7 @@ export default function HomePage() {
           </p>
           <div className="nav-pills">
             <Link className="button primary" href="/book">Open Client App</Link>
-            <Link className="button orange" href="/admin">Open Admin App</Link>
+            <Link className="button green" href="/admin">Open Admin App</Link>
           </div>
         </div>
         <div className="visual-card grid">

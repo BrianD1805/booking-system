@@ -691,7 +691,7 @@ export default function BookPage() {
           Book your appointment quickly and clearly, with your details ready when you sign in.
         </p>
         <div className="client-home-actions">
-          <button className="button orange large-cta" type="button" onClick={openBookingFlow}>
+          <button className="button green large-cta" type="button" onClick={openBookingFlow}>
             Make a booking
           </button>
         </div>
@@ -721,7 +721,7 @@ export default function BookPage() {
                 <p className="mini-copy">
                   {clientProfile
                     ? 'Your saved details are ready for quicker booking.'
-                    : 'Login with your mobile number and password, or sign up once with phone verification.'}
+                    : 'Login with your mobile number and password, or sign up once with email verification.'}
                 </p>
               </div>
               <div className={clientLoginNotice.toLowerCase().includes('could not') || clientLoginNotice.toLowerCase().includes('not correct') || clientLoginNotice.toLowerCase().includes('expired') || clientLoginNotice.toLowerCase().includes('not recognised') ? 'client-auth-status-pill warning' : 'client-auth-status-pill'} role="status">
@@ -743,36 +743,37 @@ export default function BookPage() {
                 </div>
 
                 {(clientLoginStage === 'login' || clientLoginStage === 'signup') && (
-                  <div className="grid two controls-grid">
-                    <div className="form-row">
-                      <label htmlFor="clientLoginCountry">Country</label>
-                      <input
-                        id="clientLoginCountry"
-                        list="zipbook-country-options"
-                        value={clientLoginCountryInput}
-                        onChange={(event) => setClientLoginCountryInput(event.target.value)}
-                        autoComplete="country-name"
-                        placeholder="Search country"
-                      />
-                      <datalist id="zipbook-country-options">
-                        {PHONE_COUNTRIES.map((country) => <option key={`${country.iso}-${country.dialCode}`} value={phoneCountryLabel(country)} />)}
-                      </datalist>
-                    </div>
-                    <div className="form-row">
+                  <div className="grid two controls-grid client-account-fields">
+                    <div className="form-row full-width-row phone-combo-row">
                       <label htmlFor="clientLoginPhone">Mobile number</label>
-                      <input id="clientLoginPhone" value={clientLoginPhone} onChange={(event) => setClientLoginPhone(event.target.value)} inputMode="tel" autoComplete="tel-national" placeholder="0712345678" />
+                      <div className="phone-combo-control">
+                        <select
+                          id="clientLoginCountry"
+                          aria-label="Country code"
+                          value={clientLoginCountryInput}
+                          onChange={(event) => setClientLoginCountryInput(event.target.value)}
+                          autoComplete="tel-country-code"
+                        >
+                          {PHONE_COUNTRIES.map((country) => (
+                            <option key={`${country.iso}-${country.dialCode}`} value={phoneCountryLabel(country)}>
+                              {country.name} {country.dialCode}
+                            </option>
+                          ))}
+                        </select>
+                        <input id="clientLoginPhone" value={clientLoginPhone} onChange={(event) => setClientLoginPhone(event.target.value)} inputMode="tel" autoComplete="tel-national" placeholder="0712345678" />
+                      </div>
                       <small>{previewPhone(selectedLoginCountry, clientLoginPhone)}</small>
                     </div>
                     {clientLoginStage === 'signup' && (
-                      <div className="form-row full-width-row">
+                      <div className="form-row signup-email-row">
                         <label htmlFor="clientLoginEmail">Email address</label>
                         <input id="clientLoginEmail" value={clientLoginEmail} onChange={(event) => setClientLoginEmail(event.target.value)} type="email" autoComplete="email" placeholder="you@example.com" />
+                        <small>We use this email address to send your one-time verification code.</small>
                       </div>
                     )}
-                    <div className="form-row full-width-row">
+                    <div className={clientLoginStage === 'signup' ? 'form-row signup-password-row' : 'form-row full-width-row'}>
                       <label htmlFor="clientPassword">Password</label>
                       <input id="clientPassword" value={clientPassword} onChange={(event) => setClientPassword(event.target.value)} type="password" autoComplete={clientLoginStage === 'signup' ? 'new-password' : 'current-password'} placeholder="Password" />
-                      {clientLoginStage === 'signup' && <small>OTP is used once to verify your mobile number.</small>}
                       {clientLoginStage === 'login' && (
                         <button className="auth-text-link" type="button" onClick={openClientPasswordReset}>
                           Forgot password?
@@ -784,7 +785,7 @@ export default function BookPage() {
 
                 {clientLoginStage === 'verify-signup' && (
                   <div className="client-otp-box">
-                    <p className="mini-copy">Enter the code sent to {clientOtp?.destination}. This verifies the mobile number for the new account.</p>
+                    <p className="mini-copy">Enter the code sent to {clientOtp?.destination}. This verifies the email address for the new account.</p>
                     <div className="form-row">
                       <label htmlFor="clientOtpCode">Sign-up code</label>
                       <input id="clientOtpCode" value={clientOtpCode} onChange={(event) => setClientOtpCode(event.target.value)} inputMode="numeric" maxLength={6} placeholder="6-digit code" />
@@ -861,16 +862,24 @@ export default function BookPage() {
                   <strong>Reset your password</strong>
                   <span>We will send a one-time code to the email address saved on your client account.</span>
                 </div>
-                <div className="form-row">
-                  <label htmlFor="clientResetCountry">Country</label>
-                  <input id="clientResetCountry" list="zipbook-country-options" value={clientLoginCountryInput} onChange={(event) => setClientLoginCountryInput(event.target.value)} autoComplete="country-name" placeholder="Search country" />
-                  <datalist id="zipbook-country-options">
-                    {PHONE_COUNTRIES.map((country) => <option key={`${country.iso}-${country.dialCode}`} value={phoneCountryLabel(country)} />)}
-                  </datalist>
-                </div>
-                <div className="form-row">
+                <div className="form-row full-width-row phone-combo-row">
                   <label htmlFor="clientResetPhone">Mobile number</label>
-                  <input id="clientResetPhone" value={clientLoginPhone} onChange={(event) => setClientLoginPhone(event.target.value)} inputMode="tel" autoComplete="tel-national" placeholder="0712345678" />
+                  <div className="phone-combo-control">
+                    <select
+                      id="clientResetCountry"
+                      aria-label="Country code"
+                      value={clientLoginCountryInput}
+                      onChange={(event) => setClientLoginCountryInput(event.target.value)}
+                      autoComplete="tel-country-code"
+                    >
+                      {PHONE_COUNTRIES.map((country) => (
+                        <option key={`${country.iso}-${country.dialCode}`} value={phoneCountryLabel(country)}>
+                          {country.name} {country.dialCode}
+                        </option>
+                      ))}
+                    </select>
+                    <input id="clientResetPhone" value={clientLoginPhone} onChange={(event) => setClientLoginPhone(event.target.value)} inputMode="tel" autoComplete="tel-national" placeholder="0712345678" />
+                  </div>
                   <small>{previewPhone(selectedLoginCountry, clientLoginPhone)}</small>
                 </div>
                 <div className="form-row full-width-row">

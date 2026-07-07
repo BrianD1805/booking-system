@@ -8,7 +8,7 @@ export const metadata: Metadata = {
   alternates: { canonical: ZIPBOOK_DOMAINS.client }
 };
 
-export const viewport: Viewport = { themeColor: '#2563eb' };
+export const viewport: Viewport = { themeColor: '#336699' };
 
 export default function BookLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return children;
