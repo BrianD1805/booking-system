@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getDatabase } from '@netlify/database';
+import { getZipBookDatabase } from '@/lib/dbProvider';
 import { requireAdminStaff } from '@/lib/adminStaffAuth';
 import { getDefaultPracticeId } from '@/lib/tenant';
 import { writeAdminAuditLog } from '@/lib/db';
@@ -152,7 +152,7 @@ function clearSettingsCache() {
 }
 
 async function loadSettingsUncached() {
-  const database = getDatabase();
+  const database = getZipBookDatabase();
   const [practiceRows, procedureRows, practitionerRows, assignmentRows] = await Promise.all([
     database.sql<PracticeSettingsRow>`SELECT id, name, public_display_name, booking_subdomain, practice_address, practice_phone, practice_email, logo_url, working_days, working_start_time::text AS working_start_time, working_end_time::text AS working_end_time, slot_interval_minutes, minimum_notice_hours, max_booking_ahead_days, lunch_break_enabled, lunch_break_start::text AS lunch_break_start, lunch_break_end::text AS lunch_break_end, allow_same_day_bookings, cancellation_policy_note, tenant_slug, public_booking_path, client_app_url, admin_app_url, timezone, locale, currency_code, country_code FROM practices WHERE id = ${PRACTICE_ID} LIMIT 1`,
     database.sql<ProcedureRow>`SELECT id, name, duration_minutes, price_guide, active, display_order FROM procedures WHERE practice_id = ${PRACTICE_ID} ORDER BY display_order, name`,
@@ -193,7 +193,7 @@ export async function PATCH(request: NextRequest) {
   try {
     const { actor } = await requireAdminStaff(request);
     const body = await request.json();
-    const database = getDatabase();
+    const database = getZipBookDatabase();
     const settings = body.settings ?? body;
     const practiceName = normaliseText(settings.practiceName || settings.name) || 'Zippy Dental Demo';
     const publicDisplayName = normaliseText(settings.publicDisplayName) || practiceName;
@@ -262,7 +262,7 @@ export async function POST(request: NextRequest) {
   try {
     const { actor } = await requireAdminStaff(request);
     const body = await request.json();
-    const database = getDatabase();
+    const database = getZipBookDatabase();
     const type = normaliseText(body.type);
 
     if (type === 'procedure') {
@@ -320,7 +320,7 @@ export async function DELETE(request: NextRequest) {
     const type = normaliseText(searchParams.get('type'));
     const id = normaliseText(searchParams.get('id'));
     if (!id) throw new Error('Missing item id.');
-    const database = getDatabase();
+    const database = getZipBookDatabase();
 
     if (type === 'procedure') {
       const bookingRows = await database.sql<{ count: number }>`SELECT COUNT(*)::int AS count FROM bookings WHERE practice_id = ${PRACTICE_ID} AND procedure_id = ${id}`;
