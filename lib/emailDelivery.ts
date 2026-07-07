@@ -94,7 +94,7 @@ export async function sendZipBookEmail(input: {
 
 function zipBookShell(title: string, bodyHtml: string) {
   return `
-    <div style="margin:0;padding:24px;background:#f5f8fc;font-family:Arial,Helvetica,sans-serif;color:#14304a;">
+    <div style="margin:0;padding:24px;background:#f5f8fc;font-family:Ubuntu,Arial,Helvetica,sans-serif;color:#14304a;">
       <div style="max-width:560px;margin:0 auto;background:#ffffff;border-radius:18px;padding:28px;border:1px solid #dbe8f5;box-shadow:0 12px 28px rgba(24,62,99,0.08);">
         <p style="margin:0 0 8px 0;color:#336699;font-size:13px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;">ZipBook</p>
         <h1 style="margin:0 0 14px 0;font-size:24px;line-height:1.25;color:#14304a;">${escapeHtml(title)}</h1>
