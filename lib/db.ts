@@ -1,6 +1,7 @@
 import { createHash, randomBytes, randomInt } from 'crypto';
 import { getZipBookDatabase } from './dbProvider';
 import { deliverClientOtp, isOtpTestModeEnabled } from './otpDelivery';
+import { buildAdminBookingEmailHtml, sendZipBookEmail } from './emailDelivery';
 import { getDefaultPracticeId } from './tenant';
 import { addMinutes } from '@/lib/availability';
 import {
@@ -995,6 +996,64 @@ async function findOrCreateCustomer(input: { customerId?: string; patientName: s
   return id;
 }
 
+
+async function getAdminNotificationRecipients(): Promise<string[]> {
+  const configured = (process.env.ZIPBOOK_ADMIN_NOTIFICATION_EMAIL || process.env.ZIPBOOK_ADMIN_EMAIL || '')
+    .split(',')
+    .map((email) => email.trim())
+    .filter(Boolean);
+  if (configured.length > 0) return configured;
+
+  try {
+    const database = db();
+    const rows = await database.sql<{ practice_email: string | null }>`
+      SELECT practice_email
+      FROM practices
+      WHERE id = ${PRACTICE_ID}
+      LIMIT 1
+    `;
+    return rows[0]?.practice_email ? [rows[0].practice_email] : [];
+  } catch (error) {
+    console.warn('[ZipBook Email] Could not load practice email for admin notification.', error);
+    return [];
+  }
+}
+
+async function sendBookingAdminNotification(input: {
+  booking: Booking;
+  procedureName: string;
+  practitionerName: string;
+}): Promise<{ attempted: boolean; delivered: boolean; provider: string; recipientCount: number }> {
+  const recipients = await getAdminNotificationRecipients();
+  if (recipients.length === 0) {
+    return { attempted: false, delivered: false, provider: 'email-not-configured', recipientCount: 0 };
+  }
+
+  const result = await sendZipBookEmail({
+    to: recipients,
+    subject: `New ZipBook booking: ${input.booking.patientName} on ${input.booking.date}`,
+    html: buildAdminBookingEmailHtml({
+      patientName: input.booking.patientName,
+      patientPhone: input.booking.patientPhone,
+      patientEmail: input.booking.patientEmail,
+      date: input.booking.date,
+      time: input.booking.time,
+      endTime: input.booking.endTime,
+      procedureName: input.procedureName,
+      practitionerName: input.practitionerName,
+      source: input.booking.source,
+      notes: input.booking.notes
+    })
+  });
+
+  return {
+    attempted: result.attempted,
+    delivered: result.delivered,
+    provider: result.provider,
+    recipientCount: recipients.length
+  };
+}
+
 async function ensurePractitionerCanTakeBooking(input: { practitionerId: string; procedureId: string; date: string; time: string; endTime: string }) {
   const database = db();
   const dayOfWeek = new Date(`${input.date}T12:00:00`).getDay();
@@ -1187,7 +1246,7 @@ export async function requestClientSignupOtp(input: { phone?: string; localPhone
     VALUES (${otpId}, ${PRACTICE_ID}, ${customer.id}, ${destination}, ${channel}, ${hashSecret(`${otpId}:${code}`)}, NOW() + INTERVAL '10 minutes')
   `;
 
-  const delivery = await deliverClientOtp({ channel, destination, code, otpId });
+  const delivery = await deliverClientOtp({ channel, destination, code, otpId, purpose: 'signup' });
 
   await database.sql`
     INSERT INTO audit_logs (id, practice_id, action, entity_type, entity_id, source, details)
@@ -1294,7 +1353,7 @@ export async function requestClientPasswordResetOtp(input: { phone?: string; loc
     VALUES (${otpId}, ${PRACTICE_ID}, ${account.customer_id}, ${destination}, ${channel}, ${hashSecret(`${otpId}:${code}`)}, NOW() + INTERVAL '10 minutes')
   `;
 
-  const delivery = await deliverClientOtp({ channel, destination, code, otpId });
+  const delivery = await deliverClientOtp({ channel, destination, code, otpId, purpose: 'password-reset' });
 
   await database.sql`
     INSERT INTO audit_logs (id, practice_id, action, entity_type, entity_id, source, details)
@@ -1393,7 +1452,7 @@ export async function requestClientLoginOtp(input: { phone?: string; localPhone?
     VALUES (${otpId}, ${PRACTICE_ID}, ${customer.id}, ${destination}, ${channel}, ${hashSecret(`${otpId}:${code}`)}, NOW() + INTERVAL '10 minutes')
   `;
 
-  const delivery = await deliverClientOtp({ channel, destination, code, otpId });
+  const delivery = await deliverClientOtp({ channel, destination, code, otpId, purpose: 'login' });
 
   await database.sql`
     INSERT INTO audit_logs (id, practice_id, action, entity_type, entity_id, source, details)
@@ -1560,7 +1619,21 @@ export async function createBookingInDatabase(input: {
     VALUES (${`audit-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`}, ${PRACTICE_ID}, ${'booking_created'}, ${'booking'}, ${id}, ${input.source}, ${JSON.stringify({ date: input.date, time: input.time, procedureId: input.procedureId, practitionerId: input.practitionerId, customerId, staffId: input.actor?.staffId, staffName: input.actor?.staffName })}::jsonb)
   `;
 
-  return mapBooking(rows[0]);
+  const booking = mapBooking(rows[0]);
+  const procedure = bootstrap.procedures.find((item) => item.id === input.procedureId);
+  const practitioner = bootstrap.practitioners.find((item) => item.id === input.practitionerId);
+  const adminNotification = await sendBookingAdminNotification({
+    booking,
+    procedureName: procedure?.name ?? input.procedureId,
+    practitionerName: practitioner?.name ?? input.practitionerId
+  });
+
+  await database.sql`
+    INSERT INTO audit_logs (id, practice_id, action, entity_type, entity_id, source, details)
+    VALUES (${`audit-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`}, ${PRACTICE_ID}, ${'booking_admin_notification'}, ${'booking'}, ${id}, ${input.source}, ${JSON.stringify(adminNotification)}::jsonb)
+  `;
+
+  return booking;
 }
 
 export async function updateBookingStatusInDatabase(id: string, status: BookingStatus, actor?: AdminActor): Promise<Booking> {
