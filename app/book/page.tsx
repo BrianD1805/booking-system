@@ -333,6 +333,31 @@ export default function BookPage() {
     prefillBookingDetailsFromProfile(profile);
   }
 
+  async function refreshClientProfileFromSession(token = clientSessionToken) {
+    if (!token) return null;
+
+    const response = await fetch('/api/client-login/session', {
+      cache: 'no-store',
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    const payload = await readJsonResponse<{ profile: ClientLoginProfile }>(response);
+    applyClientProfile(payload.profile);
+    return payload.profile;
+  }
+
+  async function returnToClientAppAfterBooking() {
+    setSuccessBooking(null);
+    setCopyStatus('');
+    modalHistoryRef.current = false;
+    if (clientSessionToken) {
+      try {
+        await refreshClientProfileFromSession(clientSessionToken);
+      } catch {
+        // Booking is already confirmed; stale profile refresh should not block returning to the app.
+      }
+    }
+    await refresh();
+  }
 
   function hasOpenClientModal() {
     return bookingOpen || timePickerOpen || clientLoginOpen || clientPasswordResetOpen || Boolean(successBooking);
@@ -606,6 +631,14 @@ export default function BookPage() {
         source: 'client',
         notes
       });
+
+      if (clientSessionToken) {
+        try {
+          await refreshClientProfileFromSession(clientSessionToken);
+        } catch {
+          // Keep the confirmed booking flow moving even if the profile refresh is delayed.
+        }
+      }
 
       setConfirmedBookingId(newBooking.id);
       setSuccessBooking({
@@ -1118,17 +1151,15 @@ export default function BookPage() {
             </div>
 
             <div className="success-actions">
-              <a className="button primary" href="/">Back to home</a>
+              <button className="button primary" type="button" onClick={() => void returnToClientAppAfterBooking()}>
+                Back to app
+              </button>
               <button
                 className="pill"
                 type="button"
-                onClick={() => {
-                  setSuccessBooking(null);
-                  modalHistoryRef.current = false;
-                  window.close();
-                }}
+                onClick={() => void returnToClientAppAfterBooking()}
               >
-                Cancel / close app
+                Close
               </button>
             </div>
           </div>
