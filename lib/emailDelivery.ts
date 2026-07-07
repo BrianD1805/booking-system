@@ -119,10 +119,8 @@ export function buildOtpEmailHtml(input: { code: string; purpose: 'signup' | 'pa
   `);
 }
 
-export function buildAdminBookingEmailHtml(input: {
+export function buildClientBookingConfirmationEmailHtml(input: {
   patientName: string;
-  patientPhone: string;
-  patientEmail: string;
   date: string;
   time: string;
   endTime: string;
@@ -131,20 +129,22 @@ export function buildAdminBookingEmailHtml(input: {
   source: string;
   notes?: string;
 }) {
+  const bookedByAdmin = input.source === 'admin' || input.source === 'reception';
+  const intro = bookedByAdmin
+    ? 'Your booking has been added by the practice team. Please keep this email for your records.'
+    : 'Thank you. Your booking has been received and added to the diary.';
+
   const rows = [
-    ['Patient', input.patientName],
-    ['Phone', input.patientPhone],
-    ['Email', input.patientEmail],
+    ['Name', input.patientName],
     ['Date', input.date],
     ['Time', `${input.time} - ${input.endTime}`],
     ['Procedure', input.procedureName],
     ['Practitioner', input.practitionerName],
-    ['Source', input.source],
     ['Notes', input.notes || 'None']
   ];
 
-  return zipBookShell('New booking received', `
-    <p style="margin:0 0 18px 0;font-size:15px;line-height:1.6;color:#4d6378;">A booking has been added to the ZipBook diary.</p>
+  return zipBookShell('Your ZipBook booking confirmation', `
+    <p style="margin:0 0 18px 0;font-size:15px;line-height:1.6;color:#4d6378;">${escapeHtml(intro)}</p>
     <table style="width:100%;border-collapse:collapse;font-size:14px;color:#14304a;">
       ${rows.map(([label, value]) => `
         <tr>
@@ -153,5 +153,6 @@ export function buildAdminBookingEmailHtml(input: {
         </tr>
       `).join('')}
     </table>
+    <p style="margin:18px 0 0 0;font-size:13px;line-height:1.5;color:#6b7f92;">If anything looks wrong, please contact the practice directly.</p>
   `);
 }

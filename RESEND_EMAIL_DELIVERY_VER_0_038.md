@@ -45,3 +45,8 @@ No SQL migration is required for Ver-0.038.
 - Visible app version: Ver-0.038
 - Service worker cache: zipbook-v0.038
 - Package version: 0.0.38
+
+
+## Superseded adjustment
+
+Ver-0.038A changes booking emails from admin notifications to client booking confirmations. Use Ver-0.038A as the active patch.
