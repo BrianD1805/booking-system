@@ -1,5 +1,5 @@
 import { createHash, randomBytes, randomInt } from 'crypto';
-import { getDatabase } from '@netlify/database';
+import { getZipBookDatabase } from './dbProvider';
 import { deliverClientOtp } from './otpDelivery';
 import { getDefaultPracticeId } from './tenant';
 import { addMinutes } from '@/lib/availability';
@@ -201,7 +201,7 @@ type BlockedDateRow = { blocked_date: string; reason: string };
 type BlockedTimeRow = { id: string; blocked_date: string; start_time: string; end_time: string; reason: string };
 
 function db() {
-  return getDatabase();
+  return getZipBookDatabase();
 }
 
 function normaliseDate(value: string | Date) {
