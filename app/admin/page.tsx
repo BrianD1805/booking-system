@@ -302,7 +302,7 @@ export default function AdminPage() {
         <div className="grid two controls-grid">
           <div className="form-row">
             <label htmlFor="adminDate">Date</label>
-            <DatePickerField id="adminDate" value={selectedDate} ariaLabel="Choose diary date" onChange={(nextDate) => { setSelectedDate(nextDate); setSelectedTime(''); }} />
+            <DatePickerField id="adminDate" value={selectedDate} required ariaLabel="Choose diary date" onChange={(nextDate) => { setSelectedDate(nextDate); setSelectedTime(''); }} />
           </div>
           <div className="form-row">
             <label htmlFor="adminPractitionerFilter">Practitioner</label>
@@ -429,7 +429,7 @@ export default function AdminPage() {
               <div className="grid three controls-grid">
                 <div className="form-row">
                   <label>Date</label>
-                  <DatePickerField value={selectedDate} ariaLabel="Choose booking date" onChange={(nextDate) => { setSelectedDate(nextDate); setSelectedTime(''); }} />
+                  <DatePickerField value={selectedDate} required ariaLabel="Choose booking date" onChange={(nextDate) => { setSelectedDate(nextDate); setSelectedTime(''); }} />
                 </div>
                 <div className="form-row">
                   <label>Procedure</label>

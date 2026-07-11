@@ -59,18 +59,28 @@ export function addMinutes(time: string, minutesToAdd: number) {
   return fromMinutes(toMinutes(time) + minutesToAdd);
 }
 
+function parseSafeIsoDate(date: string) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return null;
+  const parsed = new Date(`${date}T12:00:00`);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
 export function isWorkingDay(date: string, practiceSettings: PracticeSettings) {
-  const day = new Date(`${date}T12:00:00`).getDay();
+  const parsed = parseSafeIsoDate(date);
+  if (!parsed) return false;
+  const day = parsed.getDay();
   return practiceSettings.workingDays.includes(day);
 }
 
 export function getDayLabel(date: string) {
+  const parsed = parseSafeIsoDate(date);
+  if (!parsed) return 'Select a date';
   return new Intl.DateTimeFormat('en-GB', {
     weekday: 'long',
     day: 'numeric',
     month: 'long',
     year: 'numeric'
-  }).format(new Date(`${date}T12:00:00`));
+  }).format(parsed);
 }
 
 export function getDateOffset(daysFromToday: number) {

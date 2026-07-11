@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 
 type DatePickerFieldProps = {
   id?: string;
@@ -72,7 +73,10 @@ export function DatePickerField({
   ariaLabel = 'Choose date'
 }: DatePickerFieldProps) {
   const wrapperRef = useRef<HTMLDivElement | null>(null);
+  const popoverRef = useRef<HTMLDivElement | null>(null);
+  const [mounted, setMounted] = useState(false);
   const [open, setOpen] = useState(false);
+  const [popoverPosition, setPopoverPosition] = useState({ top: 16, left: 16, width: 342 });
   const [calendarMonth, setCalendarMonth] = useState(() => {
     const selected = parseIsoDate(value);
     return selected ?? new Date();
@@ -80,6 +84,39 @@ export function DatePickerField({
 
   const selectedDate = parseIsoDate(value);
   const todayIso = useMemo(() => toIsoDate(new Date()), []);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const updatePopoverPosition = useCallback(() => {
+    if (!wrapperRef.current || typeof window === 'undefined') return;
+
+    const triggerRect = wrapperRef.current.getBoundingClientRect();
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+    const isMobile = viewportWidth <= 640;
+    const gap = 16;
+    const width = Math.min(342, viewportWidth - gap * 2);
+    const measuredHeight = popoverRef.current?.getBoundingClientRect().height ?? 390;
+
+    if (isMobile) {
+      setPopoverPosition({
+        width,
+        left: Math.max(gap, (viewportWidth - width) / 2),
+        top: Math.max(gap, (viewportHeight - measuredHeight) / 2)
+      });
+      return;
+    }
+
+    const rawLeft = triggerRect.right - width;
+    const left = Math.min(Math.max(gap, rawLeft), viewportWidth - width - gap);
+    const rawTop = triggerRect.top - 8;
+    const maxTop = Math.max(gap, viewportHeight - measuredHeight - gap);
+    const top = Math.max(gap, Math.min(rawTop, maxTop));
+
+    setPopoverPosition({ width, left, top });
+  }, []);
 
   useEffect(() => {
     if (!value) return;
@@ -90,23 +127,41 @@ export function DatePickerField({
   useEffect(() => {
     if (!open) return;
 
+    updatePopoverPosition();
+
     function handlePointerDown(event: MouseEvent | TouchEvent) {
-      if (!wrapperRef.current?.contains(event.target as Node)) setOpen(false);
+      const target = event.target as Node;
+      const insideTrigger = wrapperRef.current?.contains(target);
+      const insidePopover = popoverRef.current?.contains(target);
+      if (!insideTrigger && !insidePopover) setOpen(false);
     }
 
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === 'Escape') setOpen(false);
     }
 
+    function handleViewportChange() {
+      updatePopoverPosition();
+    }
+
     document.addEventListener('mousedown', handlePointerDown);
     document.addEventListener('touchstart', handlePointerDown);
     document.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('resize', handleViewportChange);
+    window.addEventListener('scroll', handleViewportChange, true);
     return () => {
       document.removeEventListener('mousedown', handlePointerDown);
       document.removeEventListener('touchstart', handlePointerDown);
       document.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('resize', handleViewportChange);
+      window.removeEventListener('scroll', handleViewportChange, true);
     };
-  }, [open]);
+  }, [open, updatePopoverPosition]);
+
+  useEffect(() => {
+    if (!open) return;
+    updatePopoverPosition();
+  }, [calendarMonth, open, updatePopoverPosition]);
 
   const monthCells = useMemo(() => {
     const year = calendarMonth.getFullYear();
@@ -148,6 +203,49 @@ export function DatePickerField({
 
   const displayDate = formatDisplayDate(value);
 
+  const calendarPopup = (
+    <div
+      ref={popoverRef}
+      className="zip-calendar-popover is-floating"
+      role="dialog"
+      aria-label={ariaLabel}
+      style={{
+        top: `${popoverPosition.top}px`,
+        left: `${popoverPosition.left}px`,
+        width: `${popoverPosition.width}px`
+      }}
+    >
+      <div className="zip-calendar-head">
+        <button type="button" className="zip-calendar-nav" onClick={() => moveMonth(-1)} aria-label="Previous month">‹</button>
+        <strong>{formatMonthTitle(calendarMonth)}</strong>
+        <button type="button" className="zip-calendar-nav" onClick={() => moveMonth(1)} aria-label="Next month">›</button>
+      </div>
+
+      <div className="zip-calendar-weekdays" aria-hidden="true">
+        {WEEK_DAYS.map((day) => <span key={day}>{day}</span>)}
+      </div>
+
+      <div className="zip-calendar-grid">
+        {monthCells.map((cell) => (
+          <button
+            key={cell.iso}
+            type="button"
+            className={`zip-calendar-day ${cell.isCurrentMonth ? '' : 'is-muted'} ${cell.isSelected ? 'is-selected' : ''} ${cell.isToday ? 'is-today' : ''}`}
+            disabled={cell.disabled}
+            onClick={() => chooseDate(cell.iso)}
+          >
+            {cell.day}
+          </button>
+        ))}
+      </div>
+
+      <div className="zip-calendar-foot">
+        {!required && <button type="button" onClick={() => { onChange(''); setOpen(false); }}>Clear</button>}
+        <button type="button" onClick={chooseToday}>Today</button>
+      </div>
+    </div>
+  );
+
   return (
     <div className="zip-date-picker" ref={wrapperRef}>
       <button
@@ -161,38 +259,7 @@ export function DatePickerField({
         <span>{displayDate || placeholder}</span>
         <span className="zip-date-icon" aria-hidden="true">📅</span>
       </button>
-      {open && (
-        <div className="zip-calendar-popover" role="dialog" aria-label={ariaLabel}>
-          <div className="zip-calendar-head">
-            <button type="button" className="zip-calendar-nav" onClick={() => moveMonth(-1)} aria-label="Previous month">‹</button>
-            <strong>{formatMonthTitle(calendarMonth)}</strong>
-            <button type="button" className="zip-calendar-nav" onClick={() => moveMonth(1)} aria-label="Next month">›</button>
-          </div>
-
-          <div className="zip-calendar-weekdays" aria-hidden="true">
-            {WEEK_DAYS.map((day) => <span key={day}>{day}</span>)}
-          </div>
-
-          <div className="zip-calendar-grid">
-            {monthCells.map((cell) => (
-              <button
-                key={cell.iso}
-                type="button"
-                className={`zip-calendar-day ${cell.isCurrentMonth ? '' : 'is-muted'} ${cell.isSelected ? 'is-selected' : ''} ${cell.isToday ? 'is-today' : ''}`}
-                disabled={cell.disabled}
-                onClick={() => chooseDate(cell.iso)}
-              >
-                {cell.day}
-              </button>
-            ))}
-          </div>
-
-          <div className="zip-calendar-foot">
-            {!required && <button type="button" onClick={() => { onChange(''); setOpen(false); }}>Clear</button>}
-            <button type="button" onClick={chooseToday}>Today</button>
-          </div>
-        </div>
-      )}
+      {open && mounted ? createPortal(calendarPopup, document.body) : null}
     </div>
   );
 }

@@ -367,7 +367,7 @@ export default function ReceptionBookingPage() {
           <div className="grid three controls-grid reception-controls-grid">
             <div className="form-row">
               <label>Date</label>
-              <DatePickerField value={selectedDate} ariaLabel="Choose reception booking date" onChange={(nextDate) => { setSelectedDate(nextDate); setSelectedTime(''); }} />
+              <DatePickerField value={selectedDate} required ariaLabel="Choose reception booking date" onChange={(nextDate) => { setSelectedDate(nextDate); setSelectedTime(''); }} />
             </div>
             <div className="form-row">
               <label>Procedure</label>

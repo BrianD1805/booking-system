@@ -4365,7 +4365,7 @@ a.pill:active {
   }
 }
 
-/* Ver-0.041: modern ZipBook calendar widget replacing native date pickers. */
+/* Ver-0.041B: modern ZipBook calendar widget with viewport-safe floating positioning. */
 .zip-date-picker {
   position: relative;
   width: 100%;
@@ -4427,6 +4427,12 @@ a.pill:active {
   background: rgba(255, 255, 255, 0.98);
   box-shadow: 0 24px 70px rgba(16, 32, 51, 0.18), 0 0 0 1px rgba(255, 255, 255, 0.62) inset;
   backdrop-filter: blur(18px);
+}
+
+.zip-calendar-popover.is-floating {
+  position: fixed;
+  z-index: 9999;
+  max-width: calc(100vw - 32px);
 }
 
 .zip-calendar-head {
@@ -4574,16 +4580,9 @@ a.pill:active {
 }
 
 @media (max-width: 640px) {
-  .zip-calendar-popover {
-    position: fixed;
-    top: auto;
-    left: 16px;
-    right: 16px;
-    bottom: 16px;
-    width: auto;
-    max-width: none;
+  .zip-calendar-popover.is-floating {
     border-radius: 26px;
-    z-index: 120;
+    z-index: 9999;
   }
 
   .zip-calendar-day {
