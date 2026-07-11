@@ -4365,7 +4365,7 @@ a.pill:active {
   }
 }
 
-/* Ver-0.041B: modern ZipBook calendar widget with viewport-safe floating positioning. */
+/* Ver-0.041C: modern ZipBook calendar widget with viewport-safe floating positioning. */
 .zip-date-picker {
   position: relative;
   width: 100%;
@@ -4587,5 +4587,84 @@ a.pill:active {
 
   .zip-calendar-day {
     border-radius: 12px;
+  }
+}
+
+/* Ver-0.041C: DOB calendar manual entry and month/year jump controls. */
+.zip-date-manual-control {
+  padding: 0;
+  overflow: hidden;
+}
+
+.zip-date-manual-control input {
+  min-width: 0;
+  flex: 1 1 auto;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-weight: 700;
+  padding: 13px 0 13px 14px;
+  outline: none;
+}
+
+.zip-date-manual-control input::placeholder {
+  color: rgba(96, 112, 134, 0.9);
+}
+
+.zip-date-icon-button {
+  border: 0;
+  margin-right: 8px;
+  cursor: pointer;
+}
+
+.zip-date-icon-button:hover,
+.zip-date-icon-button:focus-visible {
+  transform: none;
+  outline: 2px solid rgba(51, 102, 153, 0.18);
+  outline-offset: 2px;
+}
+
+.zip-calendar-popover.is-dob-calendar {
+  width: min(374px, calc(100vw - 32px));
+}
+
+.zip-calendar-head.is-dob-head {
+  grid-template-columns: 42px minmax(0, 1fr) 42px;
+}
+
+.zip-calendar-jump-controls {
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(78px, 0.7fr);
+  gap: 8px;
+}
+
+.zip-calendar-jump-controls select,
+.zip-calendar-jump-controls input {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid rgba(51, 102, 153, 0.16);
+  border-radius: 14px;
+  background: #f7fbff;
+  color: var(--ink);
+  font: inherit;
+  font-weight: 800;
+  padding: 10px 11px;
+  outline: none;
+}
+
+.zip-calendar-jump-controls select:focus-visible,
+.zip-calendar-jump-controls input:focus-visible {
+  border-color: rgba(51, 102, 153, 0.42);
+  box-shadow: 0 0 0 3px rgba(51, 102, 153, 0.1);
+}
+
+@media (max-width: 640px) {
+  .zip-calendar-popover.is-dob-calendar {
+    width: min(374px, calc(100vw - 32px)) !important;
+  }
+
+  .zip-calendar-jump-controls {
+    grid-template-columns: minmax(0, 1fr) 82px;
   }
 }

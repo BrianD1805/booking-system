@@ -1,6 +1,6 @@
-# ZipBook Ver-0.041B — Calendar Positioning Fix
+# ZipBook Ver-0.041C — Calendar Positioning Fix
 
-Ver-0.041B refines the custom ZipBook calendar positioning introduced in Ver-0.041.
+Ver-0.041C refines the custom ZipBook calendar positioning introduced in Ver-0.041.
 
 ## Changes
 

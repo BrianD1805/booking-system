@@ -1,6 +1,6 @@
-# ZipBook Ver-0.041B — Calendar Clear Button Fix
+# ZipBook Ver-0.041C — Calendar Clear Button Fix
 
-Ver-0.041B fixes a runtime error found during local testing after the Ver-0.041A calendar positioning update.
+Ver-0.041C fixes a runtime error found during local testing after the Ver-0.041A calendar positioning update.
 
 ## Issue fixed
 

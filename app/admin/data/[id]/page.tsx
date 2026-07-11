@@ -307,7 +307,7 @@ export default function AdminClientEditPage() {
               </div>
               <div className="form-row">
                 <label htmlFor="editDob">Date of birth</label>
-                <DatePickerField id="editDob" value={editingClient.dateOfBirth ?? ''} placeholder="Select date of birth" ariaLabel="Choose client date of birth" onChange={(nextDate) => updateEditing({ dateOfBirth: nextDate })} />
+                <DatePickerField id="editDob" mode="dob" value={editingClient.dateOfBirth ?? ''} placeholder="dd/mm/yyyy" ariaLabel="Choose client date of birth" onChange={(nextDate) => updateEditing({ dateOfBirth: nextDate })} />
               </div>
               <div className="form-row">
                 <label htmlFor="editPhone">Phone</label>
@@ -384,7 +384,7 @@ export default function AdminClientEditPage() {
               {editingClient.familyMembers.map((member, index) => (
                 <div className="family-member-row" key={member.id ?? index}>
                   <input value={member.fullName} onChange={(event) => updateFamilyMember(index, { fullName: event.target.value })} placeholder="Name" />
-                  <DatePickerField value={member.dateOfBirth ?? ''} placeholder="Date of birth" ariaLabel="Choose family member date of birth" onChange={(nextDate) => updateFamilyMember(index, { dateOfBirth: nextDate })} />
+                  <DatePickerField mode="dob" value={member.dateOfBirth ?? ''} placeholder="dd/mm/yyyy" ariaLabel="Choose family member date of birth" onChange={(nextDate) => updateFamilyMember(index, { dateOfBirth: nextDate })} />
                   <button type="button" className="pill danger-text" onClick={() => removeFamilyMember(index)}>Remove</button>
                 </div>
               ))}
