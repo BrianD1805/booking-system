@@ -1,5 +1,6 @@
 'use client';
 
+import { DatePickerField } from '@/components/DatePickerField';
 import { ChangeEvent, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
@@ -306,7 +307,7 @@ export default function AdminClientEditPage() {
               </div>
               <div className="form-row">
                 <label htmlFor="editDob">Date of birth</label>
-                <input id="editDob" type="date" value={editingClient.dateOfBirth ?? ''} onChange={(event) => updateEditing({ dateOfBirth: event.target.value })} />
+                <DatePickerField id="editDob" value={editingClient.dateOfBirth ?? ''} placeholder="Select date of birth" ariaLabel="Choose client date of birth" onChange={(nextDate) => updateEditing({ dateOfBirth: nextDate })} />
               </div>
               <div className="form-row">
                 <label htmlFor="editPhone">Phone</label>
@@ -383,7 +384,7 @@ export default function AdminClientEditPage() {
               {editingClient.familyMembers.map((member, index) => (
                 <div className="family-member-row" key={member.id ?? index}>
                   <input value={member.fullName} onChange={(event) => updateFamilyMember(index, { fullName: event.target.value })} placeholder="Name" />
-                  <input type="date" value={member.dateOfBirth ?? ''} onChange={(event) => updateFamilyMember(index, { dateOfBirth: event.target.value })} />
+                  <DatePickerField value={member.dateOfBirth ?? ''} placeholder="Date of birth" ariaLabel="Choose family member date of birth" onChange={(nextDate) => updateFamilyMember(index, { dateOfBirth: nextDate })} />
                   <button type="button" className="pill danger-text" onClick={() => removeFamilyMember(index)}>Remove</button>
                 </div>
               ))}

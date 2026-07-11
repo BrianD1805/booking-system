@@ -11,12 +11,13 @@
   "workspace": {
     "packageJson": {
       "dependencies": [
-        "npm:@netlify/database@latest",
         "npm:@netlify/plugin-nextjs@latest",
         "npm:@types/node@latest",
+        "npm:@types/pg@latest",
         "npm:@types/react-dom@latest",
         "npm:@types/react@latest",
         "npm:next@latest",
+        "npm:pg@latest",
         "npm:react-dom@latest",
         "npm:react@latest",
         "npm:typescript@latest"

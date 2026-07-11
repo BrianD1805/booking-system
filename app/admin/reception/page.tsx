@@ -1,5 +1,6 @@
 'use client';
 
+import { DatePickerField } from '@/components/DatePickerField';
 import Link from 'next/link';
 import { FormEvent, KeyboardEvent, useEffect, useMemo, useState } from 'react';
 import { Header } from '@/components/Header';
@@ -366,7 +367,7 @@ export default function ReceptionBookingPage() {
           <div className="grid three controls-grid reception-controls-grid">
             <div className="form-row">
               <label>Date</label>
-              <input type="date" value={selectedDate} onChange={(event) => { setSelectedDate(event.target.value); setSelectedTime(''); }} />
+              <DatePickerField value={selectedDate} ariaLabel="Choose reception booking date" onChange={(nextDate) => { setSelectedDate(nextDate); setSelectedTime(''); }} />
             </div>
             <div className="form-row">
               <label>Procedure</label>

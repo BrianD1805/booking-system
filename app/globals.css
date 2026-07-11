@@ -4364,3 +4364,229 @@ a.pill:active {
     padding-left: 14px !important;
   }
 }
+
+/* Ver-0.041: modern ZipBook calendar widget replacing native date pickers. */
+.zip-date-picker {
+  position: relative;
+  width: 100%;
+  min-width: 0;
+  isolation: isolate;
+}
+
+.zip-date-trigger {
+  width: 100%;
+  min-height: 50px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 13px 14px;
+  background: rgba(255, 255, 255, 0.96);
+  color: var(--ink);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  cursor: pointer;
+  text-align: left;
+  box-shadow: inset 0 0 0 1px rgba(51, 102, 153, 0.02);
+}
+
+.zip-date-trigger:hover,
+.zip-date-trigger.is-open,
+.zip-date-trigger:focus-visible {
+  transform: none;
+  border-color: rgba(51, 102, 153, 0.46);
+  box-shadow: 0 0 0 4px rgba(51, 102, 153, 0.08);
+  outline: none;
+}
+
+.zip-date-trigger.is-empty span:first-child {
+  color: rgba(96, 112, 134, 0.9);
+}
+
+.zip-date-icon {
+  width: 34px;
+  height: 34px;
+  flex: 0 0 34px;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  background: rgba(51, 102, 153, 0.08);
+  color: var(--zw-blue-deep);
+  font-size: 1rem;
+}
+
+.zip-calendar-popover {
+  position: absolute;
+  top: calc(100% + 10px);
+  left: 0;
+  z-index: 90;
+  width: min(342px, calc(100vw - 44px));
+  border: 1px solid rgba(51, 102, 153, 0.18);
+  border-radius: 24px;
+  padding: 14px;
+  background: rgba(255, 255, 255, 0.98);
+  box-shadow: 0 24px 70px rgba(16, 32, 51, 0.18), 0 0 0 1px rgba(255, 255, 255, 0.62) inset;
+  backdrop-filter: blur(18px);
+}
+
+.zip-calendar-head {
+  display: grid;
+  grid-template-columns: 42px 1fr 42px;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.zip-calendar-head strong {
+  color: var(--ink);
+  text-align: center;
+  font-size: 1rem;
+  letter-spacing: -0.02em;
+}
+
+.zip-calendar-nav {
+  width: 42px;
+  height: 42px;
+  border: 1px solid rgba(51, 102, 153, 0.14);
+  border-radius: 14px;
+  background: #f7fbff;
+  color: var(--zw-blue-deep);
+  font-size: 1.5rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.zip-calendar-nav:hover,
+.zip-calendar-nav:focus-visible {
+  transform: none;
+  border-color: rgba(51, 102, 153, 0.34);
+  background: #edf6ff;
+  outline: none;
+}
+
+.zip-calendar-weekdays,
+.zip-calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.zip-calendar-weekdays {
+  margin-bottom: 6px;
+}
+
+.zip-calendar-weekdays span {
+  text-align: center;
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: var(--muted);
+}
+
+.zip-calendar-day {
+  min-width: 0;
+  width: 100%;
+  aspect-ratio: 1;
+  border: 1px solid transparent;
+  border-radius: 14px;
+  background: transparent;
+  color: var(--ink);
+  font-weight: 800;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+}
+
+.zip-calendar-day:hover,
+.zip-calendar-day:focus-visible {
+  transform: none;
+  border-color: rgba(51, 102, 153, 0.22);
+  background: rgba(51, 102, 153, 0.08);
+  outline: none;
+}
+
+.zip-calendar-day.is-muted {
+  color: rgba(96, 112, 134, 0.52);
+}
+
+.zip-calendar-day.is-today {
+  border-color: rgba(22, 121, 76, 0.34);
+  background: rgba(22, 121, 76, 0.08);
+  color: #166534;
+}
+
+.zip-calendar-day.is-selected {
+  background: linear-gradient(135deg, var(--zw-blue), #5f94c7);
+  border-color: transparent;
+  color: #ffffff;
+  box-shadow: 0 12px 24px rgba(51, 102, 153, 0.24);
+}
+
+.zip-calendar-day:disabled {
+  cursor: not-allowed;
+  opacity: 0.34;
+  background: transparent;
+  box-shadow: none;
+}
+
+.zip-calendar-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(51, 102, 153, 0.12);
+}
+
+.zip-calendar-foot button {
+  border: 1px solid rgba(51, 102, 153, 0.16);
+  border-radius: 999px;
+  padding: 9px 13px;
+  background: #f7fbff;
+  color: var(--zw-blue-deep);
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.zip-calendar-foot button:hover,
+.zip-calendar-foot button:focus-visible {
+  transform: none;
+  border-color: rgba(51, 102, 153, 0.34);
+  background: #edf6ff;
+  outline: none;
+}
+
+.family-member-row .zip-date-trigger {
+  min-height: 44px;
+  padding: 10px 12px;
+  border-radius: 14px;
+}
+
+.family-member-row .zip-date-icon {
+  width: 28px;
+  height: 28px;
+  flex-basis: 28px;
+  font-size: 0.86rem;
+}
+
+.family-member-row .zip-calendar-popover {
+  width: min(320px, calc(100vw - 44px));
+}
+
+@media (max-width: 640px) {
+  .zip-calendar-popover {
+    position: fixed;
+    top: auto;
+    left: 16px;
+    right: 16px;
+    bottom: 16px;
+    width: auto;
+    max-width: none;
+    border-radius: 26px;
+    z-index: 120;
+  }
+
+  .zip-calendar-day {
+    border-radius: 12px;
+  }
+}

@@ -1,5 +1,6 @@
 'use client';
 
+import { DatePickerField } from '@/components/DatePickerField';
 import Link from 'next/link';
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { Header } from '@/components/Header';
@@ -301,7 +302,7 @@ export default function AdminPage() {
         <div className="grid two controls-grid">
           <div className="form-row">
             <label htmlFor="adminDate">Date</label>
-            <input id="adminDate" type="date" value={selectedDate} onChange={(event) => { setSelectedDate(event.target.value); setSelectedTime(''); }} />
+            <DatePickerField id="adminDate" value={selectedDate} ariaLabel="Choose diary date" onChange={(nextDate) => { setSelectedDate(nextDate); setSelectedTime(''); }} />
           </div>
           <div className="form-row">
             <label htmlFor="adminPractitionerFilter">Practitioner</label>
@@ -428,7 +429,7 @@ export default function AdminPage() {
               <div className="grid three controls-grid">
                 <div className="form-row">
                   <label>Date</label>
-                  <input type="date" value={selectedDate} onChange={(event) => { setSelectedDate(event.target.value); setSelectedTime(''); }} />
+                  <DatePickerField value={selectedDate} ariaLabel="Choose booking date" onChange={(nextDate) => { setSelectedDate(nextDate); setSelectedTime(''); }} />
                 </div>
                 <div className="form-row">
                   <label>Procedure</label>

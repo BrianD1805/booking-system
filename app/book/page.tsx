@@ -1,5 +1,6 @@
 'use client';
 
+import { DatePickerField } from '@/components/DatePickerField';
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { APP_VERSION, procedureDuration, type ClientLoginProfile } from '@/lib/mockData';
 import { FIRST_AVAILABLE, getAvailabilityForDate, getDateOffset, getDayLabel, practitionersForProcedure } from '@/lib/availability';
@@ -1011,7 +1012,7 @@ export default function BookPage() {
             <section className="flow-step diary-choice-step">
               <div className="form-row">
                 <label htmlFor="date">Diary date</label>
-                <input id="date" type="date" value={selectedDate} onChange={(event) => { setSelectedDate(event.target.value); resetSelection(); }} required />
+                <DatePickerField id="date" value={selectedDate} required ariaLabel="Choose diary date" onChange={(nextDate) => { setSelectedDate(nextDate); resetSelection(); }} />
               </div>
               <div className="summary-strip">
                 <strong>{loading ? 'Loading diary…' : getDayLabel(selectedDate)}</strong>
