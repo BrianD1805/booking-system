@@ -4668,3 +4668,125 @@ a.pill:active {
     grid-template-columns: minmax(0, 1fr) 82px;
   }
 }
+
+/* Ver-0.042: admin login split screens and password reveal controls. */
+.button.ghost {
+  background: #ffffff;
+  color: #336699;
+  border-color: rgba(51, 102, 153, 0.22);
+  box-shadow: 0 10px 24px rgba(51, 102, 153, 0.08);
+}
+
+.admin-login-screen {
+  display: grid;
+  gap: 18px;
+}
+
+.admin-login-screen-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 22px;
+}
+
+.admin-master-back {
+  flex: 0 0 auto;
+  margin-top: 4px;
+}
+
+.admin-master-key-row {
+  align-items: stretch;
+}
+
+.admin-master-key-row .button.primary {
+  min-width: 138px;
+}
+
+.admin-password-control {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
+  width: 100%;
+}
+
+.admin-password-control input {
+  padding-right: 58px;
+}
+
+.admin-password-eye {
+  position: absolute;
+  top: 50%;
+  right: 10px;
+  width: 38px;
+  height: 38px;
+  transform: translateY(-50%);
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(51, 102, 153, 0.18);
+  border-radius: 14px;
+  background: #f6f9ff;
+  color: #336699;
+  cursor: pointer;
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.admin-password-eye:hover {
+  background: #eaf3ff;
+}
+
+.admin-login-submit-row {
+  display: flex;
+  justify-content: flex-start;
+  margin-top: 28px;
+}
+
+.admin-staff-submit-row {
+  justify-content: flex-end;
+}
+
+.admin-staff-login-card .controls-grid {
+  row-gap: 18px;
+}
+
+@media (min-width: 761px) {
+  .admin-staff-login-title {
+    font-size: clamp(1.35rem, 3vw, 2.4rem);
+    line-height: 1.05;
+    letter-spacing: -0.045em;
+    margin-bottom: 12px;
+  }
+
+  .admin-staff-login-card h2 {
+    font-size: 1.05rem;
+    line-height: 1.2;
+    letter-spacing: -0.02em;
+  }
+
+  .admin-staff-submit-row .button.primary {
+    min-width: 190px;
+  }
+}
+
+@media (max-width: 760px) {
+  .admin-login-screen-head {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .admin-master-back,
+  .admin-login-submit-row .button,
+  .admin-master-key-row .button.primary {
+    width: 100%;
+  }
+
+  .admin-login-submit-row,
+  .admin-staff-submit-row {
+    justify-content: stretch;
+    margin-top: 22px;
+  }
+
+  .admin-staff-fields-row {
+    grid-template-columns: 1fr;
+  }
+}

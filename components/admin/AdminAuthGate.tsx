@@ -43,9 +43,12 @@ export function AdminAuthGate({ children }: { children: React.ReactNode }) {
   const [staffCount, setStaffCount] = useState<number | null>(null);
   const [checking, setChecking] = useState(true);
   const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState('Enter the master key, then sign in as a staff member.');
+  const [message, setMessage] = useState('Enter the master admin key to continue.');
   const [error, setError] = useState('');
   const [menuOpen, setMenuOpen] = useState(false);
+  const [showMasterKey, setShowMasterKey] = useState(false);
+  const [showStaffPassword, setShowStaffPassword] = useState(true);
+  const [showSetupPassword, setShowSetupPassword] = useState(true);
 
   const isAdminUtility = useMemo(() => pathname?.startsWith('/admin/staff') || pathname?.startsWith('/admin/audit'), [pathname]);
   const adminMenuItems = useMemo(() => [
@@ -82,12 +85,15 @@ export function AdminAuthGate({ children }: { children: React.ReactNode }) {
       if (payload.staff) {
         setStaff(payload.staff as Staff);
         window.sessionStorage.setItem(STAFF_PROFILE_STORAGE, JSON.stringify(payload.staff));
-      } else if (showMessage) {
-        setMessage(Number(payload.staffCount ?? 0) > 0 ? 'Master key accepted. Now sign in as a staff member.' : 'Master key accepted. Create the first staff login below.');
+      } else {
+        const nextMessage = Number(payload.staffCount ?? 0) > 0 ? 'Master key accepted. Now sign in as a staff member.' : 'Master key accepted. Create the first staff login below.';
+        if (showMessage || nextMasterKey) setMessage(nextMessage);
       }
       window.sessionStorage.setItem(MASTER_KEY_STORAGE, nextMasterKey);
     } catch (statusError) {
       setStaff(null);
+      setStaffCount(null);
+      window.sessionStorage.removeItem(MASTER_KEY_STORAGE);
       window.sessionStorage.removeItem(STAFF_TOKEN_STORAGE);
       window.sessionStorage.removeItem(STAFF_PROFILE_STORAGE);
       setError(statusError instanceof Error ? statusError.message : 'Could not check admin login.');
@@ -98,7 +104,22 @@ export function AdminAuthGate({ children }: { children: React.ReactNode }) {
 
   async function handleMasterKey(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    await checkStatus(masterKey.trim(), '', true);
+    const trimmedMasterKey = masterKey.trim();
+    if (!trimmedMasterKey) {
+      setStaffCount(null);
+      setError('Enter the master admin key.');
+      return;
+    }
+    setMasterKey(trimmedMasterKey);
+    await checkStatus(trimmedMasterKey, '', true);
+  }
+
+  function returnToMasterKey() {
+    setStaffCount(null);
+    setStaffPassword('');
+    setSetupPassword('');
+    setError('');
+    setMessage('Enter the master admin key to continue.');
   }
 
   async function handleStaffLogin(event: FormEvent<HTMLFormElement>) {
@@ -164,49 +185,136 @@ export function AdminAuthGate({ children }: { children: React.ReactNode }) {
   }
 
   if (!staff) {
+    const masterKeyScreen = staffCount === null;
+    const firstStaffScreen = staffCount === 0;
+    const staffLoginScreen = (staffCount ?? 0) > 0;
+
     return (
       <>
       <AdminToastHost />
       <main className="shell fresh-shell admin-shell">
         <section className="admin-login-shell card clean-panel">
-          <p className="badge blue-badge">Admin security · two-step login</p>
-          <h1 className="hero-title clean-title">Staff login.</h1>
-          <p className="hero-copy tight-copy">Enter the master admin key first, then sign in as the staff member using the admin system.</p>
+          <p className="badge blue-badge">Admin security</p>
 
-          {error && <div className="notice warning" role="alert">{error}</div>}
-          {!error && message && <div className="notice soft" role="status">{message}</div>}
+          {masterKeyScreen && (
+            <div className="admin-login-screen admin-master-key-screen">
+              <h1 className="hero-title clean-title">Master key.</h1>
+              <p className="hero-copy tight-copy">Enter the master admin key first. Staff login opens on the next screen.</p>
 
-          <form className="admin-login-card" onSubmit={handleMasterKey}>
-            <h2>1. Master key</h2>
-            <div className="inline-action-row">
-              <input type="password" value={masterKey} onChange={(event) => setMasterKey(event.target.value)} placeholder="Master admin key" />
-              <button className="button primary" type="submit" disabled={loading}>Unlock</button>
+              {error && <div className="notice warning" role="alert">{error}</div>}
+              {!error && message && <div className="notice soft" role="status">{message}</div>}
+
+              <form className="admin-login-card" onSubmit={handleMasterKey}>
+                <h2>1. Master key</h2>
+                <div className="inline-action-row admin-master-key-row">
+                  <div className="admin-password-control">
+                    <input
+                      type={showMasterKey ? 'text' : 'password'}
+                      value={masterKey}
+                      onChange={(event) => setMasterKey(event.target.value)}
+                      placeholder="Master admin key"
+                      aria-label="Master admin key"
+                    />
+                    <button
+                      className="admin-password-eye"
+                      type="button"
+                      onClick={() => setShowMasterKey((visible) => !visible)}
+                      aria-label={showMasterKey ? 'Hide master key' : 'Show master key'}
+                    >
+                      {showMasterKey ? '🙈' : '👁'}
+                    </button>
+                  </div>
+                  <button className="button primary" type="submit" disabled={loading}>Unlock</button>
+                </div>
+                <p className="micro-copy">Local testing fallback is zipbook-admin-dev when no live environment key is configured.</p>
+              </form>
             </div>
-            <p className="micro-copy">Local testing fallback is zipbook-admin-dev when no live environment key is configured.</p>
-          </form>
-
-          {staffCount === 0 && (
-            <form className="admin-login-card" onSubmit={handleFirstStaff}>
-              <h2>2. Create first staff login</h2>
-              <div className="grid two controls-grid">
-                <input value={setupName} onChange={(event) => setSetupName(event.target.value)} placeholder="Full name" />
-                <input value={setupEmail} onChange={(event) => setSetupEmail(event.target.value)} placeholder="Email address" />
-                <input value={setupPhone} onChange={(event) => setSetupPhone(event.target.value)} placeholder="Phone number" />
-                <input type="password" value={setupPassword} onChange={(event) => setSetupPassword(event.target.value)} placeholder="Password" />
-              </div>
-              <button className="button primary" type="submit" disabled={loading || !masterKey.trim()}>Create first staff login</button>
-            </form>
           )}
 
-          {(staffCount ?? 0) > 0 && (
-            <form className="admin-login-card" onSubmit={handleStaffLogin}>
-              <h2>2. Staff login</h2>
-              <div className="grid two controls-grid">
-                <input value={staffEmail} onChange={(event) => setStaffEmail(event.target.value)} placeholder="Staff email" />
-                <input type="password" value={staffPassword} onChange={(event) => setStaffPassword(event.target.value)} placeholder="Staff password" />
+          {firstStaffScreen && (
+            <div className="admin-login-screen admin-first-staff-screen">
+              <div className="admin-login-screen-head">
+                <div>
+                  <h1 className="hero-title clean-title admin-staff-login-title">Create first staff login.</h1>
+                  <p className="hero-copy tight-copy">Master key accepted. Create the first staff login on this screen.</p>
+                </div>
+                <button className="button ghost admin-master-back" type="button" onClick={returnToMasterKey}>Change master key</button>
               </div>
-              <button className="button primary" type="submit" disabled={loading || !masterKey.trim()}>Sign in to admin</button>
-            </form>
+
+              {error && <div className="notice warning" role="alert">{error}</div>}
+              {!error && message && <div className="notice soft" role="status">{message}</div>}
+
+              <form className="admin-login-card admin-staff-login-card" onSubmit={handleFirstStaff}>
+                <h2>2. Create first staff login</h2>
+                <div className="grid two controls-grid">
+                  <input value={setupName} onChange={(event) => setSetupName(event.target.value)} placeholder="Full name" />
+                  <input value={setupEmail} onChange={(event) => setSetupEmail(event.target.value)} placeholder="Email address" />
+                  <input value={setupPhone} onChange={(event) => setSetupPhone(event.target.value)} placeholder="Phone number" />
+                  <div className="admin-password-control">
+                    <input
+                      type={showSetupPassword ? 'text' : 'password'}
+                      value={setupPassword}
+                      onChange={(event) => setSetupPassword(event.target.value)}
+                      placeholder="Password"
+                      aria-label="First staff password"
+                    />
+                    <button
+                      className="admin-password-eye"
+                      type="button"
+                      onClick={() => setShowSetupPassword((visible) => !visible)}
+                      aria-label={showSetupPassword ? 'Hide first staff password' : 'Show first staff password'}
+                    >
+                      {showSetupPassword ? '🙈' : '👁'}
+                    </button>
+                  </div>
+                </div>
+                <div className="admin-login-submit-row">
+                  <button className="button primary" type="submit" disabled={loading || !masterKey.trim()}>Create first staff login</button>
+                </div>
+              </form>
+            </div>
+          )}
+
+          {staffLoginScreen && (
+            <div className="admin-login-screen admin-staff-login-screen">
+              <div className="admin-login-screen-head">
+                <div>
+                  <h1 className="hero-title clean-title admin-staff-login-title">Staff login.</h1>
+                  <p className="hero-copy tight-copy">Master key accepted. Sign in with your staff email and password.</p>
+                </div>
+                <button className="button ghost admin-master-back" type="button" onClick={returnToMasterKey}>Change master key</button>
+              </div>
+
+              {error && <div className="notice warning" role="alert">{error}</div>}
+              {!error && message && <div className="notice soft" role="status">{message}</div>}
+
+              <form className="admin-login-card admin-staff-login-card" onSubmit={handleStaffLogin}>
+                <h2>2. Staff login</h2>
+                <div className="grid two controls-grid admin-staff-fields-row">
+                  <input value={staffEmail} onChange={(event) => setStaffEmail(event.target.value)} placeholder="Staff email" />
+                  <div className="admin-password-control">
+                    <input
+                      type={showStaffPassword ? 'text' : 'password'}
+                      value={staffPassword}
+                      onChange={(event) => setStaffPassword(event.target.value)}
+                      placeholder="Staff password"
+                      aria-label="Staff password"
+                    />
+                    <button
+                      className="admin-password-eye"
+                      type="button"
+                      onClick={() => setShowStaffPassword((visible) => !visible)}
+                      aria-label={showStaffPassword ? 'Hide staff password' : 'Show staff password'}
+                    >
+                      {showStaffPassword ? '🙈' : '👁'}
+                    </button>
+                  </div>
+                </div>
+                <div className="admin-login-submit-row admin-staff-submit-row">
+                  <button className="button primary" type="submit" disabled={loading || !masterKey.trim()}>Sign in to admin</button>
+                </div>
+              </form>
+            </div>
           )}
         </section>
       </main>
