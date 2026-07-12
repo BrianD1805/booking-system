@@ -4669,7 +4669,7 @@ a.pill:active {
   }
 }
 
-/* Ver-0.042: admin login split screens and password reveal controls. */
+/* Ver-0.042 / 0.042A / 0.042B: admin login split screens and password reveal controls. */
 .button.ghost {
   background: #ffffff;
   color: #336699;
@@ -4729,10 +4729,45 @@ a.pill:active {
   cursor: pointer;
   font-size: 1rem;
   line-height: 1;
+  transition: background-color 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+  will-change: auto;
+}
+
+.admin-password-eye:hover,
+.admin-password-eye:focus-visible,
+.admin-password-eye:active {
+  transform: translateY(-50%);
 }
 
 .admin-password-eye:hover {
   background: #eaf3ff;
+  border-color: rgba(51, 102, 153, 0.28);
+}
+
+.admin-password-eye-svg {
+  width: 21px;
+  height: 21px;
+  display: block;
+  overflow: visible;
+}
+
+.admin-password-eye-outline,
+.admin-password-eye-pupil,
+.admin-password-eye-slash {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.9;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.admin-password-eye-pupil {
+  fill: currentColor;
+  stroke: none;
+}
+
+.admin-password-eye-slash {
+  stroke-width: 2.2;
 }
 
 .admin-login-submit-row {
@@ -4750,6 +4785,13 @@ a.pill:active {
 }
 
 @media (min-width: 761px) {
+  .admin-master-login-title {
+    font-size: clamp(1.35rem, 3vw, 2.4rem);
+    line-height: 1.05;
+    letter-spacing: -0.045em;
+    margin-bottom: 12px;
+  }
+
   .admin-staff-login-title {
     font-size: clamp(1.35rem, 3vw, 2.4rem);
     line-height: 1.05;
@@ -4789,4 +4831,40 @@ a.pill:active {
   .admin-staff-fields-row {
     grid-template-columns: 1fr;
   }
+}
+
+
+/* Ver-0.042B: lock all password reveal eye controls so generic button hover/active rules cannot move them. */
+button.admin-password-eye,
+button.admin-password-eye:not(:disabled):hover,
+button.admin-password-eye:not(:disabled):focus,
+button.admin-password-eye:not(:disabled):focus-visible,
+button.admin-password-eye:not(:disabled):active,
+.admin-password-control button.admin-password-eye,
+.admin-password-control button.admin-password-eye:not(:disabled):hover,
+.admin-password-control button.admin-password-eye:not(:disabled):focus,
+.admin-password-control button.admin-password-eye:not(:disabled):focus-visible,
+.admin-password-control button.admin-password-eye:not(:disabled):active {
+  top: 50% !important;
+  right: 10px !important;
+  transform: translate3d(0, -50%, 0) !important;
+  scale: 1 !important;
+  translate: none !important;
+  rotate: none !important;
+  box-shadow: none !important;
+  outline-offset: 2px;
+}
+
+button.admin-password-eye .admin-password-eye-svg,
+button.admin-password-eye:hover .admin-password-eye-svg,
+button.admin-password-eye:focus .admin-password-eye-svg,
+button.admin-password-eye:focus-visible .admin-password-eye-svg,
+button.admin-password-eye:active .admin-password-eye-svg,
+button.admin-password-eye .admin-password-eye-outline,
+button.admin-password-eye .admin-password-eye-pupil,
+button.admin-password-eye .admin-password-eye-slash {
+  transform: none !important;
+  scale: 1 !important;
+  translate: none !important;
+  rotate: none !important;
 }

@@ -30,6 +30,17 @@ export function makeAdminAuthHeaders() {
   };
 }
 
+
+function AdminPasswordEyeIcon({ hidden }: { hidden: boolean }) {
+  return (
+    <svg className="admin-password-eye-svg" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path className="admin-password-eye-outline" d="M2.5 12s3.4-5.5 9.5-5.5 9.5 5.5 9.5 5.5-3.4 5.5-9.5 5.5S2.5 12 2.5 12Z" />
+      <circle className="admin-password-eye-pupil" cx="12" cy="12" r="2.7" />
+      {hidden && <path className="admin-password-eye-slash" d="M4.5 4.5l15 15" />}
+    </svg>
+  );
+}
+
 export function AdminAuthGate({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [masterKey, setMasterKey] = useState('');
@@ -198,7 +209,7 @@ export function AdminAuthGate({ children }: { children: React.ReactNode }) {
 
           {masterKeyScreen && (
             <div className="admin-login-screen admin-master-key-screen">
-              <h1 className="hero-title clean-title">Master key.</h1>
+              <h1 className="hero-title clean-title admin-master-login-title">Master key.</h1>
               <p className="hero-copy tight-copy">Enter the master admin key first. Staff login opens on the next screen.</p>
 
               {error && <div className="notice warning" role="alert">{error}</div>}
@@ -221,12 +232,11 @@ export function AdminAuthGate({ children }: { children: React.ReactNode }) {
                       onClick={() => setShowMasterKey((visible) => !visible)}
                       aria-label={showMasterKey ? 'Hide master key' : 'Show master key'}
                     >
-                      {showMasterKey ? '🙈' : '👁'}
+                      <AdminPasswordEyeIcon hidden={!showMasterKey} />
                     </button>
                   </div>
                   <button className="button primary" type="submit" disabled={loading}>Unlock</button>
                 </div>
-                <p className="micro-copy">Local testing fallback is zipbook-admin-dev when no live environment key is configured.</p>
               </form>
             </div>
           )}
@@ -264,7 +274,7 @@ export function AdminAuthGate({ children }: { children: React.ReactNode }) {
                       onClick={() => setShowSetupPassword((visible) => !visible)}
                       aria-label={showSetupPassword ? 'Hide first staff password' : 'Show first staff password'}
                     >
-                      {showSetupPassword ? '🙈' : '👁'}
+                      <AdminPasswordEyeIcon hidden={!showSetupPassword} />
                     </button>
                   </div>
                 </div>
@@ -306,7 +316,7 @@ export function AdminAuthGate({ children }: { children: React.ReactNode }) {
                       onClick={() => setShowStaffPassword((visible) => !visible)}
                       aria-label={showStaffPassword ? 'Hide staff password' : 'Show staff password'}
                     >
-                      {showStaffPassword ? '🙈' : '👁'}
+                      <AdminPasswordEyeIcon hidden={!showStaffPassword} />
                     </button>
                   </div>
                 </div>
