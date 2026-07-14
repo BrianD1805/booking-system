@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { ZipSelect } from '@/components/ZipSelect';
 
 type DatePickerMode = 'standard' | 'dob';
 
@@ -371,15 +372,13 @@ export function DatePickerField({
         <div className="zip-calendar-head is-dob-head">
           <button type="button" className="zip-calendar-nav" onClick={() => moveMonth(-1)} aria-label="Previous month">‹</button>
           <div className="zip-calendar-jump-controls" aria-label="Choose month and year">
-            <select
-              value={calendarMonth.getMonth()}
-              onChange={(event) => setMonth(Number(event.target.value))}
-              aria-label="Month"
-            >
-              {MONTH_NAMES.map((month, index) => (
-                <option key={month} value={index}>{month}</option>
-              ))}
-            </select>
+            <ZipSelect
+              value={String(calendarMonth.getMonth())}
+              onChange={(nextValue) => setMonth(Number(nextValue))}
+              ariaLabel="Month"
+              className="zip-calendar-month-select"
+              options={MONTH_NAMES.map((month, index) => ({ value: String(index), label: month }))}
+            />
             <input
               type="number"
               inputMode="numeric"

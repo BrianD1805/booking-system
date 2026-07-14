@@ -1,6 +1,7 @@
 'use client';
 
 import { DatePickerField } from '@/components/DatePickerField';
+import { ZipSelect } from '@/components/ZipSelect';
 import Link from 'next/link';
 import { FormEvent, KeyboardEvent, useEffect, useMemo, useState } from 'react';
 import { Header } from '@/components/Header';
@@ -371,16 +372,24 @@ export default function ReceptionBookingPage() {
             </div>
             <div className="form-row">
               <label>Procedure</label>
-              <select value={activeProcedureId} onChange={(event) => { setProcedureId(event.target.value); setSelectedTime(''); setSelectedPractitionerId(FIRST_AVAILABLE); }}>
-                {procedures.map((procedure) => <option key={procedure.id} value={procedure.id}>{procedure.name}</option>)}
-              </select>
+              <ZipSelect
+                value={activeProcedureId}
+                ariaLabel="Choose procedure"
+                onChange={(nextValue) => { setProcedureId(nextValue); setSelectedTime(''); setSelectedPractitionerId(FIRST_AVAILABLE); }}
+                options={procedures.map((procedure) => ({ value: procedure.id, label: procedure.name }))}
+              />
             </div>
             <div className="form-row">
               <label>Practitioner</label>
-              <select value={activePractitionerId} onChange={(event) => { setSelectedPractitionerId(event.target.value); setSelectedTime(''); }}>
-                <option value={FIRST_AVAILABLE}>First available</option>
-                {eligiblePractitioners.map((practitioner) => <option key={practitioner.id} value={practitioner.id}>{practitioner.name} — {practitioner.role}</option>)}
-              </select>
+              <ZipSelect
+                value={activePractitionerId}
+                ariaLabel="Choose practitioner"
+                onChange={(nextValue) => { setSelectedPractitionerId(nextValue); setSelectedTime(''); }}
+                options={[
+                  { value: FIRST_AVAILABLE, label: 'First available' },
+                  ...eligiblePractitioners.map((practitioner) => ({ value: practitioner.id, label: `${practitioner.name} — ${practitioner.role}` }))
+                ]}
+              />
             </div>
           </div>
 

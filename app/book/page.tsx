@@ -1,6 +1,7 @@
 'use client';
 
 import { DatePickerField } from '@/components/DatePickerField';
+import { ZipSelect } from '@/components/ZipSelect';
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { APP_VERSION, procedureDuration, type ClientLoginProfile } from '@/lib/mockData';
 import { FIRST_AVAILABLE, getAvailabilityForDate, getDateOffset, getDayLabel, practitionersForProcedure } from '@/lib/availability';
@@ -748,19 +749,17 @@ export default function BookPage() {
                     <div className="form-row full-width-row phone-combo-row">
                       <label htmlFor="clientLoginPhone">Mobile number</label>
                       <div className="phone-combo-control">
-                        <select
+                        <ZipSelect
                           id="clientLoginCountry"
-                          aria-label="Country code"
+                          ariaLabel="Country code"
                           value={clientLoginCountryInput}
-                          onChange={(event) => setClientLoginCountryInput(event.target.value)}
-                          autoComplete="tel-country-code"
-                        >
-                          {PHONE_COUNTRIES.map((country) => (
-                            <option key={`${country.iso}-${country.dialCode}`} value={phoneCountryLabel(country)}>
-                              {country.name} {country.dialCode}
-                            </option>
-                          ))}
-                        </select>
+                          onChange={setClientLoginCountryInput}
+                          className="phone-country-select"
+                          options={PHONE_COUNTRIES.map((country) => ({
+                            value: phoneCountryLabel(country),
+                            label: `${country.name} ${country.dialCode}`
+                          }))}
+                        />
                         <input id="clientLoginPhone" value={clientLoginPhone} onChange={(event) => setClientLoginPhone(event.target.value)} inputMode="tel" autoComplete="tel-national" placeholder="0712345678" />
                       </div>
                       <small>{previewPhone(selectedLoginCountry, clientLoginPhone)}</small>
@@ -866,19 +865,17 @@ export default function BookPage() {
                 <div className="form-row full-width-row phone-combo-row">
                   <label htmlFor="clientResetPhone">Mobile number</label>
                   <div className="phone-combo-control">
-                    <select
+                    <ZipSelect
                       id="clientResetCountry"
-                      aria-label="Country code"
+                      ariaLabel="Country code"
                       value={clientLoginCountryInput}
-                      onChange={(event) => setClientLoginCountryInput(event.target.value)}
-                      autoComplete="tel-country-code"
-                    >
-                      {PHONE_COUNTRIES.map((country) => (
-                        <option key={`${country.iso}-${country.dialCode}`} value={phoneCountryLabel(country)}>
-                          {country.name} {country.dialCode}
-                        </option>
-                      ))}
-                    </select>
+                      onChange={setClientLoginCountryInput}
+                      className="phone-country-select"
+                      options={PHONE_COUNTRIES.map((country) => ({
+                        value: phoneCountryLabel(country),
+                        label: `${country.name} ${country.dialCode}`
+                      }))}
+                    />
                     <input id="clientResetPhone" value={clientLoginPhone} onChange={(event) => setClientLoginPhone(event.target.value)} inputMode="tel" autoComplete="tel-national" placeholder="0712345678" />
                   </div>
                   <small>{previewPhone(selectedLoginCountry, clientLoginPhone)}</small>
@@ -987,20 +984,32 @@ export default function BookPage() {
             <section className="flow-step">
               <div className="form-row">
                 <label htmlFor="procedure">Treatment</label>
-                <select id="procedure" value={activeProcedureId} onChange={(event) => { setProcedureId(event.target.value); resetSelection(); }}>
-                  {procedures.map((procedure) => (
-                    <option key={procedure.id} value={procedure.id}>{procedure.name} — {procedure.durationMinutes} mins</option>
-                  ))}
-                </select>
+                <ZipSelect
+                  id="procedure"
+                  value={activeProcedureId}
+                  ariaLabel="Choose treatment"
+                  onChange={(nextValue) => { setProcedureId(nextValue); resetSelection(); }}
+                  options={procedures.map((procedure) => ({
+                    value: procedure.id,
+                    label: `${procedure.name} — ${procedure.durationMinutes} mins`
+                  }))}
+                />
               </div>
               <div className="form-row">
                 <label htmlFor="practitioner">Dentist / practitioner</label>
-                <select id="practitioner" value={practitionerChoice} onChange={(event) => { setPractitionerChoice(event.target.value); resetSelection(); }}>
-                  <option value={FIRST_AVAILABLE}>First available</option>
-                  {eligiblePractitioners.map((practitioner) => (
-                    <option key={practitioner.id} value={practitioner.id}>{practitioner.name} — {practitioner.role}</option>
-                  ))}
-                </select>
+                <ZipSelect
+                  id="practitioner"
+                  value={practitionerChoice}
+                  ariaLabel="Choose dentist or practitioner"
+                  onChange={(nextValue) => { setPractitionerChoice(nextValue); resetSelection(); }}
+                  options={[
+                    { value: FIRST_AVAILABLE, label: 'First available' },
+                    ...eligiblePractitioners.map((practitioner) => ({
+                      value: practitioner.id,
+                      label: `${practitioner.name} — ${practitioner.role}`
+                    }))
+                  ]}
+                />
               </div>
               {selectedProcedure && (
                 <p className="soft-note">{selectedProcedure.name} takes {procedureDuration(activeProcedureId, procedures)} minutes.</p>

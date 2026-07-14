@@ -1,6 +1,7 @@
 'use client';
 
 import { DatePickerField } from '@/components/DatePickerField';
+import { ZipSelect } from '@/components/ZipSelect';
 import Link from 'next/link';
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { Header } from '@/components/Header';
@@ -306,12 +307,19 @@ export default function AdminPage() {
           </div>
           <div className="form-row">
             <label htmlFor="adminPractitionerFilter">Practitioner</label>
-            <select id="adminPractitionerFilter" value={diaryPractitionerFilter} onChange={(event) => setDiaryPractitionerFilter(event.target.value)}>
-              <option value="all">All practitioners</option>
-              {practitioners.filter((practitioner) => practitioner.active).map((practitioner) => (
-                <option key={practitioner.id} value={practitioner.id}>{practitioner.name} — {practitioner.role}</option>
-              ))}
-            </select>
+            <ZipSelect
+              id="adminPractitionerFilter"
+              value={diaryPractitionerFilter}
+              ariaLabel="Choose practitioner filter"
+              onChange={setDiaryPractitionerFilter}
+              options={[
+                { value: 'all', label: 'All practitioners' },
+                ...practitioners.filter((practitioner) => practitioner.active).map((practitioner) => ({
+                  value: practitioner.id,
+                  label: `${practitioner.name} — ${practitioner.role}`
+                }))
+              ]}
+            />
           </div>
         </div>
 
@@ -433,15 +441,21 @@ export default function AdminPage() {
                 </div>
                 <div className="form-row">
                   <label>Procedure</label>
-                  <select value={activeProcedureId} onChange={(event) => { setProcedureId(event.target.value); setSelectedTime(''); }}>
-                    {procedures.map((procedure) => <option key={procedure.id} value={procedure.id}>{procedure.name}</option>)}
-                  </select>
+                  <ZipSelect
+                    value={activeProcedureId}
+                    ariaLabel="Choose procedure"
+                    onChange={(nextValue) => { setProcedureId(nextValue); setSelectedTime(''); }}
+                    options={procedures.map((procedure) => ({ value: procedure.id, label: procedure.name }))}
+                  />
                 </div>
                 <div className="form-row">
                   <label>Practitioner</label>
-                  <select value={activePractitionerId} onChange={(event) => { setSelectedPractitionerId(event.target.value); setSelectedTime(''); }}>
-                    {eligiblePractitioners.map((practitioner) => <option key={practitioner.id} value={practitioner.id}>{practitioner.name}</option>)}
-                  </select>
+                  <ZipSelect
+                    value={activePractitionerId}
+                    ariaLabel="Choose practitioner"
+                    onChange={(nextValue) => { setSelectedPractitionerId(nextValue); setSelectedTime(''); }}
+                    options={eligiblePractitioners.map((practitioner) => ({ value: practitioner.id, label: practitioner.name }))}
+                  />
                 </div>
               </div>
               <div className="slot-grid popup-slots">

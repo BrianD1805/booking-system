@@ -6,7 +6,7 @@ export async function GET() {
   return NextResponse.json(
     {
       ok: false,
-      version: 'Ver-0.042B',
+      version: 'Ver-0.043A',
       removed: true,
       message: 'This temporary Netlify Database cleanup route has been retired. ZipBook is now locked to Supabase.'
     },
@@ -18,7 +18,7 @@ export async function POST() {
   return NextResponse.json(
     {
       ok: false,
-      version: 'Ver-0.042B',
+      version: 'Ver-0.043A',
       removed: true,
       message: 'This temporary Netlify Database cleanup route has been retired. ZipBook is now locked to Supabase.'
     },

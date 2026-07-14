@@ -4868,3 +4868,215 @@ button.admin-password-eye .admin-password-eye-slash {
   translate: none !important;
   rotate: none !important;
 }
+
+/* Ver-0.043A: reusable ZipBook custom dropdown component with single chevron icon. */
+.zip-select {
+  position: relative;
+  width: 100%;
+  min-width: 0;
+  z-index: 1;
+}
+
+.zip-select.is-open {
+  z-index: 80;
+}
+
+.zip-select-button {
+  width: 100%;
+  min-width: 0;
+  min-height: 54px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 13px 14px;
+  background: #ffffff;
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  box-shadow: inset 0 0 0 1px rgba(51, 102, 153, 0.02);
+}
+
+.zip-select-button:hover,
+.zip-select-button:focus,
+.zip-select-button:focus-visible,
+.zip-select-button:active,
+.zip-select-option:hover,
+.zip-select-option:focus,
+.zip-select-option:focus-visible,
+.zip-select-option:active {
+  transform: none !important;
+}
+
+.zip-select-button:hover {
+  border-color: rgba(51, 102, 153, 0.34);
+  box-shadow: 0 10px 24px rgba(51, 102, 153, 0.08);
+}
+
+.zip-select-button:focus-visible,
+.zip-select.is-open .zip-select-button {
+  outline: none;
+  border-color: rgba(51, 102, 153, 0.5);
+  box-shadow: 0 0 0 4px rgba(51, 102, 153, 0.1);
+}
+
+.zip-select-value {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.zip-select-value.is-placeholder {
+  color: var(--muted);
+}
+
+.zip-select-chevron {
+  flex: 0 0 auto;
+  display: inline-grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 999px;
+  background: #f3f8ff;
+  color: var(--zw-blue-deep);
+  line-height: 1;
+  transition: background 0.18s ease;
+}
+
+.zip-select-chevron-icon {
+  width: 18px;
+  height: 18px;
+  display: block;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transform-origin: center;
+  transition: transform 0.18s ease;
+}
+
+.zip-select.is-open .zip-select-chevron {
+  background: #e6f1ff;
+}
+
+.zip-select.is-open .zip-select-chevron-icon {
+  transform: rotate(180deg);
+}
+
+.zip-select-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  max-height: min(320px, 52vh);
+  overflow: auto;
+  border: 1px solid rgba(51, 102, 153, 0.16);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.98);
+  box-shadow: 0 22px 44px rgba(15, 35, 65, 0.18);
+  padding: 8px;
+}
+
+.zip-select-option {
+  width: 100%;
+  min-height: 42px;
+  display: grid;
+  gap: 2px;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  color: var(--ink);
+  padding: 10px 12px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.zip-select-option span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 800;
+}
+
+.zip-select-option small {
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.zip-select-option:hover,
+.zip-select-option:focus-visible {
+  background: #edf6ff;
+  outline: none;
+}
+
+.zip-select-option.is-selected {
+  background: #336699;
+  color: #ffffff;
+  box-shadow: 0 10px 20px rgba(51, 102, 153, 0.18);
+}
+
+.zip-select-option.is-selected small {
+  color: rgba(255, 255, 255, 0.82);
+}
+
+.zip-select-option:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.phone-combo-control {
+  overflow: visible;
+}
+
+.phone-combo-control .zip-select-button {
+  min-height: 52px;
+  height: 100%;
+  border: 0 !important;
+  border-right: 1px solid rgba(51, 102, 153, 0.14) !important;
+  border-radius: 17px 0 0 17px;
+  box-shadow: none !important;
+  background: transparent;
+  font-weight: 800;
+}
+
+.phone-combo-control .zip-select-button:focus-visible,
+.phone-combo-control .zip-select.is-open .zip-select-button {
+  box-shadow: inset 0 0 0 2px rgba(51, 102, 153, 0.18) !important;
+}
+
+.phone-combo-control .zip-select-menu {
+  min-width: min(320px, calc(100vw - 48px));
+}
+
+.zip-calendar-jump-controls .zip-select-button {
+  min-height: 44px;
+  border-radius: 14px;
+  background: #f7fbff;
+  font-weight: 800;
+  padding: 10px 11px;
+}
+
+.zip-calendar-jump-controls .zip-select-chevron {
+  width: 22px;
+  height: 22px;
+}
+
+@media (max-width: 640px) {
+  .zip-select-menu {
+    max-height: min(300px, 46vh);
+  }
+
+  .phone-combo-control {
+    grid-template-columns: minmax(135px, 0.45fr) minmax(0, 1fr);
+  }
+
+  .phone-combo-control .zip-select-button {
+    padding-inline: 12px 8px;
+  }
+}
