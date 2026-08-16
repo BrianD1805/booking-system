@@ -1,6 +1,7 @@
 'use client';
 
-import { KeyboardEvent, useEffect, useMemo, useRef, useState } from 'react';
+import { type CSSProperties, type KeyboardEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 
 export type ZipSelectOption = {
   value: string;
@@ -20,17 +21,100 @@ type ZipSelectProps = {
   className?: string;
 };
 
+type MenuPlacement = 'below' | 'above';
+
+const MENU_GAP = 8;
+const VIEWPORT_GUTTER = 12;
+const MIN_MENU_HEIGHT = 150;
+const MAX_MENU_HEIGHT = 320;
+
 export function ZipSelect({ id, value, options, onChange, ariaLabel, placeholder = 'Select', disabled = false, className = '' }: ZipSelectProps) {
   const rootRef = useRef<HTMLDivElement | null>(null);
+  const menuRef = useRef<HTMLDivElement | null>(null);
   const [open, setOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  const [menuStyle, setMenuStyle] = useState<CSSProperties>({});
+  const [menuPlacement, setMenuPlacement] = useState<MenuPlacement>('below');
   const selectedOption = useMemo(() => options.find((option) => option.value === value), [options, value]);
   const enabledOptions = useMemo(() => options.filter((option) => !option.disabled), [options]);
   const selectedIndex = selectedOption ? enabledOptions.findIndex((option) => option.value === selectedOption.value) : -1;
 
+  const usesWideMenu = className.split(/\s+/).includes('phone-country-select');
+  const menuClassName = [
+    'zip-select-menu',
+    'zip-select-floating-menu',
+    menuPlacement === 'above' ? 'opens-above' : 'opens-below',
+    usesWideMenu ? 'phone-country-select-menu' : '',
+    className.split(/\s+/).includes('zip-calendar-month-select') ? 'zip-calendar-month-select-menu' : ''
+  ].filter(Boolean).join(' ');
+
+  const updateMenuPosition = useCallback(() => {
+    if (typeof window === 'undefined') return;
+    const root = rootRef.current;
+    const button = root?.querySelector<HTMLButtonElement>('.zip-select-button');
+    if (!button) return;
+
+    const rect = button.getBoundingClientRect();
+    const visualViewport = window.visualViewport;
+    const viewportLeft = visualViewport?.offsetLeft ?? 0;
+    const viewportTop = visualViewport?.offsetTop ?? 0;
+    const viewportWidth = visualViewport?.width ?? window.innerWidth;
+    const viewportHeight = visualViewport?.height ?? window.innerHeight;
+    const availableBelow = Math.max(0, viewportTop + viewportHeight - rect.bottom - MENU_GAP - VIEWPORT_GUTTER);
+    const availableAbove = Math.max(0, rect.top - viewportTop - MENU_GAP - VIEWPORT_GUTTER);
+    const shouldOpenAbove = availableBelow < MIN_MENU_HEIGHT && availableAbove > availableBelow;
+    const availableSpace = shouldOpenAbove ? availableAbove : availableBelow;
+    const maxHeight = Math.max(MIN_MENU_HEIGHT, Math.min(MAX_MENU_HEIGHT, availableSpace || MAX_MENU_HEIGHT));
+    const viewportSafeWidth = Math.max(180, viewportWidth - (VIEWPORT_GUTTER * 2));
+    const preferredWidth = usesWideMenu ? Math.min(320, viewportSafeWidth) : Math.max(rect.width, 180);
+    const menuWidth = Math.min(Math.max(rect.width, preferredWidth), viewportSafeWidth);
+    const left = Math.min(
+      Math.max(rect.left, viewportLeft + VIEWPORT_GUTTER),
+      viewportLeft + viewportWidth - menuWidth - VIEWPORT_GUTTER
+    );
+
+    setMenuPlacement(shouldOpenAbove ? 'above' : 'below');
+    setMenuStyle({
+      position: 'fixed',
+      left: `${Math.round(left)}px`,
+      width: `${Math.round(menuWidth)}px`,
+      maxHeight: `${Math.round(maxHeight)}px`,
+      ...(shouldOpenAbove
+        ? { top: 'auto', bottom: `${Math.round(Math.max(VIEWPORT_GUTTER, viewportTop + viewportHeight - rect.top + MENU_GAP))}px` }
+        : { top: `${Math.round(Math.min(rect.bottom + MENU_GAP, viewportTop + viewportHeight - VIEWPORT_GUTTER - maxHeight))}px`, bottom: 'auto' })
+    });
+  }, [usesWideMenu]);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (disabled) setOpen(false);
+  }, [disabled]);
+
+  useEffect(() => {
+    if (!open) return;
+    updateMenuPosition();
+    const animationFrame = window.requestAnimationFrame(updateMenuPosition);
+    window.addEventListener('resize', updateMenuPosition);
+    window.addEventListener('scroll', updateMenuPosition, true);
+    window.visualViewport?.addEventListener('resize', updateMenuPosition);
+    window.visualViewport?.addEventListener('scroll', updateMenuPosition);
+    return () => {
+      window.cancelAnimationFrame(animationFrame);
+      window.removeEventListener('resize', updateMenuPosition);
+      window.removeEventListener('scroll', updateMenuPosition, true);
+      window.visualViewport?.removeEventListener('resize', updateMenuPosition);
+      window.visualViewport?.removeEventListener('scroll', updateMenuPosition);
+    };
+  }, [open, options.length, updateMenuPosition, value]);
+
   useEffect(() => {
     if (!open) return;
     function handlePointerDown(event: MouseEvent | TouchEvent) {
-      if (!rootRef.current?.contains(event.target as Node)) setOpen(false);
+      const target = event.target as Node;
+      if (!rootRef.current?.contains(target) && !menuRef.current?.contains(target)) setOpen(false);
     }
     function handleEscape(event: globalThis.KeyboardEvent) {
       if (event.key === 'Escape') setOpen(false);
@@ -77,6 +161,28 @@ export function ZipSelect({ id, value, options, onChange, ariaLabel, placeholder
     }
   }
 
+  const menu = (
+    <div ref={menuRef} className={menuClassName} role="listbox" aria-labelledby={id} style={menuStyle}>
+      {options.map((option) => {
+        const selected = option.value === value;
+        return (
+          <button
+            key={option.value}
+            type="button"
+            role="option"
+            aria-selected={selected}
+            disabled={option.disabled}
+            className={`zip-select-option ${selected ? 'is-selected' : ''}`.trim()}
+            onClick={() => choose(option.value)}
+          >
+            <span>{option.label}</span>
+            {option.description && <small>{option.description}</small>}
+          </button>
+        );
+      })}
+    </div>
+  );
+
   return (
     <div ref={rootRef} className={`zip-select ${open ? 'is-open' : ''} ${disabled ? 'is-disabled' : ''} ${className}`.trim()}>
       <button
@@ -99,27 +205,7 @@ export function ZipSelect({ id, value, options, onChange, ariaLabel, placeholder
           </svg>
         </span>
       </button>
-      {open && (
-        <div className="zip-select-menu" role="listbox" aria-labelledby={id}>
-          {options.map((option) => {
-            const selected = option.value === value;
-            return (
-              <button
-                key={option.value}
-                type="button"
-                role="option"
-                aria-selected={selected}
-                disabled={option.disabled}
-                className={`zip-select-option ${selected ? 'is-selected' : ''}`.trim()}
-                onClick={() => choose(option.value)}
-              >
-                <span>{option.label}</span>
-                {option.description && <small>{option.description}</small>}
-              </button>
-            );
-          })}
-        </div>
-      )}
+      {open && mounted ? createPortal(menu, document.body) : null}
     </div>
   );
 }

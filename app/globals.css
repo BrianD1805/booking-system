@@ -5133,3 +5133,31 @@ button.admin-password-eye .admin-password-eye-slash {
     width: 100%;
   }
 }
+
+/* Ver-0.049: keep custom dropdown menus above booking popups and sticky popup controls. */
+.zip-select-floating-menu {
+  position: fixed !important;
+  right: auto !important;
+  z-index: 2600 !important;
+  min-width: 0;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.zip-select-floating-menu.opens-above {
+  top: auto !important;
+}
+
+.zip-select-floating-menu.opens-below {
+  bottom: auto !important;
+}
+
+.zip-select-floating-menu.phone-country-select-menu {
+  min-width: min(320px, calc(100vw - 24px));
+}
+
+.booking-workflow.is-open .workflow-card,
+.time-picker-popup .time-picker-card,
+.client-auth-popup .client-auth-card {
+  isolation: isolate;
+}
