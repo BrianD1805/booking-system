@@ -5080,3 +5080,56 @@ button.admin-password-eye .admin-password-eye-slash {
     padding-inline: 12px 8px;
   }
 }
+
+/* Ver-0.048: client booking app push notification controls. */
+.client-push-panel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 14px 16px;
+  border: 1px solid rgba(51, 102, 153, 0.18);
+  border-radius: 18px;
+  background: linear-gradient(135deg, rgba(51, 102, 153, 0.08), rgba(35, 146, 94, 0.08));
+  box-shadow: 0 14px 34px rgba(12, 35, 59, 0.08);
+}
+
+.client-push-panel > div {
+  display: grid;
+  gap: 4px;
+}
+
+.client-push-panel strong {
+  color: var(--text);
+  font-size: 0.96rem;
+}
+
+.client-push-panel span {
+  color: var(--muted);
+  font-size: 0.86rem;
+  line-height: 1.35;
+}
+
+.client-push-panel .button,
+.client-push-panel .pill {
+  flex: 0 0 auto;
+  min-width: 92px;
+  justify-content: center;
+}
+
+.client-push-panel .compact-button {
+  padding: 10px 16px;
+  min-height: 40px;
+}
+
+@media (max-width: 680px) {
+  .client-push-panel {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .client-push-panel .button,
+  .client-push-panel .pill {
+    width: 100%;
+  }
+}

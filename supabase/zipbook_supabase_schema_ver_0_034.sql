@@ -732,6 +732,36 @@ VALUES (
 )
 ON CONFLICT (id) DO NOTHING;
 
+-- ============================================================
+-- Source migration: Ver-0.048 client push notifications
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS public.client_push_subscriptions (
+  id TEXT PRIMARY KEY,
+  practice_id TEXT NOT NULL REFERENCES public.practices(id) ON DELETE CASCADE,
+  customer_id TEXT NOT NULL REFERENCES public.customers(id) ON DELETE CASCADE,
+  endpoint TEXT NOT NULL,
+  p256dh TEXT NOT NULL,
+  auth TEXT NOT NULL,
+  user_agent TEXT,
+  enabled BOOLEAN NOT NULL DEFAULT TRUE,
+  failure_count INTEGER NOT NULL DEFAULT 0,
+  last_seen_at TIMESTAMPTZ,
+  last_success_at TIMESTAMPTZ,
+  last_failure_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS client_push_subscriptions_practice_endpoint_idx
+  ON public.client_push_subscriptions(practice_id, endpoint);
+
+CREATE INDEX IF NOT EXISTS client_push_subscriptions_customer_enabled_idx
+  ON public.client_push_subscriptions(practice_id, customer_id, enabled, updated_at DESC);
+
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.client_push_subscriptions TO service_role;
+
+
 
 -- ============================================================
 -- Supabase setup verification queries
@@ -756,6 +786,7 @@ WHERE table_schema = 'public'
     'client_accounts',
     'client_sessions',
     'client_otp_codes',
+    'client_push_subscriptions',
     'admin_staff_members',
     'admin_staff_sessions',
     'audit_logs'

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'zipbook-v0.043A';
+const CACHE_NAME = 'zipbook-v0.048A';
 const CORE_ASSETS = [
   '/',
   '/book',
@@ -63,5 +63,56 @@ self.addEventListener('fetch', (event) => {
         return response;
       })
       .catch(() => caches.match(event.request))
+  );
+});
+
+self.addEventListener('push', (event) => {
+  let payload = {
+    title: 'ZipBook update',
+    body: 'You have a new booking update.',
+    url: '/book',
+    icon: '/icons/icon-192.png',
+    badge: '/icons/icon-72.png'
+  };
+
+  if (event.data) {
+    try {
+      payload = { ...payload, ...event.data.json() };
+    } catch {
+      payload.body = event.data.text() || payload.body;
+    }
+  }
+
+  const options = {
+    body: payload.body,
+    icon: payload.icon || '/icons/icon-192.png',
+    badge: payload.badge || '/icons/icon-72.png',
+    tag: payload.tag || 'zipbook-booking-update',
+    renotify: true,
+    data: {
+      url: payload.url || '/book',
+      bookingId: payload.bookingId || ''
+    }
+  };
+
+  event.waitUntil(self.registration.showNotification(payload.title || 'ZipBook update', options));
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const targetUrl = new URL(event.notification.data?.url || '/book', self.location.origin).href;
+
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+      for (const client of clientList) {
+        if ('focus' in client && client.url.startsWith(self.location.origin)) {
+          client.navigate(targetUrl).catch(() => undefined);
+          return client.focus();
+        }
+      }
+
+      if (self.clients.openWindow) return self.clients.openWindow(targetUrl);
+      return undefined;
+    })
   );
 });

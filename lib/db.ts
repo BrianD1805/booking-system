@@ -2,6 +2,7 @@ import { createHash, randomBytes, randomInt } from 'crypto';
 import { getZipBookDatabase } from './dbProvider';
 import { deliverClientOtp, isOtpTestModeEnabled } from './otpDelivery';
 import { buildClientBookingConfirmationEmailHtml, sendZipBookEmail } from './emailDelivery';
+import { isPushDeliveryConfigured, normalisePushSubscription, sendPushNotification, type BrowserPushSubscription, type StoredPushSubscription } from './pushDelivery';
 import { getDefaultPracticeId } from './tenant';
 import { addMinutes } from '@/lib/availability';
 import {
@@ -1524,6 +1525,11 @@ export async function verifyClientLoginOtp(input: { otpId: string; code: string 
 }
 
 export async function getClientProfileBySession(sessionToken: string): Promise<ClientLoginProfile> {
+  const session = await getClientSessionForToken(sessionToken);
+  return getClientProfile(session.customer_id);
+}
+
+async function getClientSessionForToken(sessionToken: string): Promise<ClientSessionRow> {
   const token = cleanLoginValue(sessionToken);
   if (!token) throw new Error('Client session token missing.');
 
@@ -1540,7 +1546,133 @@ export async function getClientProfileBySession(sessionToken: string): Promise<C
   if (!session || new Date(session.expires_at).getTime() < Date.now()) throw new Error('Client session expired. Please sign in again.');
 
   await database.sql`UPDATE client_sessions SET last_seen_at = NOW() WHERE id = ${session.id}`;
-  return getClientProfile(session.customer_id);
+  return session;
+}
+
+export async function saveClientPushSubscriptionForSession(input: { sessionToken: string; subscription: BrowserPushSubscription; userAgent?: string }) {
+  const session = await getClientSessionForToken(input.sessionToken);
+  const subscription = normalisePushSubscription(input.subscription);
+  const database = db();
+
+  await database.sql`
+    INSERT INTO client_push_subscriptions (id, practice_id, customer_id, endpoint, p256dh, auth, user_agent, enabled, last_seen_at)
+    VALUES (${subscription.id}, ${PRACTICE_ID}, ${session.customer_id}, ${subscription.endpoint}, ${subscription.p256dh}, ${subscription.auth}, ${input.userAgent ?? ''}, ${true}, NOW())
+    ON CONFLICT (practice_id, endpoint)
+    DO UPDATE SET
+      customer_id = EXCLUDED.customer_id,
+      p256dh = EXCLUDED.p256dh,
+      auth = EXCLUDED.auth,
+      user_agent = EXCLUDED.user_agent,
+      enabled = TRUE,
+      last_seen_at = NOW(),
+      updated_at = NOW()
+  `;
+
+  await database.sql`
+    INSERT INTO audit_logs (id, practice_id, action, entity_type, entity_id, source, details)
+    VALUES (${`audit-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`}, ${PRACTICE_ID}, ${'client_push_subscription_saved'}, ${'customer'}, ${session.customer_id}, ${'client'}, ${JSON.stringify({ endpoint: subscription.endpoint.slice(0, 80), configured: isPushDeliveryConfigured() })}::jsonb)
+  `;
+
+  return { saved: true, configured: isPushDeliveryConfigured() };
+}
+
+export async function disableClientPushSubscriptionForSession(input: { sessionToken: string; endpoint?: string }) {
+  const session = await getClientSessionForToken(input.sessionToken);
+  const endpoint = cleanLoginValue(input.endpoint);
+  const database = db();
+
+  if (endpoint) {
+    await database.sql`
+      UPDATE client_push_subscriptions
+      SET enabled = FALSE, updated_at = NOW()
+      WHERE practice_id = ${PRACTICE_ID} AND customer_id = ${session.customer_id} AND endpoint = ${endpoint}
+    `;
+  } else {
+    await database.sql`
+      UPDATE client_push_subscriptions
+      SET enabled = FALSE, updated_at = NOW()
+      WHERE practice_id = ${PRACTICE_ID} AND customer_id = ${session.customer_id}
+    `;
+  }
+
+  await database.sql`
+    INSERT INTO audit_logs (id, practice_id, action, entity_type, entity_id, source, details)
+    VALUES (${`audit-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`}, ${PRACTICE_ID}, ${'client_push_subscription_disabled'}, ${'customer'}, ${session.customer_id}, ${'client'}, ${JSON.stringify({ endpoint: endpoint ? endpoint.slice(0, 80) : 'all' })}::jsonb)
+  `;
+
+  return { disabled: true };
+}
+
+export async function getClientPushSubscriptionStatus(sessionToken: string) {
+  const session = await getClientSessionForToken(sessionToken);
+  const database = db();
+  const rows = await database.sql<{ count: number }>`
+    SELECT COUNT(*)::int AS count
+    FROM client_push_subscriptions
+    WHERE practice_id = ${PRACTICE_ID} AND customer_id = ${session.customer_id} AND enabled = TRUE
+  `;
+  return { configured: isPushDeliveryConfigured(), activeSubscriptions: Number(rows[0]?.count ?? 0) };
+}
+
+async function getActiveClientPushSubscriptions(customerId: string): Promise<StoredPushSubscription[]> {
+  const database = db();
+  const rows = await database.sql<{ id: string; endpoint: string; p256dh: string; auth: string }>`
+    SELECT id, endpoint, p256dh, auth
+    FROM client_push_subscriptions
+    WHERE practice_id = ${PRACTICE_ID} AND customer_id = ${customerId} AND enabled = TRUE
+    ORDER BY updated_at DESC
+  `;
+  return rows.map((row) => ({ id: row.id, endpoint: row.endpoint, p256dh: row.p256dh, auth: row.auth }));
+}
+
+async function sendClientBookingPushNotification(input: {
+  customerId: string;
+  booking: Booking;
+  procedureName: string;
+  practitionerName: string;
+}): Promise<{ attempted: boolean; delivered: number; failed: number; configured: boolean; provider: string; subscriptions: number; error?: string }> {
+  if (!isPushDeliveryConfigured()) {
+    return { attempted: false, delivered: 0, failed: 0, configured: false, provider: 'web-push', subscriptions: 0 };
+  }
+
+  let subscriptions: StoredPushSubscription[] = [];
+  try {
+    subscriptions = await getActiveClientPushSubscriptions(input.customerId);
+  } catch (error) {
+    return { attempted: false, delivered: 0, failed: 0, configured: true, provider: 'web-push', subscriptions: 0, error: error instanceof Error ? error.message : 'Could not load push subscriptions.' };
+  }
+
+  let delivered = 0;
+  let failed = 0;
+  const database = db();
+
+  for (const subscription of subscriptions) {
+    const result = await sendPushNotification(subscription, {
+      title: 'Appointment confirmed',
+      body: `${input.procedureName} on ${input.booking.date} at ${input.booking.time}`,
+      tag: `zipbook-booking-${input.booking.id}`,
+      bookingId: input.booking.id,
+      url: '/book'
+    });
+
+    if (result.delivered) {
+      delivered += 1;
+      await database.sql`
+        UPDATE client_push_subscriptions
+        SET last_success_at = NOW(), last_seen_at = NOW(), failure_count = 0, updated_at = NOW()
+        WHERE practice_id = ${PRACTICE_ID} AND id = ${subscription.id}
+      `;
+    } else {
+      failed += 1;
+      await database.sql`
+        UPDATE client_push_subscriptions
+        SET last_failure_at = NOW(), failure_count = failure_count + 1, enabled = CASE WHEN ${Boolean(result.invalidSubscription)} THEN FALSE ELSE enabled END, updated_at = NOW()
+        WHERE practice_id = ${PRACTICE_ID} AND id = ${subscription.id}
+      `;
+    }
+  }
+
+  return { attempted: subscriptions.length > 0, delivered, failed, configured: true, provider: 'web-push', subscriptions: subscriptions.length };
 }
 
 export async function createBookingInDatabase(input: {
@@ -1607,6 +1739,18 @@ export async function createBookingInDatabase(input: {
   await database.sql`
     INSERT INTO audit_logs (id, practice_id, action, entity_type, entity_id, source, details)
     VALUES (${`audit-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`}, ${PRACTICE_ID}, ${'booking_client_confirmation_email'}, ${'booking'}, ${id}, ${input.source}, ${JSON.stringify(clientNotification)}::jsonb)
+  `;
+
+  const clientPushNotification = await sendClientBookingPushNotification({
+    customerId,
+    booking,
+    procedureName: procedure?.name ?? input.procedureId,
+    practitionerName: practitioner?.name ?? input.practitionerId
+  });
+
+  await database.sql`
+    INSERT INTO audit_logs (id, practice_id, action, entity_type, entity_id, source, details)
+    VALUES (${`audit-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`}, ${PRACTICE_ID}, ${'booking_client_push_notification'}, ${'booking'}, ${id}, ${input.source}, ${JSON.stringify(clientPushNotification)}::jsonb)
   `;
 
   return booking;

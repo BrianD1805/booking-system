@@ -24,6 +24,7 @@ const FULL_API_TABLES = [
   'client_accounts',
   'client_sessions',
   'client_login_otps',
+  'client_push_subscriptions',
   'admin_staff_members',
   'admin_staff_sessions',
   'audit_logs'
@@ -49,6 +50,7 @@ async function getSmokeChecks() {
           WHEN 'client_accounts' THEN (SELECT COUNT(*) FROM client_accounts)
           WHEN 'client_sessions' THEN (SELECT COUNT(*) FROM client_sessions)
           WHEN 'client_login_otps' THEN (SELECT COUNT(*) FROM client_login_otps)
+          WHEN 'client_push_subscriptions' THEN (SELECT COUNT(*) FROM client_push_subscriptions)
           WHEN 'admin_staff_members' THEN (SELECT COUNT(*) FROM admin_staff_members)
           WHEN 'admin_staff_sessions' THEN (SELECT COUNT(*) FROM admin_staff_sessions)
           WHEN 'audit_logs' THEN (SELECT COUNT(*) FROM audit_logs)

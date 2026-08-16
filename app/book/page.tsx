@@ -196,6 +196,42 @@ type ClientVerifyResponse = {
   profile: ClientLoginProfile;
 };
 
+type PushPublicKeyResponse = {
+  configured: boolean;
+  publicKey: string;
+};
+
+function urlBase64ToUint8Array(base64String: string) {
+  const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const rawData = window.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+
+  for (let index = 0; index < rawData.length; index += 1) {
+    outputArray[index] = rawData.charCodeAt(index);
+  }
+
+  return outputArray;
+}
+
+function browserPushSupported() {
+  return typeof window !== 'undefined'
+    && 'Notification' in window
+    && 'serviceWorker' in navigator
+    && 'PushManager' in window;
+}
+
+async function getPushPublicKey() {
+  const response = await fetch('/api/push/public-key', { cache: 'no-store' });
+  return readJsonResponse<PushPublicKeyResponse>(response);
+}
+
+async function getCurrentPushSubscription() {
+  if (!browserPushSupported()) return null;
+  const registration = await navigator.serviceWorker.ready;
+  return registration.pushManager.getSubscription();
+}
+
 async function readJsonResponse<T>(response: Response): Promise<T> {
   const payload = await response.json();
   if (!response.ok) {
@@ -231,6 +267,11 @@ export default function BookPage() {
   const [clientProfile, setClientProfile] = useState<ClientLoginProfile | null>(null);
   const [clientLoginLoading, setClientLoginLoading] = useState(false);
   const [clientLoginNotice, setClientLoginNotice] = useState('');
+  const [pushSupported, setPushSupported] = useState(false);
+  const [pushConfigured, setPushConfigured] = useState(false);
+  const [pushSubscribed, setPushSubscribed] = useState(false);
+  const [pushBusy, setPushBusy] = useState(false);
+  const [pushNotice, setPushNotice] = useState('');
   const [step, setStep] = useState<FlowStep>(0);
   const [patientName, setPatientName] = useState('');
   const [patientPhone, setPatientPhone] = useState('');
@@ -317,6 +358,46 @@ export default function BookPage() {
       })
       .finally(() => setClientLoginLoading(false));
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function checkPushReadiness() {
+      const supported = browserPushSupported();
+      if (cancelled) return;
+      setPushSupported(supported);
+      setPushSubscribed(false);
+      setPushNotice('');
+
+      if (!supported || !clientSessionToken) return;
+
+      try {
+        const keyStatus = await getPushPublicKey();
+        if (cancelled) return;
+        setPushConfigured(Boolean(keyStatus.configured && keyStatus.publicKey));
+
+        const subscription = await getCurrentPushSubscription();
+        if (cancelled) return;
+        setPushSubscribed(Boolean(subscription));
+
+        if (subscription) {
+          await fetch('/api/client-login/push-subscription', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${clientSessionToken}`
+            },
+            body: JSON.stringify({ subscription: subscription.toJSON() })
+          }).catch(() => undefined);
+        }
+      } catch {
+        if (!cancelled) setPushConfigured(false);
+      }
+    }
+
+    void checkPushReadiness();
+    return () => { cancelled = true; };
+  }, [clientSessionToken]);
 
   function resetSelection() {
     setSelectedTime('');
@@ -443,6 +524,85 @@ export default function BookPage() {
   function openTimePicker() {
     pushClientModalHistory();
     setTimePickerOpen(true);
+  }
+
+  async function activateClientPushNotifications() {
+    if (!clientSessionToken) {
+      setPushNotice('Please sign in before activating push notifications.');
+      return;
+    }
+
+    if (!browserPushSupported()) {
+      setPushSupported(false);
+      setPushNotice('Push notifications are not supported on this browser/device.');
+      return;
+    }
+
+    setPushBusy(true);
+    setPushNotice('');
+
+    try {
+      const keyStatus = await getPushPublicKey();
+      setPushConfigured(Boolean(keyStatus.configured && keyStatus.publicKey));
+      if (!keyStatus.configured || !keyStatus.publicKey) {
+        setPushNotice('Push notifications are not configured yet. Add the VAPID keys in Netlify first.');
+        return;
+      }
+
+      const permission = await Notification.requestPermission();
+      if (permission !== 'granted') {
+        setPushNotice('Notifications were not allowed on this device.');
+        return;
+      }
+
+      const registration = await navigator.serviceWorker.ready;
+      const existing = await registration.pushManager.getSubscription();
+      const subscription = existing ?? await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(keyStatus.publicKey) as BufferSource
+      });
+
+      const response = await fetch('/api/client-login/push-subscription', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${clientSessionToken}`
+        },
+        body: JSON.stringify({ subscription: subscription.toJSON() })
+      });
+      await readJsonResponse<{ ok: boolean }>(response);
+      setPushSubscribed(true);
+      setPushNotice('Push notifications are active on this device.');
+    } catch (error) {
+      setPushNotice(error instanceof Error ? error.message : 'Could not activate push notifications.');
+    } finally {
+      setPushBusy(false);
+    }
+  }
+
+  async function disableClientPushNotifications() {
+    if (!clientSessionToken) return;
+    setPushBusy(true);
+    setPushNotice('');
+
+    try {
+      const subscription = await getCurrentPushSubscription();
+      await fetch('/api/client-login/push-subscription', {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${clientSessionToken}`
+        },
+        body: JSON.stringify({ endpoint: subscription?.endpoint ?? '' })
+      }).catch(() => undefined);
+      await subscription?.unsubscribe().catch(() => false);
+      setPushSubscribed(false);
+      setPushNotice('Push notifications are off on this device.');
+    } catch (error) {
+      setPushNotice(error instanceof Error ? error.message : 'Could not turn off push notifications.');
+    } finally {
+      setPushBusy(false);
+    }
   }
 
   useEffect(() => {
@@ -600,6 +760,8 @@ export default function BookPage() {
     setClientOtpCode('');
     setClientResetPassword('');
     setClientLoginStage('login');
+    setPushSubscribed(false);
+    setPushNotice('');
     setClientLoginNotice('Signed out on this device.');
   }
 
@@ -828,6 +990,32 @@ export default function BookPage() {
                   </div>
                   <button className="pill" type="button" onClick={signOutClient}>Sign out</button>
                 </div>
+                <div className="client-push-panel">
+                  <div>
+                    <strong>Push notifications</strong>
+                    <span>
+                      {!pushSupported
+                        ? 'Not supported on this browser/device.'
+                        : !pushConfigured
+                          ? 'Ready after push keys are added in Netlify.'
+                          : pushSubscribed
+                            ? 'Active on this device for booking updates.'
+                            : 'Get booking confirmations on this device.'}
+                    </span>
+                  </div>
+                  {pushSupported && pushConfigured && (
+                    pushSubscribed ? (
+                      <button className="pill" type="button" onClick={() => void disableClientPushNotifications()} disabled={pushBusy}>
+                        {pushBusy ? 'Updating…' : 'Turn off'}
+                      </button>
+                    ) : (
+                      <button className="button primary compact-button" type="button" onClick={() => void activateClientPushNotifications()} disabled={pushBusy}>
+                        {pushBusy ? 'Activating…' : 'Activate'}
+                      </button>
+                    )
+                  )}
+                </div>
+                {pushNotice && <p className={pushNotice.toLowerCase().includes('not') || pushNotice.toLowerCase().includes('could') || pushNotice.toLowerCase().includes('off') ? 'notice warning mobile-auth-notice' : 'notice success mobile-auth-notice'} role="status">{pushNotice}</p>}
                 <div className="client-booking-list">
                   {clientProfile.bookings.length ? clientProfile.bookings.map((booking) => (
                     <article className="client-booking-item" key={booking.id}>
