@@ -136,6 +136,12 @@ function bookingActionTitle(action: BookingAction) {
   return 'Delete this booking from the diary.';
 }
 
+function bookingAlertTitle(action: string) {
+  if (action === 'booking_deleted') return 'Client deleted a booking.';
+  if (action === 'booking_updated') return 'Client edited a booking.';
+  return 'Client made a booking.';
+}
+
 
 export default function AdminPage() {
   const [selectedDate, setSelectedDate] = useState(getDateOffset(0));
@@ -207,6 +213,9 @@ export default function AdminPage() {
   );
   const selectedBookingFlowSlot = bookingFlowSlots.find((slot) => slot.time === selectedTime);
   const visibleOpenSlots = diarySlots.filter((slot) => slot.available && !slotHasPassed(selectedDate, slot.time, now));
+  const visibleOpenSlotCount = diaryPractitionerFilter === 'all'
+    ? visibleOpenSlots.reduce((total, slot) => total + (slot.availablePractitioners?.length ?? (slot.available ? 1 : 0)), 0)
+    : visibleOpenSlots.length;
   const upcomingBookingCount = dateBookings.filter((booking) => !bookingHasPassed(selectedDate, booking.endTime, now)).length;
   const currentClockLabel = formatTwelveHourClock(now);
   const lastRefreshedLabel = lastRefreshedAt ? new Date(lastRefreshedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true }) : 'Not refreshed yet';
@@ -328,43 +337,47 @@ export default function AdminPage() {
     }
   }
 
-  useEffect(() => {
-    let cancelled = false;
+  const seenBookingAlertIdsRef = useRef<Set<string>>(new Set());
 
-    async function checkClientBookingChanges() {
-      if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return;
-      try {
-        const since = liveBookingAlertSinceRef.current;
-        const response = await fetch(`/api/admin-data/booking-alerts?since=${encodeURIComponent(since)}`, {
-          cache: 'no-store',
-          headers: makeAdminAuthHeaders()
-        });
-        if (!response.ok) return;
-        const payload = await response.json() as { alerts?: BookingChangeAlert[]; checkedAt?: string };
-        const alerts = Array.isArray(payload.alerts) ? payload.alerts : [];
-        if (alerts.length) {
-          const latest = alerts[alerts.length - 1];
-          liveBookingAlertSinceRef.current = latest.createdAt || payload.checkedAt || new Date().toISOString();
-          if (!cancelled) {
-            setLiveBookingAlert(latest);
-            showAdminToast(latest.action === 'booking_deleted' ? 'A client deleted a booking.' : 'A client edited a booking.', 'warning');
-            await refresh();
-          }
-        } else if (payload.checkedAt) {
-          liveBookingAlertSinceRef.current = payload.checkedAt;
-        }
-      } catch {
-        // Silent by design: the normal Refresh button remains the fallback.
+  async function checkClientBookingChanges(cancelledRef?: { current: boolean }) {
+    if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return false;
+    try {
+      const since = liveBookingAlertSinceRef.current;
+      const response = await fetch(`/api/admin-data/booking-alerts?since=${encodeURIComponent(since)}`, {
+        cache: 'no-store',
+        headers: makeAdminAuthHeaders()
+      });
+      if (!response.ok) return false;
+      const payload = await response.json() as { alerts?: BookingChangeAlert[]; checkedAt?: string };
+      const alerts = Array.isArray(payload.alerts) ? payload.alerts : [];
+      const unseenAlerts = alerts.filter((alert) => !seenBookingAlertIdsRef.current.has(alert.id));
+      alerts.forEach((alert) => seenBookingAlertIdsRef.current.add(alert.id));
+      if (!unseenAlerts.length) return false;
+
+      const latest = unseenAlerts[unseenAlerts.length - 1];
+      liveBookingAlertSinceRef.current = latest.createdAt || since;
+      if (!cancelledRef?.current) {
+        setLiveBookingAlert(latest);
+        showAdminToast(bookingAlertTitle(latest.action), 'warning');
+        await refresh();
       }
+      return true;
+    } catch {
+      // Silent by design: the normal Refresh button remains the fallback.
+      return false;
     }
+  }
 
-    const timer = window.setInterval(() => { void checkClientBookingChanges(); }, 30000);
-    return () => { cancelled = true; window.clearInterval(timer); };
+  useEffect(() => {
+    const cancelledRef = { current: false };
+    const timer = window.setInterval(() => { void checkClientBookingChanges(cancelledRef); }, 30000);
+    return () => { cancelledRef.current = true; window.clearInterval(timer); };
   }, [refresh]);
 
   async function handleDiaryRefresh() {
+    const hadClientChange = await checkClientBookingChanges();
     await refresh();
-    showAdminToast('Diary refreshed.', 'info');
+    showAdminToast(hadClientChange ? 'Diary refreshed with a client booking change.' : 'Diary refreshed.', hadClientChange ? 'warning' : 'info');
   }
 
   function bookingActionLabel(action: BookingAction) {
@@ -564,7 +577,7 @@ export default function AdminPage() {
           </article>
           <article className="mini-card practice-diary-metric-card"><strong>{practitioners.filter((item) => item.active).length}</strong><span>Active clinicians</span></article>
           <article className="mini-card practice-diary-metric-card"><strong>{upcomingBookingCount}</strong><span>Upcoming bookings</span></article>
-          <article className="mini-card practice-diary-metric-card"><strong>{loading ? '…' : visibleOpenSlots.length}</strong><span>Open slots remaining</span></article>
+          <article className="mini-card practice-diary-metric-card"><strong>{loading ? '…' : visibleOpenSlotCount}</strong><span>Open slots remaining</span></article>
         </section>
       </section>
 
@@ -579,7 +592,7 @@ export default function AdminPage() {
         <section className="admin-live-alert-popup" role="alertdialog" aria-label="Client booking change alert">
           <div>
             <p className="badge blue-badge">Live diary update</p>
-            <h2>{liveBookingAlert.action === 'booking_deleted' ? 'Client deleted a booking.' : 'Client edited a booking.'}</h2>
+            <h2>{bookingAlertTitle(liveBookingAlert.action)}</h2>
             <p>{liveBookingAlert.patientName} · {liveBookingAlert.procedureName}{liveBookingAlert.date ? ` · ${getDayLabel(liveBookingAlert.date)}` : ''}{liveBookingAlert.time ? ` at ${liveBookingAlert.time}` : ''}</p>
           </div>
           <div className="admin-live-alert-actions">

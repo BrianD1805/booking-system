@@ -5631,3 +5631,22 @@ button.admin-password-eye .admin-password-eye-slash {
     grid-template-columns: 1fr;
   }
 }
+
+
+/* Ver-0.051B: diary totals, clearer metric panels and live client-change alert polish. */
+.practice-diary-metric-card {
+  justify-items: center;
+  text-align: center;
+  padding-inline: 14px;
+}
+
+.practice-diary-metric-card strong {
+  font-size: 1.34rem;
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+}
+
+.practice-diary-metric-card span {
+  font-size: 0.82rem;
+  line-height: 1.15;
+}

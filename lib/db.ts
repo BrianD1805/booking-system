@@ -1870,7 +1870,7 @@ export async function createBookingInDatabase(input: {
 
   await database.sql`
     INSERT INTO audit_logs (id, practice_id, action, entity_type, entity_id, source, details)
-    VALUES (${`audit-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`}, ${PRACTICE_ID}, ${'booking_created'}, ${'booking'}, ${id}, ${input.source}, ${JSON.stringify({ date: input.date, time: input.time, procedureId: input.procedureId, practitionerId: input.practitionerId, customerId, staffId: input.actor?.staffId, staffName: input.actor?.staffName })}::jsonb)
+    VALUES (${`audit-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`}, ${PRACTICE_ID}, ${'booking_created'}, ${'booking'}, ${id}, ${input.source}, ${JSON.stringify({ patientName: input.patientName, patientPhone: input.patientPhone, patientEmail: input.patientEmail, date: input.date, time: input.time, procedureId: input.procedureId, practitionerId: input.practitionerId, customerId, staffId: input.actor?.staffId, staffName: input.actor?.staffName })}::jsonb)
   `;
 
   const booking = mapBooking(rows[0]);
@@ -2194,7 +2194,7 @@ export async function getClientBookingChangeAlertsSince(since?: string): Promise
     WHERE practice_id = ${PRACTICE_ID}
       AND source = 'client'
       AND entity_type = 'booking'
-      AND action IN ('booking_updated', 'booking_deleted')
+      AND action IN ('booking_created', 'booking_updated', 'booking_deleted')
       AND created_at > ${safeSince}::timestamptz
     ORDER BY created_at ASC
     LIMIT 10
