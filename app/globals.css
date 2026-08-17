@@ -5415,3 +5415,219 @@ button.admin-password-eye .admin-password-eye-slash {
     gap: 4px;
   }
 }
+
+
+/* Ver-0.051A: practice diary desktop header refinement and compact diary controls. */
+.admin-staff-bar {
+  position: sticky;
+  min-height: 62px;
+  padding: 8px 18px;
+}
+
+.admin-staff-bar .admin-staff-center-brand {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: 1;
+  transform: translate(-50%, -50%);
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  padding: 0;
+  color: #102033;
+  box-shadow: none;
+  white-space: nowrap;
+}
+
+.admin-staff-bar .admin-staff-center-brand:hover,
+.admin-staff-bar .admin-staff-center-brand:focus-visible {
+  transform: translate(-50%, -50%);
+  background: transparent;
+  outline: none;
+}
+
+.admin-staff-brand-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 16px;
+  object-fit: cover;
+  box-shadow: 0 12px 26px rgba(51, 102, 153, 0.16);
+}
+
+.admin-staff-center-brand span {
+  display: grid;
+  gap: 2px;
+  line-height: 1.05;
+}
+
+.admin-staff-center-brand strong {
+  color: #102033;
+  font-size: 1.02rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+
+.admin-staff-center-brand small {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.admin-staff-identity,
+.admin-mega-menu-wrap {
+  position: relative;
+  z-index: 2;
+}
+
+.admin-shell .practice-diary-command {
+  padding: 22px 28px;
+  gap: 14px 22px;
+}
+
+.practice-diary-title-row {
+  gap: 10px 16px;
+}
+
+.practice-diary-title {
+  font-size: clamp(1.38rem, 2.5vw, 1.98rem);
+  font-weight: 650;
+  letter-spacing: -0.032em;
+}
+
+.practice-diary-date-inline {
+  font-size: clamp(0.92rem, 1.4vw, 1.06rem);
+  font-weight: 650;
+}
+
+.practice-diary-quick-row {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: minmax(170px, 1.08fr) minmax(210px, 1.18fr) repeat(3, minmax(135px, 0.74fr));
+  align-items: stretch;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.practice-diary-control-card,
+.practice-diary-metric-card {
+  min-width: 0;
+  min-height: 76px;
+  display: flex;
+  align-items: center;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 8px 18px rgba(51, 102, 153, 0.05);
+}
+
+.practice-diary-control-card .form-row {
+  width: 100%;
+  gap: 5px;
+  margin: 0;
+}
+
+.practice-diary-control-card label {
+  font-size: 0.76rem;
+  line-height: 1;
+}
+
+.practice-diary-control-card .zip-date-trigger,
+.practice-diary-control-card .zip-select-button {
+  min-height: 40px;
+  padding: 8px 9px 8px 11px;
+  border-radius: 14px;
+  font-size: 0.88rem;
+  line-height: 1.1;
+  background: #ffffff;
+}
+
+.practice-diary-control-card .zip-date-icon {
+  width: 28px;
+  height: 28px;
+  flex-basis: 28px;
+  border-radius: 10px;
+  font-size: 0.88rem;
+}
+
+.practice-diary-control-card .zip-select-chevron {
+  width: 24px;
+  height: 24px;
+}
+
+.practice-diary-control-card .zip-select-chevron-icon {
+  width: 16px;
+  height: 16px;
+}
+
+.practice-diary-metric-card {
+  display: grid;
+  align-content: center;
+  gap: 3px;
+  margin: 0;
+}
+
+.practice-diary-metric-card strong {
+  margin: 0;
+  font-size: 0.98rem;
+  line-height: 1;
+  font-weight: 800;
+}
+
+.practice-diary-metric-card span {
+  font-size: 0.72rem;
+  line-height: 1.2;
+  font-weight: 700;
+}
+
+.slots-view-heading-line {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+}
+
+.slots-view-heading-line .mini-section-title {
+  margin: 0;
+}
+
+.slots-view-heading-line span {
+  color: var(--muted);
+  font-size: 0.9rem;
+  font-weight: 800;
+}
+
+.zip-calendar-popover.is-dropdown-calendar {
+  z-index: 2600;
+}
+
+@media (max-width: 1180px) {
+  .practice-diary-quick-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 760px) {
+  .admin-staff-bar .admin-staff-center-brand {
+    position: static;
+    transform: none;
+    order: 2;
+    margin: 6px auto 0;
+  }
+
+  .admin-staff-bar .admin-staff-center-brand:hover,
+  .admin-staff-bar .admin-staff-center-brand:focus-visible {
+    transform: none;
+  }
+
+  .admin-staff-bar {
+    flex-wrap: wrap;
+  }
+
+  .practice-diary-quick-row {
+    grid-template-columns: 1fr;
+  }
+}

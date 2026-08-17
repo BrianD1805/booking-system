@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import { AdminToastHost, showAdminToast } from '@/components/admin/AdminToast';
+import { APP_VERSION } from '@/lib/mockData';
 
 type Staff = { id: string; fullName: string; email: string; role: string; active: boolean };
 
@@ -341,6 +342,13 @@ export function AdminAuthGate({ children }: { children: React.ReactNode }) {
           <strong>{staff.fullName}</strong>
           <small>{staff.role}</small>
         </div>
+        <a href="/admin" className="admin-staff-center-brand" aria-label="ZipBook admin diary">
+          <img className="admin-staff-brand-icon" src="/icons/icon-72.png" alt="" width="44" height="44" />
+          <span>
+            <strong>ZipBook</strong>
+            <small>Appointments {APP_VERSION}</small>
+          </span>
+        </a>
         <div className="admin-mega-menu-wrap">
           <button
             className="admin-mega-trigger"

@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom';
 import { ZipSelect } from '@/components/ZipSelect';
 
 type DatePickerMode = 'standard' | 'dob';
+type DatePickerPopupBehavior = 'floating' | 'dropdown';
 
 type DatePickerFieldProps = {
   id?: string;
@@ -16,6 +17,7 @@ type DatePickerFieldProps = {
   placeholder?: string;
   ariaLabel?: string;
   mode?: DatePickerMode;
+  popupBehavior?: DatePickerPopupBehavior;
 };
 
 const WEEK_DAYS = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'];
@@ -137,7 +139,8 @@ export function DatePickerField({
   required = false,
   placeholder = 'Select date',
   ariaLabel = 'Choose date',
-  mode = 'standard'
+  mode = 'standard',
+  popupBehavior = 'floating'
 }: DatePickerFieldProps) {
   const wrapperRef = useRef<HTMLDivElement | null>(null);
   const popoverRef = useRef<HTMLDivElement | null>(null);
@@ -181,6 +184,35 @@ export function DatePickerField({
     const width = Math.min(isDob ? 374 : 342, viewportWidth - gap * 2);
     const measuredHeight = popoverRef.current?.getBoundingClientRect().height ?? (isDob ? 430 : 390);
 
+    if (popupBehavior === 'dropdown') {
+      const viewportLeft = window.visualViewport?.offsetLeft ?? 0;
+      const viewportTop = window.visualViewport?.offsetTop ?? 0;
+      const safeViewportWidth = window.visualViewport?.width ?? viewportWidth;
+      const safeViewportHeight = window.visualViewport?.height ?? viewportHeight;
+      const gutter = 12;
+      const menuGap = 8;
+      const availableBelow = Math.max(0, viewportTop + safeViewportHeight - triggerRect.bottom - menuGap - gutter);
+      const availableAbove = Math.max(0, triggerRect.top - viewportTop - menuGap - gutter);
+      const shouldOpenAbove = availableBelow < 250 && availableAbove > availableBelow;
+      const safeWidth = Math.min(Math.max(triggerRect.width, 280), safeViewportWidth - gutter * 2);
+      const left = Math.min(
+        Math.max(triggerRect.left, viewportLeft + gutter),
+        viewportLeft + safeViewportWidth - safeWidth - gutter
+      );
+      const belowTop = Math.min(
+        triggerRect.bottom + menuGap,
+        viewportTop + safeViewportHeight - measuredHeight - gutter
+      );
+      const aboveTop = Math.max(gutter, triggerRect.top - measuredHeight - menuGap);
+
+      setPopoverPosition({
+        width: safeWidth,
+        left,
+        top: Math.max(gutter, shouldOpenAbove ? aboveTop : belowTop)
+      });
+      return;
+    }
+
     if (isMobile) {
       setPopoverPosition({
         width,
@@ -197,7 +229,7 @@ export function DatePickerField({
     const top = Math.max(gap, Math.min(rawTop, maxTop));
 
     setPopoverPosition({ width, left, top });
-  }, [isDob]);
+  }, [isDob, popupBehavior]);
 
   useEffect(() => {
     setManualText(formatDisplayDate(value));
@@ -359,7 +391,7 @@ export function DatePickerField({
   const calendarPopup = (
     <div
       ref={popoverRef}
-      className={`zip-calendar-popover is-floating ${isDob ? 'is-dob-calendar' : ''}`}
+      className={`zip-calendar-popover is-floating ${popupBehavior === 'dropdown' ? 'is-dropdown-calendar' : ''} ${isDob ? 'is-dob-calendar' : ''}`}
       role="dialog"
       aria-label={ariaLabel}
       style={{

@@ -2,11 +2,13 @@ import Link from 'next/link';
 import { APP_VERSION } from '@/lib/mockData';
 
 export function Header({ area }: { area: 'client' | 'admin' | 'landing' }) {
-  const contextLabel = area === 'client' ? 'Book appointment' : area === 'admin' ? 'Practice diary' : 'Booking system';
+  if (area === 'admin') return null;
+
+  const contextLabel = area === 'client' ? 'Book appointment' : 'Booking system';
 
   return (
-    <header className={`topbar ${area === 'admin' ? 'admin-topbar' : ''}`}>
-      <Link href="/" className={`brand ${area === 'admin' ? 'admin-header-brand' : ''}`} aria-label="ZipBook home">
+    <header className="topbar">
+      <Link href="/" className="brand" aria-label="ZipBook home">
         <img className="brand-icon" src="/icons/icon-72.png" alt="" width="44" height="44" />
         <span>
           ZipBook<br />
@@ -17,7 +19,7 @@ export function Header({ area }: { area: 'client' | 'admin' | 'landing' }) {
         <nav className="nav-pills" aria-label="Client navigation">
           <span className="pill">{contextLabel}</span>
         </nav>
-      ) : area === 'admin' ? null : (
+      ) : (
         <nav className="nav-pills" aria-label="Main navigation">
           <Link className="pill" href="/book">Client app</Link>
           <Link className="pill" href="/admin">Admin app</Link>

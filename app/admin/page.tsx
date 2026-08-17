@@ -528,7 +528,7 @@ export default function AdminPage() {
           <p className="badge blue-badge">Owner/admin app · {APP_VERSION}</p>
           <div className="practice-diary-title-row">
             <h1 className="practice-diary-title">Practice diary</h1>
-            <span className="practice-diary-date-inline">{loading ? 'Loading diary…' : getDayLabel(selectedDate)}</span>
+            <span className="practice-diary-date-inline">{loading ? 'Loading diary…' : `${getDayLabel(selectedDate)} · ${currentClockLabel}`}</span>
           </div>
         </div>
 
@@ -537,33 +537,34 @@ export default function AdminPage() {
           <button type="button" onClick={() => void handleDiaryRefresh()} disabled={saving || loading} className={`pill admin-action-button admin-compact-button ${loading ? 'is-loading' : ''}`}><span className="refresh-icon" aria-hidden="true">↻</span>{loading ? 'Refreshing…' : 'Refresh diary'}</button>
         </div>
 
-        <div className="grid two controls-grid practice-diary-controls">
-          <div className="form-row">
-            <label htmlFor="adminDate">Date</label>
-            <DatePickerField id="adminDate" value={selectedDate} required ariaLabel="Choose diary date" onChange={(nextDate) => { setSelectedDate(nextDate); setSelectedTime(''); }} />
-          </div>
-          <div className="form-row">
-            <label htmlFor="adminPractitionerFilter">Practitioner</label>
-            <ZipSelect
-              id="adminPractitionerFilter"
-              value={diaryPractitionerFilter}
-              ariaLabel="Choose practitioner filter"
-              onChange={setDiaryPractitionerFilter}
-              options={[
-                { value: 'all', label: 'All practitioners' },
-                ...practitioners.filter((practitioner) => practitioner.active).map((practitioner) => ({
-                  value: practitioner.id,
-                  label: `${practitioner.name} — ${practitioner.role}`
-                }))
-              ]}
-            />
-          </div>
-        </div>
-
-        <section className="compact-dashboard practice-diary-stats" aria-label="Diary summary">
-          <article className="mini-card"><strong>{practitioners.filter((item) => item.active).length}</strong><span>Active clinicians</span></article>
-          <article className="mini-card"><strong>{upcomingBookingCount}</strong><span>Upcoming bookings</span></article>
-          <article className="mini-card"><strong>{loading ? '…' : visibleOpenSlots.length}</strong><span>Open slots remaining</span></article>
+        <section className="practice-diary-quick-row" aria-label="Diary controls and summary">
+          <article className="practice-diary-control-card">
+            <div className="form-row">
+              <label htmlFor="adminDate">Date</label>
+              <DatePickerField id="adminDate" value={selectedDate} required ariaLabel="Choose diary date" popupBehavior="dropdown" onChange={(nextDate) => { setSelectedDate(nextDate); setSelectedTime(''); }} />
+            </div>
+          </article>
+          <article className="practice-diary-control-card">
+            <div className="form-row">
+              <label htmlFor="adminPractitionerFilter">Practitioner</label>
+              <ZipSelect
+                id="adminPractitionerFilter"
+                value={diaryPractitionerFilter}
+                ariaLabel="Choose practitioner filter"
+                onChange={setDiaryPractitionerFilter}
+                options={[
+                  { value: 'all', label: 'All practitioners' },
+                  ...practitioners.filter((practitioner) => practitioner.active).map((practitioner) => ({
+                    value: practitioner.id,
+                    label: `${practitioner.name} — ${practitioner.role}`
+                  }))
+                ]}
+              />
+            </div>
+          </article>
+          <article className="mini-card practice-diary-metric-card"><strong>{practitioners.filter((item) => item.active).length}</strong><span>Active clinicians</span></article>
+          <article className="mini-card practice-diary-metric-card"><strong>{upcomingBookingCount}</strong><span>Upcoming bookings</span></article>
+          <article className="mini-card practice-diary-metric-card"><strong>{loading ? '…' : visibleOpenSlots.length}</strong><span>Open slots remaining</span></article>
         </section>
       </section>
 
@@ -592,7 +593,10 @@ export default function AdminPage() {
         <section className="diary-slots-panel">
           <div className="section-heading-row compact-row">
             <div>
-              <h3 className="mini-section-title">Slots view</h3>
+              <div className="slots-view-heading-line">
+                <h3 className="mini-section-title">Slots view</h3>
+                <span>{getDayLabel(selectedDate)} · {currentClockLabel}</span>
+              </div>
               <p className="mini-copy">Visual 30-minute diary preview for the selected date and practitioner filter.</p>
             </div>
             <div className="admin-refresh-cluster"><span className="admin-clock-pill" aria-label="Current time">{currentClockLabel}</span><span className="admin-last-refreshed">Last refreshed {lastRefreshedLabel}</span><button type="button" onClick={() => void handleDiaryRefresh()} disabled={saving || loading} className={`pill admin-action-button ${loading ? 'is-loading' : ''}`}><span className="refresh-icon" aria-hidden="true">↻</span>{loading ? 'Refreshing…' : 'Refresh'}</button></div>
