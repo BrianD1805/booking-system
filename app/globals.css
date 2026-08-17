@@ -5161,3 +5161,124 @@ button.admin-password-eye .admin-password-eye-slash {
 .client-auth-popup .client-auth-card {
   isolation: isolate;
 }
+
+/* Ver-0.050: booking edit/delete actions and live diary change alerts. */
+.admin-live-alert-popup {
+  position: fixed;
+  z-index: 2800;
+  top: 22px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(520px, calc(100vw - 28px));
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 18px;
+  border: 1px solid rgba(35, 146, 94, 0.28);
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.98);
+  box-shadow: 0 24px 70px rgba(12, 35, 59, 0.22);
+}
+
+.admin-live-alert-popup h2 {
+  margin: 3px 0 4px;
+  font-size: clamp(1.05rem, 2vw, 1.35rem);
+  color: var(--text);
+}
+
+.admin-live-alert-popup p:not(.badge) {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.92rem;
+  line-height: 1.35;
+}
+
+.admin-live-alert-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+}
+
+
+.admin-phone-alert-card {
+  align-items: flex-start;
+}
+
+.admin-phone-alert-card .button,
+.admin-phone-alert-card .pill {
+  margin-top: 8px;
+  min-height: 34px;
+  padding: 7px 12px;
+}
+
+.admin-phone-alert-card small {
+  display: block;
+  margin-top: 6px;
+  color: var(--muted);
+  line-height: 1.35;
+}
+
+.booking-actions .status-action-edit {
+  border-color: rgba(51, 102, 153, 0.22);
+  background: rgba(51, 102, 153, 0.08);
+  color: #234d78;
+}
+
+.client-booking-item {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px 14px;
+}
+
+.client-booking-item-main {
+  display: grid;
+  gap: 3px;
+}
+
+.client-booking-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.client-booking-actions .pill {
+  min-height: 36px;
+  padding: 8px 13px;
+  justify-content: center;
+}
+
+.client-booking-actions .pill.danger {
+  border-color: rgba(190, 18, 60, 0.22);
+  background: rgba(190, 18, 60, 0.07);
+  color: #9f1239;
+}
+
+@media (max-width: 680px) {
+  .admin-live-alert-popup {
+    top: 14px;
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .admin-live-alert-actions,
+  .admin-live-alert-actions .button,
+  .admin-live-alert-actions .pill {
+    width: 100%;
+  }
+
+  .client-booking-item {
+    grid-template-columns: 1fr;
+  }
+
+  .client-booking-actions {
+    justify-content: stretch;
+  }
+
+  .client-booking-actions .pill {
+    flex: 1 1 120px;
+  }
+}

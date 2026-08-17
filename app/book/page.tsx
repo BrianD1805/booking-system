@@ -3,7 +3,7 @@
 import { DatePickerField } from '@/components/DatePickerField';
 import { ZipSelect } from '@/components/ZipSelect';
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
-import { APP_VERSION, procedureDuration, type ClientLoginProfile } from '@/lib/mockData';
+import { APP_VERSION, procedureDuration, type ClientLoginBooking, type ClientLoginProfile } from '@/lib/mockData';
 import { FIRST_AVAILABLE, getAvailabilityForDate, getDateOffset, getDayLabel, practitionersForProcedure } from '@/lib/availability';
 import { useBookingDatabase } from '@/lib/useBookingDatabase';
 import { ClientInstallPrompt } from './ClientInstallPrompt';
@@ -13,6 +13,7 @@ const steps = ['Details', 'Treatment', 'Diary', 'Review'];
 type FlowStep = 0 | 1 | 2 | 3;
 
 type BookingSuccess = {
+  kind: 'created' | 'updated';
   id: string;
   patientName: string;
   patientPhone: string;
@@ -214,8 +215,15 @@ function urlBase64ToUint8Array(base64String: string) {
   return outputArray;
 }
 
+function phonePushDevice() {
+  if (typeof navigator === 'undefined') return false;
+  const agent = navigator.userAgent.toLowerCase();
+  return agent.includes('iphone') || agent.includes('ipod') || agent.includes('windows phone') || (agent.includes('android') && agent.includes('mobile'));
+}
+
 function browserPushSupported() {
-  return typeof window !== 'undefined'
+  return phonePushDevice()
+    && typeof window !== 'undefined'
     && 'Notification' in window
     && 'serviceWorker' in navigator
     && 'PushManager' in window;
@@ -252,6 +260,9 @@ export default function BookPage() {
   const [copyStatus, setCopyStatus] = useState('');
   const [bookingOpen, setBookingOpen] = useState(false);
   const [timePickerOpen, setTimePickerOpen] = useState(false);
+  const [editingClientBookingId, setEditingClientBookingId] = useState<string | null>(null);
+  const [clientBookingActionKey, setClientBookingActionKey] = useState('');
+  const [clientBookingNotice, setClientBookingNotice] = useState('');
   const [clientLoginOpen, setClientLoginOpen] = useState(false);
   const [clientPasswordResetOpen, setClientPasswordResetOpen] = useState(false);
   const modalHistoryRef = useRef(false);
@@ -298,9 +309,10 @@ export default function BookPage() {
     practitionerBlockedTimes: bootstrap.practitionerBlockedTimes
   }), [practiceSettings, procedures, blockedDates, blockedTimes, practitioners, bootstrap.practitionerWorkingHours, bootstrap.practitionerProcedures, bootstrap.practitionerBlockedTimes]);
   const eligiblePractitioners = useMemo(() => practitionersForProcedure(activeProcedureId, context), [activeProcedureId, context]);
+  const availabilityBookings = useMemo(() => editingClientBookingId ? bookings.filter((booking) => booking.id !== editingClientBookingId) : bookings, [bookings, editingClientBookingId]);
   const slots = useMemo(
-    () => getAvailabilityForDate(bookings, selectedDate, activeProcedureId, context, practitionerChoice),
-    [bookings, selectedDate, activeProcedureId, context, practitionerChoice]
+    () => getAvailabilityForDate(availabilityBookings, selectedDate, activeProcedureId, context, practitionerChoice),
+    [availabilityBookings, selectedDate, activeProcedureId, context, practitionerChoice]
   );
   const availableSlots = slots.filter((slot) => slot.available && !slotHasPassed(selectedDate, slot.endTime, now));
   const selectedSlot = slots.find((slot) => slot.time === selectedTime && slot.practitionerId === selectedPractitionerId);
@@ -468,6 +480,7 @@ export default function BookPage() {
     if (bookingOpen) {
       setTimePickerOpen(false);
       setBookingOpen(false);
+      setEditingClientBookingId(null);
     }
   }
 
@@ -487,9 +500,31 @@ export default function BookPage() {
 
   function openBookingFlow() {
     pushClientModalHistory();
+    setEditingClientBookingId(null);
+    setClientBookingNotice('');
     if (clientProfile) prefillBookingDetailsFromProfile(clientProfile);
     setStep(0);
     setTimePickerOpen(false);
+    setBookingOpen(true);
+  }
+
+  function openEditClientBooking(booking: ClientLoginBooking) {
+    if (!clientProfile) return;
+    pushClientModalHistory();
+    setEditingClientBookingId(booking.id);
+    setClientBookingNotice('');
+    setPatientName(clientProfile.customer.fullName === 'Client user' ? patientName : clientProfile.customer.fullName);
+    setPatientPhone(clientProfile.customer.phone);
+    setPatientEmail(clientProfile.customer.email);
+    setProcedureId(booking.procedureId);
+    setPractitionerChoice(booking.practitionerId);
+    setSelectedPractitionerId(booking.practitionerId);
+    setSelectedDate(booking.date);
+    setSelectedTime(booking.time);
+    setNotes(booking.notes ?? '');
+    setStep(1);
+    setTimePickerOpen(false);
+    setClientLoginOpen(false);
     setBookingOpen(true);
   }
 
@@ -765,6 +800,33 @@ export default function BookPage() {
     setClientLoginNotice('Signed out on this device.');
   }
 
+  async function deleteClientBooking(booking: ClientLoginBooking) {
+    if (!clientSessionToken) {
+      setClientBookingNotice('Please sign in before deleting a booking.');
+      return;
+    }
+
+    const confirmed = window.confirm(`Delete booking for ${booking.treatment} on ${getDayLabel(booking.date)} at ${booking.time}?`);
+    if (!confirmed) return;
+
+    setClientBookingActionKey(`${booking.id}-delete`);
+    setClientBookingNotice('');
+    try {
+      const response = await fetch(`/api/client-login/bookings/${encodeURIComponent(booking.id)}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${clientSessionToken}` }
+      });
+      const payload = await readJsonResponse<{ profile: ClientLoginProfile }>(response);
+      applyClientProfile(payload.profile);
+      await refresh();
+      setClientBookingNotice('Booking deleted. The practice diary has been updated.');
+    } catch (error) {
+      setClientBookingNotice(error instanceof Error ? error.message : 'Could not delete booking.');
+    } finally {
+      setClientBookingActionKey('');
+    }
+  }
+
   async function copyBookingDetails() {
     if (!successCopyText) return;
 
@@ -783,30 +845,55 @@ export default function BookPage() {
     if (!selectedTime || !selectedPractitionerId) return;
 
     try {
-      const newBooking = await createBooking({
-        patientName,
-        patientPhone,
-        patientEmail,
-        customerId: clientProfile?.customer.id,
-        procedureId: activeProcedureId,
-        practitionerId: selectedPractitionerId,
-        date: selectedDate,
-        time: selectedTime,
-        source: 'client',
-        notes
-      });
+      let bookingId = editingClientBookingId ?? '';
+      if (editingClientBookingId) {
+        if (!clientSessionToken) throw new Error('Please sign in before editing a booking.');
+        const response = await fetch(`/api/client-login/bookings/${encodeURIComponent(editingClientBookingId)}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${clientSessionToken}` },
+          body: JSON.stringify({
+            patientName,
+            patientPhone,
+            patientEmail,
+            procedureId: activeProcedureId,
+            practitionerId: selectedPractitionerId,
+            date: selectedDate,
+            time: selectedTime,
+            notes
+          })
+        });
+        const payload = await readJsonResponse<{ booking: { id: string }; profile: ClientLoginProfile }>(response);
+        bookingId = payload.booking.id;
+        applyClientProfile(payload.profile);
+        await refresh();
+      } else {
+        const newBooking = await createBooking({
+          patientName,
+          patientPhone,
+          patientEmail,
+          customerId: clientProfile?.customer.id,
+          procedureId: activeProcedureId,
+          practitionerId: selectedPractitionerId,
+          date: selectedDate,
+          time: selectedTime,
+          source: 'client',
+          notes
+        });
+        bookingId = newBooking.id;
 
-      if (clientSessionToken) {
-        try {
-          await refreshClientProfileFromSession(clientSessionToken);
-        } catch {
-          // Keep the confirmed booking flow moving even if the profile refresh is delayed.
+        if (clientSessionToken) {
+          try {
+            await refreshClientProfileFromSession(clientSessionToken);
+          } catch {
+            // Keep the confirmed booking flow moving even if the profile refresh is delayed.
+          }
         }
       }
 
-      setConfirmedBookingId(newBooking.id);
+      setConfirmedBookingId(bookingId);
       setSuccessBooking({
-        id: newBooking.id,
+        kind: editingClientBookingId ? 'updated' : 'created',
+        id: bookingId,
         patientName,
         patientPhone,
         patientEmail,
@@ -819,11 +906,12 @@ export default function BookPage() {
       });
       setBookingOpen(false);
       setTimePickerOpen(false);
+      setEditingClientBookingId(null);
       modalHistoryRef.current = Boolean(typeof window !== 'undefined' && window.history.state?.zipbookClientModal);
       setStep(0);
       resetSelection();
-    } catch {
-      // Error is surfaced by the hook in the page notice.
+    } catch (error) {
+      setClientBookingNotice(error instanceof Error ? error.message : 'Could not save booking changes.');
     }
   }
 
@@ -995,7 +1083,7 @@ export default function BookPage() {
                     <strong>Push notifications</strong>
                     <span>
                       {!pushSupported
-                        ? 'Not supported on this browser/device.'
+                        ? 'Phone push only. Use your mobile app/browser to activate.'
                         : !pushConfigured
                           ? 'Ready after push keys are added in Netlify.'
                           : pushSubscribed
@@ -1016,14 +1104,30 @@ export default function BookPage() {
                   )}
                 </div>
                 {pushNotice && <p className={pushNotice.toLowerCase().includes('not') || pushNotice.toLowerCase().includes('could') || pushNotice.toLowerCase().includes('off') ? 'notice warning mobile-auth-notice' : 'notice success mobile-auth-notice'} role="status">{pushNotice}</p>}
+                {clientBookingNotice && <p className={clientBookingNotice.toLowerCase().includes('could') || clientBookingNotice.toLowerCase().includes('cannot') || clientBookingNotice.toLowerCase().includes('expired') ? 'notice warning mobile-auth-notice' : 'notice success mobile-auth-notice'} role="status">{clientBookingNotice}</p>}
                 <div className="client-booking-list">
-                  {clientProfile.bookings.length ? clientProfile.bookings.map((booking) => (
-                    <article className="client-booking-item" key={booking.id}>
-                      <strong>{booking.treatment}</strong>
-                      <span>{getDayLabel(booking.date)} · {booking.time}–{booking.endTime}</span>
-                      <em>{booking.practitioner} · {booking.status}</em>
-                    </article>
-                  )) : <p className="mini-copy">No previous appointments found yet.</p>}
+                  {clientProfile.bookings.length ? clientProfile.bookings.map((booking) => {
+                    const bookingDateTime = new Date(`${booking.date}T${booking.time}:00`);
+                    const isPastBooking = bookingDateTime.getTime() < Date.now();
+                    const isBusy = clientBookingActionKey === `${booking.id}-delete`;
+                    return (
+                      <article className="client-booking-item" key={booking.id}>
+                        <div className="client-booking-item-main">
+                          <strong>{booking.treatment}</strong>
+                          <span>{getDayLabel(booking.date)} · {booking.time}–{booking.endTime}</span>
+                          <em>{booking.practitioner} · {booking.status}</em>
+                        </div>
+                        <div className="client-booking-actions">
+                          <button className="pill" type="button" disabled={isPastBooking || saving || isBusy} onClick={() => openEditClientBooking(booking)}>
+                            Edit
+                          </button>
+                          <button className="pill danger" type="button" disabled={isPastBooking || saving || isBusy} onClick={() => void deleteClientBooking(booking)}>
+                            {isBusy ? 'Deleting…' : 'Delete'}
+                          </button>
+                        </div>
+                      </article>
+                    );
+                  }) : <p className="mini-copy">No previous appointments found yet.</p>}
                 </div>
               </div>
             )}
@@ -1122,8 +1226,8 @@ export default function BookPage() {
         <div className="workflow-card">
           <div className="workflow-head">
             <div>
-              <p className="badge blue-badge">Step {step + 1} of {steps.length}</p>
-              <h2>{steps[step]}</h2>
+              <p className="badge blue-badge">{editingClientBookingId ? 'Edit appointment' : `Step ${step + 1} of ${steps.length}`}</p>
+              <h2>{editingClientBookingId && step === 3 ? 'Review changes' : steps[step]}</h2>
             </div>
             <button className="icon-button mobile-close" type="button" aria-label="Close booking flow" onClick={dismissClientModal}>×</button>
           </div>
@@ -1133,6 +1237,13 @@ export default function BookPage() {
               <strong>We could not confirm that booking yet.</strong>
               <span>{error}</span>
               <button className="pill" type="button" onClick={() => void handleSubmit({ preventDefault: () => undefined } as FormEvent<HTMLFormElement>)} disabled={saving}>Try again</button>
+            </div>
+          )}
+
+          {clientBookingNotice && (
+            <div className="booking-inline-warning" role="alert">
+              <strong>Booking update</strong>
+              <span>{clientBookingNotice}</span>
             </div>
           )}
 
@@ -1290,7 +1401,7 @@ export default function BookPage() {
           {step === 3 && (
             <section className="flow-step">
               <div className="confirmation-card">
-                <h3>Review your appointment</h3>
+                <h3>{editingClientBookingId ? 'Review your changes' : 'Review your appointment'}</h3>
                 <p><strong>{patientName || 'Patient'}</strong></p>
                 <p>{selectedProcedure?.name} · {procedureDuration(activeProcedureId, procedures)} mins</p>
                 <p>{getDayLabel(selectedDate)} at {selectedTime || 'choose a time'}</p>
@@ -1317,7 +1428,7 @@ export default function BookPage() {
                 </button>
               ) : (
                 <button className="button primary" type="submit" disabled={!canConfirm || saving || Boolean(error)}>
-                  {saving ? 'Checking diary…' : 'Book appointment'}
+                  {saving ? 'Checking diary…' : editingClientBookingId ? 'Save changes' : 'Book appointment'}
                 </button>
               )}
             </div>
@@ -1330,8 +1441,8 @@ export default function BookPage() {
         <section className="booking-success-page" aria-labelledby="booking-success-title" role="dialog" aria-modal="true">
           <div className="booking-success-card">
             <div className="booking-success-head">
-              <p className="badge blue-badge">Booking confirmed</p>
-              <h2 id="booking-success-title">Appointment confirmed.</h2>
+              <p className="badge blue-badge">{successBooking.kind === 'updated' ? 'Booking updated' : 'Booking confirmed'}</p>
+              <h2 id="booking-success-title">{successBooking.kind === 'updated' ? 'Appointment updated.' : 'Appointment confirmed.'}</h2>
               <p className="mini-copy success-mini-copy">Your booking details are below. Use Copy to save or share them.</p>
             </div>
 

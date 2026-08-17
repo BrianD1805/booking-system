@@ -1,4 +1,4 @@
-const CACHE_NAME = 'zipbook-v0.049';
+const CACHE_NAME = 'zipbook-v0.050';
 const CORE_ASSETS = [
   '/',
   '/book',

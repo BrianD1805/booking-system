@@ -14,6 +14,7 @@ export type StoredPushSubscription = {
   endpoint: string;
   p256dh: string;
   auth: string;
+  userAgent?: string;
 };
 
 export type ZipBookPushPayload = {
@@ -54,6 +55,15 @@ function getPushContact() {
 
 export function isPushDeliveryConfigured() {
   return Boolean(getPushPublicKey() && getPushPrivateKey());
+}
+
+export function isPhonePushUserAgent(userAgent?: string) {
+  const value = (userAgent ?? '').toLowerCase();
+  if (!value) return false;
+  return value.includes('iphone')
+    || value.includes('ipod')
+    || value.includes('windows phone')
+    || (value.includes('android') && value.includes('mobile'));
 }
 
 export function normalisePushSubscription(subscription: BrowserPushSubscription): StoredPushSubscription {

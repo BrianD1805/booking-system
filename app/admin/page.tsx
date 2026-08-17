@@ -3,16 +3,71 @@
 import { DatePickerField } from '@/components/DatePickerField';
 import { ZipSelect } from '@/components/ZipSelect';
 import Link from 'next/link';
-import { FormEvent, useEffect, useMemo, useState } from 'react';
+import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { Header } from '@/components/Header';
-import { APP_VERSION, practitionerName, procedureName, type BookingStatus, type Customer } from '@/lib/mockData';
+import { APP_VERSION, practitionerName, procedureName, type Booking, type BookingStatus, type Customer } from '@/lib/mockData';
 import { FIRST_AVAILABLE, getAvailabilityForDate, getDateOffset, getDayLabel, practitionersForProcedure } from '@/lib/availability';
 import { useBookingDatabase } from '@/lib/useBookingDatabase';
 import { makeAdminAuthHeaders } from '@/components/admin/AdminAuthGate';
 import { showAdminToast } from '@/components/admin/AdminToast';
 
 type AdminStep = 0 | 1 | 2;
-type BookingAction = 'confirmed' | 'arrived' | 'completed' | 'billing' | 'cancelled' | 'delete';
+type BookingAction = 'confirmed' | 'arrived' | 'completed' | 'billing' | 'cancelled' | 'edit' | 'delete';
+
+type BookingChangeAlert = {
+  id: string;
+  action: string;
+  bookingId: string;
+  patientName: string;
+  date: string;
+  time: string;
+  procedureName: string;
+  createdAt: string;
+};
+
+type PushPublicKeyResponse = {
+  configured: boolean;
+  publicKey: string;
+};
+
+function adminPhonePushDevice() {
+  if (typeof navigator === 'undefined') return false;
+  const agent = navigator.userAgent.toLowerCase();
+  return agent.includes('iphone') || agent.includes('ipod') || agent.includes('windows phone') || (agent.includes('android') && agent.includes('mobile'));
+}
+
+function adminBrowserPushSupported() {
+  return adminPhonePushDevice()
+    && typeof window !== 'undefined'
+    && 'Notification' in window
+    && 'serviceWorker' in navigator
+    && 'PushManager' in window;
+}
+
+function urlBase64ToUint8Array(base64String: string) {
+  const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const rawData = window.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+
+  for (let index = 0; index < rawData.length; index += 1) {
+    outputArray[index] = rawData.charCodeAt(index);
+  }
+
+  return outputArray;
+}
+
+async function readJsonResponse<T>(response: Response): Promise<T> {
+  const payload = await response.json();
+  if (!response.ok) throw new Error(typeof payload?.error === 'string' ? payload.error : 'Request failed.');
+  return payload as T;
+}
+
+async function getAdminCurrentPushSubscription() {
+  if (!adminBrowserPushSupported()) return null;
+  const registration = await navigator.serviceWorker.ready;
+  return registration.pushManager.getSubscription();
+}
 
 function timeToMinutes(time: string) {
   const [hours, minutes] = time.split(':').map(Number);
@@ -77,6 +132,7 @@ function bookingActionTitle(action: BookingAction) {
   if (action === 'completed') return 'Mark patient as being treated.';
   if (action === 'billing') return 'Move this booking to billing. Billing link will be added later.';
   if (action === 'cancelled') return 'Cancel this booking and release the diary slot.';
+  if (action === 'edit') return 'Edit appointment details, procedure, practitioner, date or time.';
   return 'Delete this booking from the diary.';
 }
 
@@ -100,8 +156,16 @@ export default function AdminPage() {
   const [customerSearchMessage, setCustomerSearchMessage] = useState('');
   const [lateMessage, setLateMessage] = useState('The dentist is running around 15 minutes late. Thank you for your patience.');
   const [bookingActionKey, setBookingActionKey] = useState('');
+  const [editingBookingId, setEditingBookingId] = useState<string | null>(null);
+  const [liveBookingAlert, setLiveBookingAlert] = useState<BookingChangeAlert | null>(null);
+  const [adminPushSupported, setAdminPushSupported] = useState(false);
+  const [adminPushConfigured, setAdminPushConfigured] = useState(false);
+  const [adminPushSubscribed, setAdminPushSubscribed] = useState(false);
+  const [adminPushBusy, setAdminPushBusy] = useState(false);
+  const [adminPushNotice, setAdminPushNotice] = useState('');
+  const liveBookingAlertSinceRef = useRef(new Date().toISOString());
   const [now, setNow] = useState(() => new Date());
-  const { bootstrap, bookings, loading, saving, error, lastRefreshedAt, createBooking, updateBookingStatus, deleteBooking, refresh } = useBookingDatabase(selectedDate);
+  const { bootstrap, bookings, loading, saving, error, lastRefreshedAt, createBooking, updateBookingDetails, updateBookingStatus, deleteBooking, refresh } = useBookingDatabase(selectedDate);
   const { practiceSettings, procedures, blockedDates, blockedTimes, practitioners } = bootstrap;
   const activeProcedureId = procedures.find((procedure) => procedure.id === procedureId)?.id ?? procedures[0]?.id ?? procedureId;
   const context = useMemo(() => ({
@@ -118,9 +182,11 @@ export default function AdminPage() {
   const activePractitionerId = eligiblePractitioners.some((item) => item.id === selectedPractitionerId)
     ? selectedPractitionerId
     : eligiblePractitioners[0]?.id ?? selectedPractitionerId;
+  const editingBooking = useMemo(() => bookings.find((booking) => booking.id === editingBookingId) ?? null, [bookings, editingBookingId]);
+  const availabilityBookings = useMemo(() => editingBookingId ? bookings.filter((booking) => booking.id !== editingBookingId) : bookings, [bookings, editingBookingId]);
   const bookingFlowSlots = useMemo(
-    () => getAvailabilityForDate(bookings, selectedDate, activeProcedureId, context, activePractitionerId),
-    [bookings, selectedDate, activeProcedureId, context, activePractitionerId]
+    () => getAvailabilityForDate(availabilityBookings, selectedDate, activeProcedureId, context, activePractitionerId),
+    [availabilityBookings, selectedDate, activeProcedureId, context, activePractitionerId]
   );
   const diarySlotPreviewProcedureId = procedures.find((procedure) => procedure.id === 'checkup')?.id ?? activeProcedureId;
   const diarySlots = useMemo(
@@ -151,6 +217,151 @@ export default function AdminPage() {
     return () => window.clearInterval(timer);
   }, []);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    async function checkAdminPhonePushReadiness() {
+      const supported = adminBrowserPushSupported();
+      if (cancelled) return;
+
+      setAdminPushSupported(supported);
+      setAdminPushSubscribed(false);
+      setAdminPushNotice('');
+
+      if (!supported) {
+        setAdminPushConfigured(false);
+        return;
+      }
+
+      try {
+        const keyResponse = await fetch('/api/push/public-key', { cache: 'no-store' });
+        const keyStatus = await readJsonResponse<PushPublicKeyResponse>(keyResponse);
+        if (cancelled) return;
+        setAdminPushConfigured(Boolean(keyStatus.configured && keyStatus.publicKey));
+
+        const subscription = await getAdminCurrentPushSubscription();
+        if (cancelled) return;
+        setAdminPushSubscribed(Boolean(subscription));
+
+        if (subscription) {
+          await fetch('/api/admin-data/push-subscription', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', ...makeAdminAuthHeaders() },
+            body: JSON.stringify({ subscription: subscription.toJSON() })
+          }).catch(() => undefined);
+        }
+      } catch {
+        if (!cancelled) setAdminPushConfigured(false);
+      }
+    }
+
+    void checkAdminPhonePushReadiness();
+    return () => { cancelled = true; };
+  }, []);
+
+  async function activateAdminPhonePush() {
+    if (!adminBrowserPushSupported()) {
+      setAdminPushSupported(false);
+      setAdminPushNotice('Phone push alerts only work on a supported mobile browser/app. Desktop and laptop use the live diary popup.');
+      return;
+    }
+
+    setAdminPushBusy(true);
+    setAdminPushNotice('');
+
+    try {
+      const keyResponse = await fetch('/api/push/public-key', { cache: 'no-store' });
+      const keyStatus = await readJsonResponse<PushPublicKeyResponse>(keyResponse);
+      setAdminPushConfigured(Boolean(keyStatus.configured && keyStatus.publicKey));
+      if (!keyStatus.configured || !keyStatus.publicKey) {
+        setAdminPushNotice('Push notifications are not configured yet. Check the VAPID keys in Netlify.');
+        return;
+      }
+
+      const permission = await Notification.requestPermission();
+      if (permission !== 'granted') {
+        setAdminPushNotice('Notifications were not allowed on this phone.');
+        return;
+      }
+
+      const registration = await navigator.serviceWorker.ready;
+      const existing = await registration.pushManager.getSubscription();
+      const subscription = existing ?? await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(keyStatus.publicKey) as BufferSource
+      });
+
+      const response = await fetch('/api/admin-data/push-subscription', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...makeAdminAuthHeaders() },
+        body: JSON.stringify({ subscription: subscription.toJSON() })
+      });
+      await readJsonResponse<{ ok: boolean }>(response);
+      setAdminPushSubscribed(true);
+      setAdminPushNotice('Phone alerts are active for client booking changes.');
+    } catch (error) {
+      setAdminPushNotice(error instanceof Error ? error.message : 'Could not activate phone alerts.');
+    } finally {
+      setAdminPushBusy(false);
+    }
+  }
+
+  async function disableAdminPhonePush() {
+    setAdminPushBusy(true);
+    setAdminPushNotice('');
+
+    try {
+      const subscription = await getAdminCurrentPushSubscription();
+      const response = await fetch('/api/admin-data/push-subscription', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json', ...makeAdminAuthHeaders() },
+        body: JSON.stringify({ endpoint: subscription?.endpoint ?? '' })
+      });
+      await readJsonResponse<{ ok: boolean }>(response);
+      await subscription?.unsubscribe().catch(() => false);
+      setAdminPushSubscribed(false);
+      setAdminPushNotice('Phone alerts are turned off on this device.');
+    } catch (error) {
+      setAdminPushNotice(error instanceof Error ? error.message : 'Could not turn off phone alerts.');
+    } finally {
+      setAdminPushBusy(false);
+    }
+  }
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function checkClientBookingChanges() {
+      if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return;
+      try {
+        const since = liveBookingAlertSinceRef.current;
+        const response = await fetch(`/api/admin-data/booking-alerts?since=${encodeURIComponent(since)}`, {
+          cache: 'no-store',
+          headers: makeAdminAuthHeaders()
+        });
+        if (!response.ok) return;
+        const payload = await response.json() as { alerts?: BookingChangeAlert[]; checkedAt?: string };
+        const alerts = Array.isArray(payload.alerts) ? payload.alerts : [];
+        if (alerts.length) {
+          const latest = alerts[alerts.length - 1];
+          liveBookingAlertSinceRef.current = latest.createdAt || payload.checkedAt || new Date().toISOString();
+          if (!cancelled) {
+            setLiveBookingAlert(latest);
+            showAdminToast(latest.action === 'booking_deleted' ? 'A client deleted a booking.' : 'A client edited a booking.', 'warning');
+            await refresh();
+          }
+        } else if (payload.checkedAt) {
+          liveBookingAlertSinceRef.current = payload.checkedAt;
+        }
+      } catch {
+        // Silent by design: the normal Refresh button remains the fallback.
+      }
+    }
+
+    const timer = window.setInterval(() => { void checkClientBookingChanges(); }, 30000);
+    return () => { cancelled = true; window.clearInterval(timer); };
+  }, [refresh]);
+
   async function handleDiaryRefresh() {
     await refresh();
     showAdminToast('Diary refreshed.', 'info');
@@ -162,6 +373,7 @@ export default function AdminPage() {
     if (action === 'completed') return 'Moving to treatment…';
     if (action === 'billing') return 'Moving to billing…';
     if (action === 'cancelled') return 'Cancelling…';
+    if (action === 'edit') return 'Opening…';
     return 'Deleting…';
   }
 
@@ -229,35 +441,79 @@ export default function AdminPage() {
     setCustomerSearchMessage('Ad-hoc patient mode selected. This booking will still create or update a customer record, but it will not create a client login account.');
   }
 
+  function resetAdminBookingForm() {
+    setEditingBookingId(null);
+    setSelectedTime('');
+    setPatientName('');
+    setPatientPhone('');
+    setPatientEmail('');
+    setNotes('');
+    setSelectedCustomer(null);
+    setCustomerSearch('');
+    setCustomerResults([]);
+    setCustomerSearchMessage('');
+    setAdminStep(0);
+  }
+
+  function closeAdminBookingFlow() {
+    setAdminBookingOpen(false);
+    resetAdminBookingForm();
+  }
+
+  function openEditBooking(booking: Booking) {
+    setEditingBookingId(booking.id);
+    setProcedureId(booking.procedureId);
+    setSelectedPractitionerId(booking.practitionerId);
+    setSelectedDate(booking.date);
+    setSelectedTime(booking.time);
+    setPatientName(booking.patientName);
+    setPatientPhone(booking.patientPhone);
+    setPatientEmail(booking.patientEmail);
+    setNotes(booking.notes ?? '');
+    setSelectedCustomer(null);
+    setCustomerSearch('');
+    setCustomerResults([]);
+    setCustomerSearchMessage('Editing this existing booking. Save changes after checking the diary slot.');
+    setAdminStep(0);
+    setAdminBookingOpen(true);
+  }
+
   async function handleAdminBooking(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!canSave) return;
 
     try {
-      await createBooking({
-        patientName,
-        patientPhone,
-        patientEmail,
-        customerId: selectedCustomer?.id,
-        procedureId: activeProcedureId,
-        practitionerId: activePractitionerId,
-        date: selectedDate,
-        time: selectedTime,
-        source: 'staff',
-        notes
-      });
+      if (editingBookingId) {
+        await updateBookingDetails({
+          id: editingBookingId,
+          patientName,
+          patientPhone,
+          patientEmail,
+          customerId: selectedCustomer?.id ?? editingBooking?.customerId,
+          procedureId: activeProcedureId,
+          practitionerId: activePractitionerId,
+          date: selectedDate,
+          time: selectedTime,
+          source: 'staff',
+          notes
+        });
+      } else {
+        await createBooking({
+          patientName,
+          patientPhone,
+          patientEmail,
+          customerId: selectedCustomer?.id,
+          procedureId: activeProcedureId,
+          practitionerId: activePractitionerId,
+          date: selectedDate,
+          time: selectedTime,
+          source: 'staff',
+          notes
+        });
+      }
 
-      setSelectedTime('');
-      setPatientName('');
-      setPatientPhone('');
-      setPatientEmail('');
-      setNotes('');
-      setSelectedCustomer(null);
-      setCustomerSearch('');
-      setCustomerResults([]);
-      setCustomerSearchMessage('');
-      setAdminStep(0);
       setAdminBookingOpen(false);
+      resetAdminBookingForm();
     } catch {
       // Error is surfaced by the hook in the page notice.
     }
@@ -286,10 +542,48 @@ export default function AdminPage() {
         </div>
       )}
 
+      {liveBookingAlert && (
+        <section className="admin-live-alert-popup" role="alertdialog" aria-label="Client booking change alert">
+          <div>
+            <p className="badge blue-badge">Live diary update</p>
+            <h2>{liveBookingAlert.action === 'booking_deleted' ? 'Client deleted a booking.' : 'Client edited a booking.'}</h2>
+            <p>{liveBookingAlert.patientName} · {liveBookingAlert.procedureName}{liveBookingAlert.date ? ` · ${getDayLabel(liveBookingAlert.date)}` : ''}{liveBookingAlert.time ? ` at ${liveBookingAlert.time}` : ''}</p>
+          </div>
+          <div className="admin-live-alert-actions">
+            <button className="button primary compact-button" type="button" onClick={() => { setLiveBookingAlert(null); void handleDiaryRefresh(); }}>Refresh diary</button>
+            <button className="pill" type="button" onClick={() => setLiveBookingAlert(null)}>Dismiss</button>
+          </div>
+        </section>
+      )}
+
       <section className="compact-dashboard">
         <article className="mini-card"><strong>{practitioners.filter((item) => item.active).length}</strong><span>Active clinicians</span></article>
         <article className="mini-card"><strong>{upcomingBookingCount}</strong><span>Upcoming bookings</span></article>
         <article className="mini-card"><strong>{loading ? '…' : visibleOpenSlots.length}</strong><span>Open slots remaining</span></article>
+        <article className="mini-card admin-phone-alert-card">
+          <strong>Phone alerts</strong>
+          <span>
+            {!adminPushSupported
+              ? 'Desktop/laptop uses live popup.'
+              : !adminPushConfigured
+                ? 'Waiting for push keys.'
+                : adminPushSubscribed
+                  ? 'Active on this phone.'
+                  : 'Available on this phone.'}
+          </span>
+          {adminPushSupported && adminPushConfigured && (
+            adminPushSubscribed ? (
+              <button className="pill" type="button" onClick={() => void disableAdminPhonePush()} disabled={adminPushBusy}>
+                {adminPushBusy ? 'Updating…' : 'Turn off'}
+              </button>
+            ) : (
+              <button className="button primary compact-button" type="button" onClick={() => void activateAdminPhonePush()} disabled={adminPushBusy}>
+                {adminPushBusy ? 'Activating…' : 'Activate'}
+              </button>
+            )
+          )}
+          {adminPushNotice && <small>{adminPushNotice}</small>}
+        </article>
       </section>
 
       <section className="card diary-panel clean-panel">
@@ -379,6 +673,15 @@ export default function AdminPage() {
                 <small>Source: {booking.source}. Status: <span className={`status status-${booking.status}`}>{statusDisplayLabel(booking.status)}</span>{passedBooking && <span className="past-booking-note"> · Time passed</span>}</small>
               </div>
               <div className="nav-pills booking-actions">
+                <button
+                  className="pill admin-action-button status-action-edit"
+                  type="button"
+                  disabled={saving}
+                  title={bookingActionTitle('edit')}
+                  onClick={() => openEditBooking(booking)}
+                >
+                  Edit
+                </button>
                 {(['confirmed', 'arrived', 'completed', 'billing', 'cancelled'] as BookingStatus[]).map((statusAction) => {
                   const actionKey = `${booking.id}-${statusAction}`;
                   const actionIsBusy = bookingActionKey === actionKey;
@@ -426,10 +729,10 @@ export default function AdminPage() {
         <div className="workflow-card">
           <div className="workflow-head">
             <div>
-              <p className="badge blue-badge">Reception booking · Step {adminStep + 1} of 3</p>
-              <h2>{adminStep === 0 ? 'Select slot' : adminStep === 1 ? 'Patient details' : 'Confirm booking'}</h2>
+              <p className="badge blue-badge">{editingBookingId ? 'Edit booking' : 'Reception booking'} · Step {adminStep + 1} of 3</p>
+              <h2>{adminStep === 0 ? 'Select slot' : adminStep === 1 ? 'Patient details' : editingBookingId ? 'Confirm changes' : 'Confirm booking'}</h2>
             </div>
-            <button className="icon-button mobile-close" type="button" aria-label="Close booking flow" onClick={() => setAdminBookingOpen(false)}>×</button>
+            <button className="icon-button mobile-close" type="button" aria-label="Close booking flow" onClick={closeAdminBookingFlow}>×</button>
           </div>
 
           {adminStep === 0 && (
@@ -521,7 +824,7 @@ export default function AdminPage() {
           {adminStep === 2 && (
             <section className="flow-step">
               <div className="confirmation-card">
-                <h3>Confirm staff booking</h3>
+                <h3>{editingBookingId ? 'Confirm booking changes' : 'Confirm staff booking'}</h3>
                 <p>{patientName || 'Patient name required'}{selectedCustomer ? ' · existing customer' : ' · ad-hoc/no-login booking'}</p>
                 <p>{procedureName(activeProcedureId, procedures)} with {practitionerName(activePractitionerId, practitioners)}</p>
                 <p>{getDayLabel(selectedDate)} at {selectedTime || 'choose a time'}</p>
@@ -534,7 +837,7 @@ export default function AdminPage() {
             {adminStep < 2 ? (
               <button className="button primary" type="button" disabled={(adminStep === 0 && !selectedTime) || (adminStep === 1 && !patientName.trim())} onClick={() => setAdminStep((current) => Math.min(2, current + 1) as AdminStep)}>Continue</button>
             ) : (
-              <button className="button primary" type="submit" disabled={!canSave || saving || Boolean(error)}>{saving ? 'Checking diary…' : 'Save confirmed booking'}</button>
+              <button className="button primary" type="submit" disabled={!canSave || saving || Boolean(error)}>{saving ? 'Checking diary…' : editingBookingId ? 'Save booking changes' : 'Save confirmed booking'}</button>
             )}
           </div>
         </div>

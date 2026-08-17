@@ -2,7 +2,7 @@ import { createHash, randomBytes, randomInt } from 'crypto';
 import { getZipBookDatabase } from './dbProvider';
 import { deliverClientOtp, isOtpTestModeEnabled } from './otpDelivery';
 import { buildClientBookingConfirmationEmailHtml, sendZipBookEmail } from './emailDelivery';
-import { isPushDeliveryConfigured, normalisePushSubscription, sendPushNotification, type BrowserPushSubscription, type StoredPushSubscription } from './pushDelivery';
+import { isPhonePushUserAgent, isPushDeliveryConfigured, normalisePushSubscription, sendPushNotification, type BrowserPushSubscription, type StoredPushSubscription } from './pushDelivery';
 import { getDefaultPracticeId } from './tenant';
 import { addMinutes } from '@/lib/availability';
 import {
@@ -172,6 +172,8 @@ type ClientAccountRow = {
 
 type ClientBookingRow = {
   id: string;
+  procedure_id: string;
+  practitioner_id: string;
   procedure_name: string | null;
   practitioner_name: string | null;
   booking_date: string;
@@ -1031,7 +1033,7 @@ async function sendClientBookingConfirmation(input: {
   };
 }
 
-async function ensurePractitionerCanTakeBooking(input: { practitionerId: string; procedureId: string; date: string; time: string; endTime: string }) {
+async function ensurePractitionerCanTakeBooking(input: { practitionerId: string; procedureId: string; date: string; time: string; endTime: string; excludeBookingId?: string }) {
   const database = db();
   const dayOfWeek = new Date(`${input.date}T12:00:00`).getDay();
 
@@ -1072,6 +1074,7 @@ async function ensurePractitionerCanTakeBooking(input: { practitionerId: string;
       AND practitioner_id = ${input.practitionerId}
       AND booking_date = ${input.date}::date
       AND status <> 'cancelled'
+      AND (${input.excludeBookingId ?? ''} = '' OR id <> ${input.excludeBookingId ?? ''})
       AND start_time < ${input.endTime}::time
       AND ${input.time}::time < end_time
     LIMIT 1
@@ -1455,6 +1458,8 @@ async function getClientBookingsForCustomer(customerId: string): Promise<ClientL
   const database = db();
   const rows = await database.sql<ClientBookingRow>`
     SELECT b.id,
+           b.procedure_id,
+           b.practitioner_id,
            p.name AS procedure_name,
            pr.name AS practitioner_name,
            b.booking_date::text AS booking_date,
@@ -1472,6 +1477,8 @@ async function getClientBookingsForCustomer(customerId: string): Promise<ClientL
 
   return rows.map((row) => ({
     id: row.id,
+    procedureId: row.procedure_id,
+    practitionerId: row.practitioner_id,
     treatment: row.procedure_name ?? 'Appointment',
     practitioner: row.practitioner_name ?? 'Practitioner',
     date: normaliseDate(row.booking_date),
@@ -1549,6 +1556,140 @@ async function getClientSessionForToken(sessionToken: string): Promise<ClientSes
   return session;
 }
 
+
+export async function saveAdminPushSubscription(input: { actor: AdminActor; subscription: BrowserPushSubscription; userAgent?: string }) {
+  if (!isPhonePushUserAgent(input.userAgent)) {
+    throw new Error('Admin push alerts are phone-only. Use the live diary popup on desktop or laptop.');
+  }
+
+  const subscription = normalisePushSubscription(input.subscription);
+  const database = db();
+  const staffId = input.actor.staffId ?? 'admin';
+  const staffName = input.actor.staffName ?? 'Admin';
+
+  await database.sql`
+    INSERT INTO admin_push_subscriptions (id, practice_id, staff_id, staff_name, endpoint, p256dh, auth, user_agent, enabled, last_seen_at)
+    VALUES (${subscription.id}, ${PRACTICE_ID}, ${staffId}, ${staffName}, ${subscription.endpoint}, ${subscription.p256dh}, ${subscription.auth}, ${input.userAgent ?? ''}, ${true}, NOW())
+    ON CONFLICT (practice_id, endpoint)
+    DO UPDATE SET
+      staff_id = EXCLUDED.staff_id,
+      staff_name = EXCLUDED.staff_name,
+      p256dh = EXCLUDED.p256dh,
+      auth = EXCLUDED.auth,
+      user_agent = EXCLUDED.user_agent,
+      enabled = TRUE,
+      last_seen_at = NOW(),
+      updated_at = NOW()
+  `;
+
+  await database.sql`
+    INSERT INTO audit_logs (id, practice_id, action, entity_type, entity_id, source, staff_id, staff_name, details)
+    VALUES (${`audit-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`}, ${PRACTICE_ID}, ${'admin_push_subscription_saved'}, ${'staff'}, ${staffId}, ${'staff'}, ${staffId}, ${staffName}, ${JSON.stringify({ endpoint: subscription.endpoint.slice(0, 80), configured: isPushDeliveryConfigured(), phoneOnly: true })}::jsonb)
+  `;
+
+  return { saved: true, configured: isPushDeliveryConfigured() };
+}
+
+export async function disableAdminPushSubscription(input: { actor: AdminActor; endpoint?: string }) {
+  const database = db();
+  const staffId = input.actor.staffId ?? 'admin';
+  const staffName = input.actor.staffName ?? 'Admin';
+  const endpoint = cleanLoginValue(input.endpoint);
+
+  if (endpoint) {
+    await database.sql`
+      UPDATE admin_push_subscriptions
+      SET enabled = FALSE, updated_at = NOW()
+      WHERE practice_id = ${PRACTICE_ID} AND staff_id = ${staffId} AND endpoint = ${endpoint}
+    `;
+  } else {
+    await database.sql`
+      UPDATE admin_push_subscriptions
+      SET enabled = FALSE, updated_at = NOW()
+      WHERE practice_id = ${PRACTICE_ID} AND staff_id = ${staffId}
+    `;
+  }
+
+  await database.sql`
+    INSERT INTO audit_logs (id, practice_id, action, entity_type, entity_id, source, staff_id, staff_name, details)
+    VALUES (${`audit-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`}, ${PRACTICE_ID}, ${'admin_push_subscription_disabled'}, ${'staff'}, ${staffId}, ${'staff'}, ${staffId}, ${staffName}, ${JSON.stringify({ endpoint: endpoint ? endpoint.slice(0, 80) : 'all' })}::jsonb)
+  `;
+
+  return { disabled: true };
+}
+
+export async function getAdminPushSubscriptionStatus(actor: AdminActor) {
+  const database = db();
+  const staffId = actor.staffId ?? 'admin';
+  const rows = await database.sql<{ count: number }>`
+    SELECT COUNT(*)::int AS count
+    FROM admin_push_subscriptions
+    WHERE practice_id = ${PRACTICE_ID} AND staff_id = ${staffId} AND enabled = TRUE
+  `;
+  return { configured: isPushDeliveryConfigured(), activeSubscriptions: Number(rows[0]?.count ?? 0) };
+}
+
+async function getActiveAdminPushSubscriptions(): Promise<StoredPushSubscription[]> {
+  const database = db();
+  const rows = await database.sql<{ id: string; endpoint: string; p256dh: string; auth: string; user_agent: string | null }>`
+    SELECT id, endpoint, p256dh, auth, user_agent
+    FROM admin_push_subscriptions
+    WHERE practice_id = ${PRACTICE_ID} AND enabled = TRUE
+    ORDER BY updated_at DESC
+  `;
+  return rows
+    .filter((row) => isPhonePushUserAgent(row.user_agent ?? ''))
+    .map((row) => ({ id: row.id, endpoint: row.endpoint, p256dh: row.p256dh, auth: row.auth, userAgent: row.user_agent ?? '' }));
+}
+
+async function sendAdminBookingChangePush(input: { booking: Booking; action: 'booking_updated' | 'booking_deleted'; procedureName: string }) {
+  if (!isPushDeliveryConfigured()) {
+    return { attempted: false, delivered: 0, failed: 0, configured: false, provider: 'web-push', subscriptions: 0 };
+  }
+
+  let subscriptions: StoredPushSubscription[] = [];
+  try {
+    subscriptions = await getActiveAdminPushSubscriptions();
+  } catch (error) {
+    return { attempted: false, delivered: 0, failed: 0, configured: true, provider: 'web-push', subscriptions: 0, error: error instanceof Error ? error.message : 'Could not load admin push subscriptions.' };
+  }
+
+  let delivered = 0;
+  let failed = 0;
+  const database = db();
+  const title = input.action === 'booking_deleted' ? 'Client deleted a booking' : 'Client edited a booking';
+  const body = `${input.booking.patientName} · ${input.procedureName} · ${input.booking.date} at ${input.booking.time}`;
+
+  for (const subscription of subscriptions) {
+    const result = await sendPushNotification(subscription, {
+      title,
+      body,
+      tag: `zipbook-admin-${input.booking.id}-${input.action}`,
+      bookingId: input.booking.id,
+      url: '/admin'
+    });
+
+    if (result.delivered) {
+      delivered += 1;
+      await database.sql`
+        UPDATE admin_push_subscriptions
+        SET last_success_at = NOW(), last_seen_at = NOW(), failure_count = 0, updated_at = NOW()
+        WHERE practice_id = ${PRACTICE_ID} AND id = ${subscription.id}
+      `;
+    } else {
+      failed += 1;
+      await database.sql`
+        UPDATE admin_push_subscriptions
+        SET last_failure_at = NOW(), failure_count = failure_count + 1, enabled = CASE WHEN ${Boolean(result.invalidSubscription)} THEN FALSE ELSE enabled END, updated_at = NOW()
+        WHERE practice_id = ${PRACTICE_ID} AND id = ${subscription.id}
+      `;
+    }
+  }
+
+  return { attempted: subscriptions.length > 0, delivered, failed, configured: true, provider: 'web-push', subscriptions: subscriptions.length };
+}
+
+
 export async function saveClientPushSubscriptionForSession(input: { sessionToken: string; subscription: BrowserPushSubscription; userAgent?: string }) {
   const session = await getClientSessionForToken(input.sessionToken);
   const subscription = normalisePushSubscription(input.subscription);
@@ -1616,13 +1757,15 @@ export async function getClientPushSubscriptionStatus(sessionToken: string) {
 
 async function getActiveClientPushSubscriptions(customerId: string): Promise<StoredPushSubscription[]> {
   const database = db();
-  const rows = await database.sql<{ id: string; endpoint: string; p256dh: string; auth: string }>`
-    SELECT id, endpoint, p256dh, auth
+  const rows = await database.sql<{ id: string; endpoint: string; p256dh: string; auth: string; user_agent: string | null }>`
+    SELECT id, endpoint, p256dh, auth, user_agent
     FROM client_push_subscriptions
     WHERE practice_id = ${PRACTICE_ID} AND customer_id = ${customerId} AND enabled = TRUE
     ORDER BY updated_at DESC
   `;
-  return rows.map((row) => ({ id: row.id, endpoint: row.endpoint, p256dh: row.p256dh, auth: row.auth }));
+  return rows
+    .filter((row) => isPhonePushUserAgent(row.user_agent ?? ''))
+    .map((row) => ({ id: row.id, endpoint: row.endpoint, p256dh: row.p256dh, auth: row.auth, userAgent: row.user_agent ?? '' }));
 }
 
 async function sendClientBookingPushNotification(input: {
@@ -1630,6 +1773,9 @@ async function sendClientBookingPushNotification(input: {
   booking: Booking;
   procedureName: string;
   practitionerName: string;
+  title?: string;
+  body?: string;
+  tagSuffix?: string;
 }): Promise<{ attempted: boolean; delivered: number; failed: number; configured: boolean; provider: string; subscriptions: number; error?: string }> {
   if (!isPushDeliveryConfigured()) {
     return { attempted: false, delivered: 0, failed: 0, configured: false, provider: 'web-push', subscriptions: 0 };
@@ -1648,9 +1794,9 @@ async function sendClientBookingPushNotification(input: {
 
   for (const subscription of subscriptions) {
     const result = await sendPushNotification(subscription, {
-      title: 'Appointment confirmed',
-      body: `${input.procedureName} on ${input.booking.date} at ${input.booking.time}`,
-      tag: `zipbook-booking-${input.booking.id}`,
+      title: input.title ?? 'Appointment confirmed',
+      body: input.body ?? `${input.procedureName} on ${input.booking.date} at ${input.booking.time}`,
+      tag: `zipbook-booking-${input.booking.id}-${input.tagSuffix ?? 'update'}`,
       bookingId: input.booking.id,
       url: '/book'
     });
@@ -1756,6 +1902,178 @@ export async function createBookingInDatabase(input: {
   return booking;
 }
 
+type BookingDetailsInput = {
+  patientName: string;
+  patientPhone: string;
+  patientEmail: string;
+  customerId?: string;
+  procedureId: string;
+  practitionerId: string;
+  date: string;
+  time: string;
+  notes?: string;
+};
+
+type BookingChangeAlert = {
+  id: string;
+  action: string;
+  bookingId: string;
+  patientName: string;
+  date: string;
+  time: string;
+  procedureName: string;
+  createdAt: string;
+};
+
+async function getBookingRowById(id: string): Promise<BookingRow | null> {
+  const database = db();
+  const rows = await database.sql<BookingRow>`
+    SELECT id, patient_name, patient_phone, patient_email, customer_id, procedure_id, practitioner_id,
+           booking_date::text AS booking_date, start_time::text AS start_time, end_time::text AS end_time,
+           status, source, notes, created_at::text AS created_at, updated_at::text AS updated_at
+    FROM bookings
+    WHERE practice_id = ${PRACTICE_ID} AND id = ${id}
+    LIMIT 1
+  `;
+  return rows[0] ?? null;
+}
+
+async function getBookingNotificationNames(booking: Booking) {
+  const bootstrap = await getBootstrapData();
+  return {
+    procedureName: bootstrap.procedures.find((item) => item.id === booking.procedureId)?.name ?? booking.procedureId,
+    practitionerName: bootstrap.practitioners.find((item) => item.id === booking.practitionerId)?.name ?? booking.practitionerId
+  };
+}
+
+async function auditBookingPushNotification(input: { bookingId: string; source: string; action: string; result: unknown }) {
+  const database = db();
+  await database.sql`
+    INSERT INTO audit_logs (id, practice_id, action, entity_type, entity_id, source, details)
+    VALUES (${`audit-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`}, ${PRACTICE_ID}, ${input.action}, ${'booking'}, ${input.bookingId}, ${input.source}, ${JSON.stringify(input.result)}::jsonb)
+  `;
+}
+
+async function sendBookingChangePush(input: { booking: Booking; source: string; title: string; body: string; tagSuffix: string }) {
+  if (!input.booking.customerId) {
+    return { attempted: false, delivered: 0, failed: 0, configured: isPushDeliveryConfigured(), provider: 'web-push', subscriptions: 0, skipped: 'No linked client account.' };
+  }
+
+  const names = await getBookingNotificationNames(input.booking);
+  return sendClientBookingPushNotification({
+    customerId: input.booking.customerId,
+    booking: input.booking,
+    procedureName: names.procedureName,
+    practitionerName: names.practitionerName,
+    title: input.title,
+    body: input.body,
+    tagSuffix: input.tagSuffix
+  });
+}
+
+export async function updateBookingDetailsInDatabase(id: string, input: BookingDetailsInput, actor?: AdminActor, source: 'admin' | 'staff' | 'client' = 'admin'): Promise<Booking> {
+  const existingRow = await getBookingRowById(id);
+  if (!existingRow) throw new Error('Booking not found.');
+
+  const bootstrap = await getBootstrapData();
+  const duration = procedureDuration(input.procedureId, bootstrap.procedures);
+  const endTime = addMinutes(input.time, duration);
+  const database = db();
+
+  await ensurePractitionerCanTakeBooking({
+    practitionerId: input.practitionerId,
+    procedureId: input.procedureId,
+    date: input.date,
+    time: input.time,
+    endTime,
+    excludeBookingId: id
+  });
+
+  const customerId = source === 'client'
+    ? existingRow.customer_id ?? input.customerId
+    : await findOrCreateCustomer({
+      customerId: input.customerId ?? existingRow.customer_id ?? undefined,
+      patientName: input.patientName,
+      patientPhone: input.patientPhone,
+      patientEmail: input.patientEmail,
+      notes: input.notes,
+      actor
+    });
+
+  if (!customerId) throw new Error('This booking is not linked to a client account.');
+
+  if (source === 'client') {
+    await database.sql`
+      UPDATE customers
+      SET full_name = ${input.patientName}, phone = ${input.patientPhone}, email = ${input.patientEmail}, last_seen_at = NOW(), updated_at = NOW()
+      WHERE practice_id = ${PRACTICE_ID} AND id = ${customerId}
+    `;
+  }
+
+  const rows = await database.sql<BookingRow>`
+    UPDATE bookings
+    SET patient_name = ${input.patientName},
+        patient_phone = ${input.patientPhone},
+        patient_email = ${input.patientEmail},
+        customer_id = ${customerId},
+        procedure_id = ${input.procedureId},
+        practitioner_id = ${input.practitionerId},
+        booking_date = ${input.date}::date,
+        start_time = ${input.time}::time,
+        end_time = ${endTime}::time,
+        status = CASE WHEN status = 'cancelled' THEN 'confirmed' ELSE status END,
+        notes = ${input.notes ?? ''},
+        updated_at = NOW()
+    WHERE practice_id = ${PRACTICE_ID} AND id = ${id}
+    RETURNING id, patient_name, patient_phone, patient_email, customer_id, procedure_id, practitioner_id, booking_date::text AS booking_date, start_time::text AS start_time, end_time::text AS end_time, status, source, notes, created_at::text AS created_at, updated_at::text AS updated_at
+  `;
+
+  if (!rows[0]) throw new Error('Booking not found.');
+
+  const previous = mapBooking(existingRow);
+  const booking = mapBooking(rows[0]);
+  const details = {
+    previous: { date: previous.date, time: previous.time, endTime: previous.endTime, procedureId: previous.procedureId, practitionerId: previous.practitionerId, patientName: previous.patientName },
+    next: { date: booking.date, time: booking.time, endTime: booking.endTime, procedureId: booking.procedureId, practitionerId: booking.practitionerId, patientName: booking.patientName },
+    staffId: actor?.staffId,
+    staffName: actor?.staffName
+  };
+
+  await database.sql`
+    INSERT INTO audit_logs (id, practice_id, action, entity_type, entity_id, source, details)
+    VALUES (${`audit-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`}, ${PRACTICE_ID}, ${'booking_updated'}, ${'booking'}, ${id}, ${source}, ${JSON.stringify(details)}::jsonb)
+  `;
+
+  const pushResult = await sendBookingChangePush({
+    booking,
+    source,
+    title: 'Appointment updated',
+    body: `${booking.patientName}, your appointment is now ${booking.date} at ${booking.time}.`,
+    tagSuffix: 'updated'
+  });
+  await auditBookingPushNotification({ bookingId: id, source, action: 'booking_update_push_notification', result: pushResult });
+
+  if (source === 'client') {
+    const adminNames = await getBookingNotificationNames(booking);
+    const adminPushResult = await sendAdminBookingChangePush({ booking, action: 'booking_updated', procedureName: adminNames.procedureName });
+    await auditBookingPushNotification({ bookingId: id, source: 'staff', action: 'admin_client_booking_update_push_notification', result: adminPushResult });
+  }
+
+  return booking;
+}
+
+export async function updateClientBookingForSession(sessionToken: string, id: string, input: BookingDetailsInput): Promise<{ booking: Booking; profile: ClientLoginProfile }> {
+  const session = await getClientSessionForToken(sessionToken);
+  const existingRow = await getBookingRowById(id);
+  if (!existingRow || existingRow.customer_id !== session.customer_id) throw new Error('Booking not found for this client account.');
+  const bookingDateTime = new Date(`${normaliseDate(existingRow.booking_date)}T${normaliseTime(existingRow.start_time)}:00`);
+  if (bookingDateTime.getTime() < Date.now()) throw new Error('Past appointments cannot be edited in the app. Please contact the practice.');
+
+  const booking = await updateBookingDetailsInDatabase(id, { ...input, customerId: session.customer_id }, undefined, 'client');
+  const profile = await getClientProfile(session.customer_id);
+  return { booking, profile };
+}
+
 export async function updateBookingStatusInDatabase(id: string, status: BookingStatus, actor?: AdminActor): Promise<Booking> {
   const database = db();
   const rows = await database.sql<BookingRow>`
@@ -1772,7 +2090,19 @@ export async function updateBookingStatusInDatabase(id: string, status: BookingS
     VALUES (${`audit-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`}, ${PRACTICE_ID}, ${'booking_status_updated'}, ${'booking'}, ${id}, ${'admin'}, ${JSON.stringify({ status, staffId: actor?.staffId, staffName: actor?.staffName })}::jsonb)
   `;
 
-  return mapBooking(rows[0]);
+  const booking = mapBooking(rows[0]);
+  if (status === 'cancelled') {
+    const pushResult = await sendBookingChangePush({
+      booking,
+      source: 'admin',
+      title: 'Appointment cancelled',
+      body: `${booking.patientName}, your appointment on ${booking.date} at ${booking.time} has been cancelled.`,
+      tagSuffix: 'cancelled'
+    });
+    await auditBookingPushNotification({ bookingId: id, source: 'admin', action: 'booking_cancel_push_notification', result: pushResult });
+  }
+
+  return booking;
 }
 
 
@@ -1815,13 +2145,79 @@ export async function deletePastBookingsForDemo(): Promise<{ deletedBookings: nu
   return { deletedBookings, beforeDate };
 }
 
-export async function deleteBookingFromDatabase(id: string, actor?: AdminActor): Promise<void> {
+export async function deleteBookingFromDatabase(id: string, actor?: AdminActor, source: 'admin' | 'staff' | 'client' = 'admin'): Promise<void> {
   const database = db();
+  const existingRow = await getBookingRowById(id);
+  if (!existingRow) throw new Error('Booking not found.');
+  const booking = mapBooking(existingRow);
+
   await database.sql`DELETE FROM bookings WHERE practice_id = ${PRACTICE_ID} AND id = ${id}`;
   await database.sql`
     INSERT INTO audit_logs (id, practice_id, action, entity_type, entity_id, source, details)
-    VALUES (${`audit-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`}, ${PRACTICE_ID}, ${'booking_deleted'}, ${'booking'}, ${id}, ${'admin'}, ${JSON.stringify({ deleted: true, staffId: actor?.staffId, staffName: actor?.staffName })}::jsonb)
+    VALUES (${`audit-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`}, ${PRACTICE_ID}, ${'booking_deleted'}, ${'booking'}, ${id}, ${source}, ${JSON.stringify({ deleted: true, patientName: booking.patientName, date: booking.date, time: booking.time, procedureId: booking.procedureId, practitionerId: booking.practitionerId, customerId: booking.customerId, staffId: actor?.staffId, staffName: actor?.staffName })}::jsonb)
   `;
+
+  const pushResult = await sendBookingChangePush({
+    booking,
+    source,
+    title: 'Appointment removed',
+    body: `${booking.patientName}, your appointment on ${booking.date} at ${booking.time} has been removed.`,
+    tagSuffix: 'deleted'
+  });
+  await auditBookingPushNotification({ bookingId: id, source, action: 'booking_delete_push_notification', result: pushResult });
+
+  if (source === 'client') {
+    const adminNames = await getBookingNotificationNames(booking);
+    const adminPushResult = await sendAdminBookingChangePush({ booking, action: 'booking_deleted', procedureName: adminNames.procedureName });
+    await auditBookingPushNotification({ bookingId: id, source: 'staff', action: 'admin_client_booking_delete_push_notification', result: adminPushResult });
+  }
+}
+
+export async function deleteClientBookingForSession(sessionToken: string, id: string): Promise<{ profile: ClientLoginProfile }> {
+  const session = await getClientSessionForToken(sessionToken);
+  const existingRow = await getBookingRowById(id);
+  if (!existingRow || existingRow.customer_id !== session.customer_id) throw new Error('Booking not found for this client account.');
+  const bookingDateTime = new Date(`${normaliseDate(existingRow.booking_date)}T${normaliseTime(existingRow.start_time)}:00`);
+  if (bookingDateTime.getTime() < Date.now()) throw new Error('Past appointments cannot be deleted in the app. Please contact the practice.');
+
+  await deleteBookingFromDatabase(id, undefined, 'client');
+  const profile = await getClientProfile(session.customer_id);
+  return { profile };
+}
+
+export async function getClientBookingChangeAlertsSince(since?: string): Promise<BookingChangeAlert[]> {
+  const database = db();
+  const safeSince = since && !Number.isNaN(new Date(since).getTime()) ? since : new Date().toISOString();
+  const rows = await database.sql<{ id: string; action: string; entity_id: string | null; details: any; created_at: string }>`
+    SELECT id, action, entity_id, details, created_at::text AS created_at
+    FROM audit_logs
+    WHERE practice_id = ${PRACTICE_ID}
+      AND source = 'client'
+      AND entity_type = 'booking'
+      AND action IN ('booking_updated', 'booking_deleted')
+      AND created_at > ${safeSince}::timestamptz
+    ORDER BY created_at ASC
+    LIMIT 10
+  `;
+
+  const bootstrap = await getBootstrapData();
+  return rows.map((row) => {
+    const details = row.details ?? {};
+    const next = details.next ?? details;
+    const patientName = String(next.patientName ?? details.patientName ?? 'Client');
+    const procedureId = String(next.procedureId ?? details.procedureId ?? '');
+    const procedureName = bootstrap.procedures.find((item) => item.id === procedureId)?.name ?? (procedureId || 'Appointment');
+    return {
+      id: row.id,
+      action: row.action,
+      bookingId: row.entity_id ?? '',
+      patientName,
+      date: String(next.date ?? details.date ?? ''),
+      time: String(next.time ?? details.time ?? ''),
+      procedureName,
+      createdAt: row.created_at
+    };
+  });
 }
 
 export type AdminStaffMember = {

@@ -18,6 +18,11 @@ type BookingInput = {
   notes?: string;
 };
 
+
+type BookingUpdateInput = BookingInput & {
+  id: string;
+};
+
 type HookState = {
   bootstrap: BootstrapData;
   bookings: Booking[];
@@ -106,6 +111,28 @@ export function useBookingDatabase(selectedDate?: string) {
     }
   }, [loadBookings]);
 
+  const updateBookingDetails = useCallback(async (input: BookingUpdateInput) => {
+    setState((current) => ({ ...current, saving: true, error: '' }));
+    try {
+      const response = await fetch(`/api/bookings/${encodeURIComponent(input.id)}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', ...makeAdminAuthHeaders() },
+        body: JSON.stringify(input)
+      });
+      const payload = await parseJsonResponse<{ booking: Booking }>(response);
+      await loadBookings();
+      showAdminToast('Booking changes saved.');
+      return payload.booking;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Could not update booking.';
+      setState((current) => ({ ...current, error: message }));
+      showAdminToast(message, 'warning');
+      throw error;
+    } finally {
+      setState((current) => ({ ...current, saving: false }));
+    }
+  }, [loadBookings]);
+
   const updateBookingStatus = useCallback(async (id: string, status: BookingStatus) => {
     setState((current) => ({ ...current, saving: true, error: '' }));
     try {
@@ -150,6 +177,7 @@ export function useBookingDatabase(selectedDate?: string) {
     ...state,
     refresh,
     createBooking,
+    updateBookingDetails,
     updateBookingStatus,
     deleteBooking
   };
