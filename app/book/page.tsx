@@ -134,8 +134,8 @@ function currentMinutes(date: Date) {
   return (date.getHours() * 60) + date.getMinutes();
 }
 
-function slotHasPassed(selectedDate: string, endTime: string, now: Date) {
-  return selectedDate === localToday(now) && timeToMinutes(endTime) <= currentMinutes(now);
+function slotHasPassed(selectedDate: string, startTime: string, now: Date) {
+  return selectedDate === localToday(now) && timeToMinutes(startTime) <= currentMinutes(now);
 }
 
 function phoneCountryLabel(country: PhoneCountry) {
@@ -314,7 +314,7 @@ export default function BookPage() {
     () => getAvailabilityForDate(availabilityBookings, selectedDate, activeProcedureId, context, practitionerChoice),
     [availabilityBookings, selectedDate, activeProcedureId, context, practitionerChoice]
   );
-  const availableSlots = slots.filter((slot) => slot.available && !slotHasPassed(selectedDate, slot.endTime, now));
+  const availableSlots = slots.filter((slot) => slot.available && !slotHasPassed(selectedDate, slot.time, now));
   const selectedSlot = slots.find((slot) => slot.time === selectedTime && slot.practitionerId === selectedPractitionerId);
   const selectedPractitioner = practitioners.find((item) => item.id === selectedPractitionerId);
   const selectedLoginCountry = findPhoneCountry(clientLoginCountryInput);
@@ -1363,7 +1363,7 @@ export default function BookPage() {
                       selectedSlot.practitionerId === slot.practitionerId &&
                       slotStartsInsideSelectedAppointment(slot.time, selectedSlot.time, selectedSlot.endTime)
                     );
-                    const hasPassed = slotHasPassed(selectedDate, slot.endTime, now);
+                    const hasPassed = slotHasPassed(selectedDate, slot.time, now);
                     const canSelectSlot = slot.available && !hasPassed;
                     return (
                       <button

@@ -48,8 +48,8 @@ function currentMinutes(date: Date) {
   return (date.getHours() * 60) + date.getMinutes();
 }
 
-function slotHasPassed(selectedDate: string, endTime: string, now: Date) {
-  return selectedDate === localToday(now) && timeToMinutes(endTime) <= currentMinutes(now);
+function slotHasPassed(selectedDate: string, startTime: string, now: Date) {
+  return selectedDate === localToday(now) && timeToMinutes(startTime) <= currentMinutes(now);
 }
 
 export default function ReceptionBookingPage() {
@@ -405,7 +405,7 @@ export default function ReceptionBookingPage() {
                 selectedSlot && slotStartsInsideSelectedAppointment(slot.time, selectedSlot.time, selectedSlot.endTime)
               );
               const slotPractitioner = slot.practitionerId ? practitionerName(slot.practitionerId, practitioners) : slot.practitionerName;
-              const hasPassed = slotHasPassed(selectedDate, slot.endTime, now);
+              const hasPassed = slotHasPassed(selectedDate, slot.time, now);
               const canSelectSlot = slot.available && !hasPassed;
               return (
                 <button

@@ -5282,3 +5282,136 @@ button.admin-password-eye .admin-password-eye-slash {
     flex: 1 1 120px;
   }
 }
+
+/* Ver-0.051: practice diary header consolidation and live diary UX polish */
+.admin-shell .admin-topbar {
+  width: 100vw;
+  margin-left: calc(50% - 50vw);
+  margin-bottom: 18px;
+  min-height: 68px;
+  padding: 0 16px;
+  justify-content: center;
+  align-items: center;
+}
+
+.admin-shell .admin-header-brand {
+  margin: 0 auto;
+  text-align: left;
+}
+
+.admin-shell .admin-topbar .nav-pills {
+  display: none;
+}
+
+.admin-shell .practice-diary-command {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 16px 24px;
+  padding: 24px;
+  margin-bottom: 18px;
+}
+
+.practice-diary-title-block {
+  min-width: 0;
+}
+
+.practice-diary-title-row {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 10px 14px;
+  margin-top: 8px;
+}
+
+.practice-diary-title {
+  margin: 0;
+  color: var(--ink);
+  font-size: clamp(1.15rem, 2.2vw, 1.65rem);
+  line-height: 1.12;
+  letter-spacing: -0.025em;
+  font-weight: 500;
+}
+
+.practice-diary-date-inline {
+  color: var(--muted);
+  font-size: clamp(0.9rem, 1.4vw, 1.05rem);
+  line-height: 1.25;
+  font-weight: 500;
+}
+
+.practice-diary-actions {
+  align-self: start;
+}
+
+.practice-diary-controls {
+  grid-column: 1 / -1;
+  margin-top: 2px;
+}
+
+.practice-diary-controls .form-row {
+  margin-bottom: 0;
+}
+
+.practice-diary-stats {
+  grid-column: 1 / -1;
+  margin: 0;
+  gap: 10px;
+}
+
+.practice-diary-stats .mini-card {
+  padding: 11px 14px;
+  border-radius: 18px;
+  box-shadow: 0 8px 18px rgba(51, 102, 153, 0.05);
+}
+
+.practice-diary-stats .mini-card strong {
+  margin-bottom: 2px;
+  font-size: 1.05rem;
+  line-height: 1.15;
+  font-weight: 700;
+}
+
+.practice-diary-stats .mini-card span {
+  font-size: 0.78rem;
+  line-height: 1.25;
+}
+
+.live-diary-panel {
+  margin-top: 0;
+}
+
+.live-diary-panel .diary-slots-panel {
+  margin-top: 0;
+}
+
+@media (max-width: 860px) {
+  .admin-shell .admin-topbar {
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    min-height: 62px;
+    margin-bottom: 14px;
+  }
+
+  .admin-shell .practice-diary-command {
+    grid-template-columns: 1fr;
+    padding: 18px;
+    border-radius: 26px;
+  }
+
+  .practice-diary-actions {
+    justify-content: flex-start;
+  }
+
+  .practice-diary-controls,
+  .practice-diary-stats {
+    grid-column: auto;
+  }
+
+  .practice-diary-title-row {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 4px;
+  }
+}

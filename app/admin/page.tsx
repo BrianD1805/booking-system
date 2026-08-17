@@ -107,8 +107,8 @@ function currentMinutes(date: Date) {
   return (date.getHours() * 60) + date.getMinutes();
 }
 
-function slotHasPassed(selectedDate: string, endTime: string, now: Date) {
-  return selectedDate === localToday(now) && timeToMinutes(endTime) <= currentMinutes(now);
+function slotHasPassed(selectedDate: string, startTime: string, now: Date) {
+  return selectedDate === localToday(now) && timeToMinutes(startTime) <= currentMinutes(now);
 }
 
 function bookingHasPassed(selectedDate: string, endTime: string, now: Date) {
@@ -206,7 +206,7 @@ export default function AdminPage() {
     diaryPractitionerFilter === 'all' ? true : booking.practitionerId === diaryPractitionerFilter
   );
   const selectedBookingFlowSlot = bookingFlowSlots.find((slot) => slot.time === selectedTime);
-  const visibleOpenSlots = diarySlots.filter((slot) => slot.available && !slotHasPassed(selectedDate, slot.endTime, now));
+  const visibleOpenSlots = diarySlots.filter((slot) => slot.available && !slotHasPassed(selectedDate, slot.time, now));
   const upcomingBookingCount = dateBookings.filter((booking) => !bookingHasPassed(selectedDate, booking.endTime, now)).length;
   const currentClockLabel = formatTwelveHourClock(now);
   const lastRefreshedLabel = lastRefreshedAt ? new Date(lastRefreshedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true }) : 'Not refreshed yet';
@@ -523,16 +523,48 @@ export default function AdminPage() {
     <main className="shell fresh-shell admin-shell">
       <Header area="admin" />
 
-      <section className="admin-command">
-        <div>
+      <section className="admin-command practice-diary-command">
+        <div className="practice-diary-title-block">
           <p className="badge blue-badge">Owner/admin app · {APP_VERSION}</p>
-          <h1 className="hero-title clean-title">Practice diary.</h1>
-          <p className="hero-copy tight-copy">A cleaner receptionist view for live appointments, practitioner diaries and fast patient updates.</p>
+          <div className="practice-diary-title-row">
+            <h1 className="practice-diary-title">Practice diary</h1>
+            <span className="practice-diary-date-inline">{loading ? 'Loading diary…' : getDayLabel(selectedDate)}</span>
+          </div>
         </div>
-        <div className="command-actions admin-compact-actions">
+
+        <div className="command-actions admin-compact-actions practice-diary-actions">
           <Link className="button primary admin-compact-button" href="/admin/reception">Add booking</Link>
           <button type="button" onClick={() => void handleDiaryRefresh()} disabled={saving || loading} className={`pill admin-action-button admin-compact-button ${loading ? 'is-loading' : ''}`}><span className="refresh-icon" aria-hidden="true">↻</span>{loading ? 'Refreshing…' : 'Refresh diary'}</button>
         </div>
+
+        <div className="grid two controls-grid practice-diary-controls">
+          <div className="form-row">
+            <label htmlFor="adminDate">Date</label>
+            <DatePickerField id="adminDate" value={selectedDate} required ariaLabel="Choose diary date" onChange={(nextDate) => { setSelectedDate(nextDate); setSelectedTime(''); }} />
+          </div>
+          <div className="form-row">
+            <label htmlFor="adminPractitionerFilter">Practitioner</label>
+            <ZipSelect
+              id="adminPractitionerFilter"
+              value={diaryPractitionerFilter}
+              ariaLabel="Choose practitioner filter"
+              onChange={setDiaryPractitionerFilter}
+              options={[
+                { value: 'all', label: 'All practitioners' },
+                ...practitioners.filter((practitioner) => practitioner.active).map((practitioner) => ({
+                  value: practitioner.id,
+                  label: `${practitioner.name} — ${practitioner.role}`
+                }))
+              ]}
+            />
+          </div>
+        </div>
+
+        <section className="compact-dashboard practice-diary-stats" aria-label="Diary summary">
+          <article className="mini-card"><strong>{practitioners.filter((item) => item.active).length}</strong><span>Active clinicians</span></article>
+          <article className="mini-card"><strong>{upcomingBookingCount}</strong><span>Upcoming bookings</span></article>
+          <article className="mini-card"><strong>{loading ? '…' : visibleOpenSlots.length}</strong><span>Open slots remaining</span></article>
+        </section>
       </section>
 
       {error && (
@@ -556,72 +588,7 @@ export default function AdminPage() {
         </section>
       )}
 
-      <section className="compact-dashboard">
-        <article className="mini-card"><strong>{practitioners.filter((item) => item.active).length}</strong><span>Active clinicians</span></article>
-        <article className="mini-card"><strong>{upcomingBookingCount}</strong><span>Upcoming bookings</span></article>
-        <article className="mini-card"><strong>{loading ? '…' : visibleOpenSlots.length}</strong><span>Open slots remaining</span></article>
-        <article className="mini-card admin-phone-alert-card">
-          <strong>Phone alerts</strong>
-          <span>
-            {!adminPushSupported
-              ? 'Desktop/laptop uses live popup.'
-              : !adminPushConfigured
-                ? 'Waiting for push keys.'
-                : adminPushSubscribed
-                  ? 'Active on this phone.'
-                  : 'Available on this phone.'}
-          </span>
-          {adminPushSupported && adminPushConfigured && (
-            adminPushSubscribed ? (
-              <button className="pill" type="button" onClick={() => void disableAdminPhonePush()} disabled={adminPushBusy}>
-                {adminPushBusy ? 'Updating…' : 'Turn off'}
-              </button>
-            ) : (
-              <button className="button primary compact-button" type="button" onClick={() => void activateAdminPhonePush()} disabled={adminPushBusy}>
-                {adminPushBusy ? 'Activating…' : 'Activate'}
-              </button>
-            )
-          )}
-          {adminPushNotice && <small>{adminPushNotice}</small>}
-        </article>
-      </section>
-
-      <section className="card diary-panel clean-panel">
-        <div className="section-heading-row">
-          <div>
-            <h2 className="section-title compact">Diary</h2>
-            <p className="mini-copy">{loading ? 'Loading diary from Netlify Database…' : getDayLabel(selectedDate)}</p>
-          </div>
-        </div>
-
-        <div className="grid two controls-grid">
-          <div className="form-row">
-            <label htmlFor="adminDate">Date</label>
-            <DatePickerField id="adminDate" value={selectedDate} required ariaLabel="Choose diary date" onChange={(nextDate) => { setSelectedDate(nextDate); setSelectedTime(''); }} />
-          </div>
-          <div className="form-row">
-            <label htmlFor="adminPractitionerFilter">Practitioner</label>
-            <ZipSelect
-              id="adminPractitionerFilter"
-              value={diaryPractitionerFilter}
-              ariaLabel="Choose practitioner filter"
-              onChange={setDiaryPractitionerFilter}
-              options={[
-                { value: 'all', label: 'All practitioners' },
-                ...practitioners.filter((practitioner) => practitioner.active).map((practitioner) => ({
-                  value: practitioner.id,
-                  label: `${practitioner.name} — ${practitioner.role}`
-                }))
-              ]}
-            />
-          </div>
-        </div>
-
-        <div className="diary-focus-note">
-          <strong>Diary view</strong>
-          <span>This view shows live bookings for the selected date. Cancelled bookings release their slot; deleted bookings are removed from the diary.</span>
-        </div>
-
+      <section className="card diary-panel clean-panel live-diary-panel">
         <section className="diary-slots-panel">
           <div className="section-heading-row compact-row">
             <div>
@@ -635,7 +602,7 @@ export default function AdminPage() {
               const overlappingBookings = dateBookings.filter((booking) => bookingOverlapsSlot(booking, slot));
               const firstBooking = overlappingBookings[0];
               const startsInThisSlot = firstBooking ? bookingStartsOnSlot(firstBooking, slot) : false;
-              const passedSlot = slotHasPassed(selectedDate, slot.endTime, now);
+              const passedSlot = slotHasPassed(selectedDate, slot.time, now);
               const slotStateClass = passedSlot ? 'past' : overlappingBookings.length ? 'booked' : slot.available ? 'available' : 'unavailable';
               return (
                 <article key={`${slot.time}-${slot.endTime}-admin-diary`} className={`slot diary-slot-card ${slotStateClass}`}>
