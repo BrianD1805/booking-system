@@ -4,3 +4,7 @@
 
 [build.environment]
   NODE_VERSION = "20.12.2"
+
+# Twice daily at 03:15 and 15:15 UTC (Netlify cron uses UTC).
+[functions."supabase-keepalive"]
+  schedule = "15 3,15 * * *"
