@@ -1,3 +1,4 @@
+import { insideHours, crossesLunch, dayOfWeek } from '@/lib/schedulingPolicy.mjs';
 import {
   procedureDuration,
   type BlockedDate,
@@ -101,33 +102,25 @@ export function practitionersForProcedure(procedureId: string, context: Availabi
     .sort((a, b) => a.displayOrder - b.displayOrder || a.name.localeCompare(b.name));
 }
 
-function workingWindowForPractitioner(practitionerId: string, date: string, context: AvailabilityContext) {
-  const dayOfWeek = new Date(`${date}T12:00:00`).getDay();
-  const windows = context.practitionerWorkingHours.filter(
-    (item) => item.practitionerId === practitionerId && item.dayOfWeek === dayOfWeek && item.active
+function workingWindowsForPractitioner(practitionerId: string, date: string, context: AvailabilityContext) {
+  const weekday = dayOfWeek(date);
+  return context.practitionerWorkingHours.filter(
+    (item) => item.practitionerId === practitionerId && item.dayOfWeek === weekday && item.active
   );
-
-  if (!windows.length) return null;
-
-  return {
-    start: Math.min(...windows.map((item) => toMinutes(item.startTime))),
-    end: Math.max(...windows.map((item) => toMinutes(item.endTime)))
-  };
 }
 
 function explainPractitionerAvailability(practitioner: Practitioner, date: string, slotStart: number, slotEnd: number, bookings: Booking[], context: AvailabilityContext): PractitionerSlotCheck {
-  const workingWindow = workingWindowForPractitioner(practitioner.id, date, context);
-
-  if (!workingWindow) {
+  const windows = workingWindowsForPractitioner(practitioner.id, date, context);
+  if (!windows.length) {
     return { practitioner, available: false, reason: 'Not working this day' };
   }
-
-  if (slotStart < workingWindow.start) {
-    return { practitioner, available: false, reason: `Not working yet (${fromMinutes(workingWindow.start)} start)` };
+  const format = fromMinutes;
+  const match = windows.find((item) => insideHours(format(slotStart), format(slotEnd), item.startTime, item.endTime));
+  if (!match) {
+    return { practitioner, available: false, reason: `Outside working hours (${windows[0].startTime}–${windows[0].endTime})` };
   }
-
-  if (slotEnd > workingWindow.end) {
-    return { practitioner, available: false, reason: `Not enough time before ${fromMinutes(workingWindow.end)}` };
+  if (crossesLunch(format(slotStart), format(slotEnd), match.lunchBreakEnabled, match.lunchBreakStart, match.lunchBreakEnd)) {
+    return { practitioner, available: false, reason: 'Practitioner lunch break' };
   }
 
   const bookingConflict = bookings.find((booking) => (
@@ -210,6 +203,11 @@ export function getAvailabilityForDate(
         available: false,
         reason: `Not enough time for ${duration} mins before closing`
       });
+      continue;
+    }
+
+    if (crossesLunch(fromMinutes(slotStart), fromMinutes(slotEnd), practiceSettings.lunchBreakEnabled, practiceSettings.lunchBreakStart, practiceSettings.lunchBreakEnd)) {
+      slots.push({ time: fromMinutes(slotStart), endTime: fromMinutes(slotEnd), available: false, reason: 'Practice lunch closure' });
       continue;
     }
 

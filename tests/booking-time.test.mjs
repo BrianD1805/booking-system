@@ -36,3 +36,5 @@ test('server guard throws for past starts and permits future starts', () => {
   assert.throws(() => assertFutureBookingStart('2026-11-31', '11:30', 'Africa/Nairobi', exampleNow), /valid appointment date/);
   assert.throws(() => assertFutureBookingStart('2026-11-14', '25:60', 'Africa/Nairobi', exampleNow), /valid appointment date/);
 });
+
+// Ver-0.054 notice/ahead rules are enforced on the server for client bookings.

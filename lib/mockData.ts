@@ -19,6 +19,9 @@ export type PractitionerWorkingHour = {
   startTime: string;
   endTime: string;
   active: boolean;
+  lunchBreakEnabled?: boolean;
+  lunchBreakStart?: string;
+  lunchBreakEnd?: string;
 };
 
 export type PractitionerProcedure = {
@@ -107,6 +110,10 @@ export type PracticeSettings = {
   workingDays: number[];
   workingStartTime: string;
   workingEndTime: string;
+  lunchBreakEnabled?: boolean;
+  lunchBreakStart?: string;
+  lunchBreakEnd?: string;
+  allowSameDayBookings?: boolean;
   slotIntervalMinutes: number;
   minimumNoticeHours: number;
   maxBookingAheadDays: number;
@@ -141,7 +148,7 @@ export type BootstrapData = {
   practitionerBlockedTimes: PractitionerBlockedTime[];
 };
 
-export const APP_VERSION = 'Ver-0.053A';
+export const APP_VERSION = 'Ver-0.054A';
 
 export const fallbackProcedures: Procedure[] = [
   { id: 'checkup', name: 'Dental check-up', durationMinutes: 30, priceGuide: 'Standard consultation' },
@@ -203,6 +210,10 @@ export const fallbackPracticeSettings: PracticeSettings = {
   workingDays: [1, 2, 3, 4, 5],
   workingStartTime: '08:30',
   workingEndTime: '17:00',
+  lunchBreakEnabled: false,
+  lunchBreakStart: '13:00',
+  lunchBreakEnd: '14:00',
+  allowSameDayBookings: true,
   slotIntervalMinutes: 30,
   minimumNoticeHours: 2,
   maxBookingAheadDays: 90,

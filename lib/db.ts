@@ -1,4 +1,5 @@
-import { assertFutureBookingStart } from '@/lib/bookingTime.mjs';
+import { assertFutureBookingStart, assertClientBookingRules } from '@/lib/bookingTime.mjs';
+import { insideHours, crossesLunch, dayOfWeek } from '@/lib/schedulingPolicy.mjs';
 import { createHash, randomBytes, randomInt } from 'crypto';
 import { getZipBookDatabase } from './dbProvider';
 import { deliverClientOtp, isOtpTestModeEnabled } from './otpDelivery';
@@ -34,6 +35,10 @@ type PracticeRow = {
   working_days: number[];
   working_start_time: string;
   working_end_time: string;
+  lunch_break_enabled?: boolean | null;
+  lunch_break_start?: string | null;
+  lunch_break_end?: string | null;
+  allow_same_day_bookings?: boolean | null;
   slot_interval_minutes: number;
   minimum_notice_hours: number;
   max_booking_ahead_days: number;
@@ -80,6 +85,9 @@ type PractitionerWorkingHourRow = {
   start_time: string;
   end_time: string;
   active: boolean;
+  lunch_break_enabled?: boolean;
+  lunch_break_start?: string;
+  lunch_break_end?: string;
 };
 
 type PractitionerProcedureRow = {
@@ -311,6 +319,10 @@ function mapPractice(row: PracticeRow): PracticeSettings {
     workingDays: row.working_days,
     workingStartTime: normaliseTime(row.working_start_time),
     workingEndTime: normaliseTime(row.working_end_time),
+    lunchBreakEnabled: Boolean(row.lunch_break_enabled),
+    lunchBreakStart: row.lunch_break_start ? normaliseTime(row.lunch_break_start) : '13:00',
+    lunchBreakEnd: row.lunch_break_end ? normaliseTime(row.lunch_break_end) : '14:00',
+    allowSameDayBookings: row.allow_same_day_bookings !== false,
     slotIntervalMinutes: row.slot_interval_minutes,
     minimumNoticeHours: row.minimum_notice_hours,
     maxBookingAheadDays: row.max_booking_ahead_days,
@@ -360,7 +372,10 @@ function mapPractitionerWorkingHour(row: PractitionerWorkingHourRow): Practition
     dayOfWeek: row.day_of_week,
     startTime: normaliseTime(row.start_time),
     endTime: normaliseTime(row.end_time),
-    active: row.active
+    active: row.active,
+    lunchBreakEnabled: Boolean(row.lunch_break_enabled),
+    lunchBreakStart: row.lunch_break_start ? normaliseTime(row.lunch_break_start) : '13:00',
+    lunchBreakEnd: row.lunch_break_end ? normaliseTime(row.lunch_break_end) : '14:00'
   };
 }
 
@@ -873,11 +888,17 @@ export async function deleteAdminDataCustomerAndBookings(customerId: string, act
 }
 
 
-const BOOTSTRAP_CACHE_TTL_MS = 60_000;
+// Settings can change from another Netlify function/instance. The diary loads
+// bootstrap only on navigation or explicit refresh, so do not serve stale hours.
+const BOOTSTRAP_CACHE_TTL_MS = 0;
 let cachedBootstrap: { data: BootstrapData; expiresAt: number } | null = null;
 
 function cloneBootstrapData(data: BootstrapData): BootstrapData {
   return JSON.parse(JSON.stringify(data)) as BootstrapData;
+}
+
+export function invalidateBootstrapCache() {
+  cachedBootstrap = null;
 }
 
 export async function getBootstrapData(): Promise<BootstrapData> {
@@ -893,7 +914,7 @@ export async function getBootstrapData(): Promise<BootstrapData> {
     database.sql<BlockedDateRow>`SELECT blocked_date::text AS blocked_date, reason FROM blocked_dates WHERE practice_id = ${PRACTICE_ID} ORDER BY blocked_date`,
     database.sql<BlockedTimeRow>`SELECT id, blocked_date::text AS blocked_date, start_time::text AS start_time, end_time::text AS end_time, reason FROM blocked_times WHERE practice_id = ${PRACTICE_ID} ORDER BY blocked_date, start_time`,
     database.sql<PractitionerRow>`SELECT id, name, role, active, display_order FROM practitioners WHERE practice_id = ${PRACTICE_ID} ORDER BY display_order, name`,
-    database.sql<PractitionerWorkingHourRow>`SELECT practitioner_id, day_of_week, start_time::text AS start_time, end_time::text AS end_time, active FROM practitioner_working_hours WHERE active = TRUE ORDER BY practitioner_id, day_of_week`,
+    database.sql<PractitionerWorkingHourRow>`SELECT practitioner_id, day_of_week, start_time::text AS start_time, end_time::text AS end_time, active, lunch_break_enabled, lunch_break_start::text AS lunch_break_start, lunch_break_end::text AS lunch_break_end FROM practitioner_working_hours WHERE active = TRUE ORDER BY practitioner_id, day_of_week`,
     database.sql<PractitionerProcedureRow>`SELECT practitioner_id, procedure_id FROM practitioner_procedures ORDER BY practitioner_id, procedure_id`,
     database.sql<PractitionerBlockedTimeRow>`SELECT id, practitioner_id, blocked_date::text AS blocked_date, start_time::text AS start_time, end_time::text AS end_time, reason FROM practitioner_blocked_times ORDER BY blocked_date, start_time`
   ]);
@@ -1036,7 +1057,23 @@ async function sendClientBookingConfirmation(input: {
 
 async function ensurePractitionerCanTakeBooking(input: { practitionerId: string; procedureId: string; date: string; time: string; endTime: string; excludeBookingId?: string }) {
   const database = db();
-  const dayOfWeek = new Date(`${input.date}T12:00:00`).getDay();
+  const weekday = dayOfWeek(input.date);
+  if (weekday < 0) throw new Error('Choose a valid appointment date.');
+
+  const practiceRows = await database.sql<{ working_days: number[]; working_start_time: string; working_end_time: string; lunch_break_enabled: boolean | null; lunch_break_start: string | null; lunch_break_end: string | null }>`
+    SELECT working_days, working_start_time::text AS working_start_time, working_end_time::text AS working_end_time,
+           lunch_break_enabled, lunch_break_start::text AS lunch_break_start, lunch_break_end::text AS lunch_break_end
+    FROM practices WHERE id = ${PRACTICE_ID} LIMIT 1
+  `;
+  const practice = practiceRows[0];
+  if (!practice) throw new Error('Practice not found.');
+  if (!practice.working_days.includes(weekday)) throw new Error('The practice is closed on the selected day.');
+  if (!insideHours(input.time, input.endTime, practice.working_start_time, practice.working_end_time)) {
+    throw new Error('The appointment must fit within the practice opening hours.');
+  }
+  if (crossesLunch(input.time, input.endTime, Boolean(practice.lunch_break_enabled), practice.lunch_break_start ?? '13:00', practice.lunch_break_end ?? '14:00')) {
+    throw new Error('The practice is closed for its lunch break at this time.');
+  }
 
   const practitionerRows = await database.sql<{ id: string }>`
     SELECT p.id
@@ -1047,17 +1084,19 @@ async function ensurePractitionerCanTakeBooking(input: { practitionerId: string;
   `;
   if (!practitionerRows[0]) throw new Error('The selected practitioner cannot perform this procedure.');
 
-  const workingRows = await database.sql<{ id: string }>`
-    SELECT id
+  const workingRows = await database.sql<{ id: string; lunch_break_enabled: boolean; lunch_break_start: string; lunch_break_end: string }>`
+    SELECT id, lunch_break_enabled, lunch_break_start::text AS lunch_break_start, lunch_break_end::text AS lunch_break_end
     FROM practitioner_working_hours
     WHERE practitioner_id = ${input.practitionerId}
-      AND day_of_week = ${dayOfWeek}
+      AND day_of_week = ${weekday}
       AND active = TRUE
       AND start_time <= ${input.time}::time
       AND end_time >= ${input.endTime}::time
-    LIMIT 1
   `;
-  if (!workingRows[0]) throw new Error('The selected practitioner is not working at this time.');
+  if (!workingRows.length) throw new Error('The selected practitioner is not working at this time.');
+  if (!workingRows.some((hours) => !crossesLunch(input.time, input.endTime, hours.lunch_break_enabled, hours.lunch_break_start, hours.lunch_break_end))) {
+    throw new Error('The selected practitioner is on a lunch break at this time.');
+  }
 
   const blockedDateRows = await database.sql<{ id: string }>`
     SELECT id
@@ -1839,6 +1878,7 @@ export async function createBookingInDatabase(input: {
   // Reject expired starts before looking up or creating a client, inserting a
   // booking, or sending notifications. This protects every booking entry point.
   assertFutureBookingStart(input.date, input.time, bootstrap.practiceSettings.timezone);
+  if (input.source === 'client' ) assertClientBookingRules(input.date, input.time, bootstrap.practiceSettings);
   const duration = procedureDuration(input.procedureId, bootstrap.procedures);
   const endTime = addMinutes(input.time, duration);
   const id = `bk-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -1984,6 +2024,7 @@ export async function updateBookingDetailsInDatabase(id: string, input: BookingD
   const bootstrap = await getBootstrapData();
   // Rescheduling/editing cannot move an appointment into the past either.
   assertFutureBookingStart(input.date, input.time, bootstrap.practiceSettings.timezone);
+  if (source === 'client') assertClientBookingRules(input.date, input.time, bootstrap.practiceSettings);
   const duration = procedureDuration(input.procedureId, bootstrap.procedures);
   const endTime = addMinutes(input.time, duration);
   const database = db();
