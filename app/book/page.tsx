@@ -5,6 +5,7 @@ import { ZipSelect } from '@/components/ZipSelect';
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { APP_VERSION, procedureDuration, type ClientLoginBooking, type ClientLoginProfile } from '@/lib/mockData';
 import { FIRST_AVAILABLE, getAvailabilityForDate, getDateOffset, getDayLabel, practitionersForProcedure } from '@/lib/availability';
+import { bookingStartIsPast, getPracticeToday } from '@/lib/bookingTime.mjs';
 import { useBookingDatabase } from '@/lib/useBookingDatabase';
 import { ClientInstallPrompt } from './ClientInstallPrompt';
 
@@ -125,19 +126,6 @@ function slotStartsInsideSelectedAppointment(slotTime: string, selectedStartTime
 }
 
 
-function localToday(date = new Date()) {
-  const local = new Date(date.getTime() - (date.getTimezoneOffset() * 60000));
-  return local.toISOString().slice(0, 10);
-}
-
-function currentMinutes(date: Date) {
-  return (date.getHours() * 60) + date.getMinutes();
-}
-
-function slotHasPassed(selectedDate: string, startTime: string, now: Date) {
-  return selectedDate === localToday(now) && timeToMinutes(startTime) <= currentMinutes(now);
-}
-
 function phoneCountryLabel(country: PhoneCountry) {
   return `${country.name} (${country.dialCode})`;
 }
@@ -249,9 +237,7 @@ async function readJsonResponse<T>(response: Response): Promise<T> {
 }
 
 function todayInputValue() {
-  const today = new Date();
-  const offsetDate = new Date(today.getTime() - today.getTimezoneOffset() * 60000);
-  return offsetDate.toISOString().slice(0, 10);
+  return getPracticeToday();
 }
 
 export default function BookPage() {
@@ -314,7 +300,7 @@ export default function BookPage() {
     () => getAvailabilityForDate(availabilityBookings, selectedDate, activeProcedureId, context, practitionerChoice),
     [availabilityBookings, selectedDate, activeProcedureId, context, practitionerChoice]
   );
-  const availableSlots = slots.filter((slot) => slot.available && !slotHasPassed(selectedDate, slot.time, now));
+  const availableSlots = slots.filter((slot) => slot.available && !bookingStartIsPast(selectedDate, slot.time, practiceSettings.timezone, now));
   const selectedSlot = slots.find((slot) => slot.time === selectedTime && slot.practitionerId === selectedPractitionerId);
   const selectedPractitioner = practitioners.find((item) => item.id === selectedPractitionerId);
   const selectedLoginCountry = findPhoneCountry(clientLoginCountryInput);
@@ -325,8 +311,8 @@ export default function BookPage() {
   const canCompletePasswordReset = Boolean(clientOtpCode.trim().length >= 4 && clientResetPassword.length >= 6);
   const canGoToTreatment = patientName.trim() && patientPhone.trim() && patientEmail.trim();
   const canGoToDiary = Boolean(activeProcedureId && practitionerChoice);
-  const selectedSlotHasPassed = selectedSlot ? slotHasPassed(selectedDate, selectedSlot.endTime, now) : false;
-  const canConfirm = Boolean(selectedTime && selectedPractitionerId && !selectedSlotHasPassed);
+  const selectedSlotHasPassed = selectedTime ? bookingStartIsPast(selectedDate, selectedTime, practiceSettings.timezone, now) : false;
+  const canConfirm = Boolean(selectedSlot?.available && selectedTime && selectedPractitionerId && !selectedSlotHasPassed);
 
   useEffect(() => {
     const timer = window.setInterval(() => setNow(new Date()), 30000);
@@ -1320,7 +1306,7 @@ export default function BookPage() {
             <section className="flow-step diary-choice-step">
               <div className="form-row">
                 <label htmlFor="date">Diary date</label>
-                <DatePickerField id="date" value={selectedDate} required ariaLabel="Choose diary date" onChange={(nextDate) => { setSelectedDate(nextDate); resetSelection(); }} />
+                <DatePickerField id="date" value={selectedDate} min={getPracticeToday(now, practiceSettings.timezone)} required ariaLabel="Choose diary date" onChange={(nextDate) => { setSelectedDate(nextDate); resetSelection(); }} />
               </div>
               <div className="summary-strip">
                 <strong>{loading ? 'Loading diary…' : getDayLabel(selectedDate)}</strong>
@@ -1363,7 +1349,7 @@ export default function BookPage() {
                       selectedSlot.practitionerId === slot.practitionerId &&
                       slotStartsInsideSelectedAppointment(slot.time, selectedSlot.time, selectedSlot.endTime)
                     );
-                    const hasPassed = slotHasPassed(selectedDate, slot.time, now);
+                    const hasPassed = bookingStartIsPast(selectedDate, slot.time, practiceSettings.timezone, now);
                     const canSelectSlot = slot.available && !hasPassed;
                     return (
                       <button

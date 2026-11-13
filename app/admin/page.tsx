@@ -7,6 +7,7 @@ import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { Header } from '@/components/Header';
 import { APP_VERSION, practitionerName, procedureName, type Booking, type BookingStatus, type Customer } from '@/lib/mockData';
 import { FIRST_AVAILABLE, getAvailabilityForDate, getDateOffset, getDayLabel, practitionersForProcedure } from '@/lib/availability';
+import { bookingStartIsPast, getPracticeToday } from '@/lib/bookingTime.mjs';
 import { useBookingDatabase } from '@/lib/useBookingDatabase';
 import { makeAdminAuthHeaders } from '@/components/admin/AdminAuthGate';
 import { showAdminToast } from '@/components/admin/AdminToast';
@@ -94,25 +95,12 @@ function slotStartsInsideSelectedAppointment(slotTime: string, selectedStartTime
   return slotStart > selectedStart && slotStart < selectedEnd;
 }
 
-function localToday(date = new Date()) {
-  const local = new Date(date.getTime() - (date.getTimezoneOffset() * 60000));
-  return local.toISOString().slice(0, 10);
-}
-
 function formatTwelveHourClock(date: Date) {
   return date.toLocaleTimeString('en-GB', { hour: 'numeric', minute: '2-digit', hour12: true });
 }
 
-function currentMinutes(date: Date) {
-  return (date.getHours() * 60) + date.getMinutes();
-}
-
-function slotHasPassed(selectedDate: string, startTime: string, now: Date) {
-  return selectedDate === localToday(now) && timeToMinutes(startTime) <= currentMinutes(now);
-}
-
-function bookingHasPassed(selectedDate: string, endTime: string, now: Date) {
-  return selectedDate === localToday(now) && timeToMinutes(endTime) <= currentMinutes(now);
+function bookingHasPassed(selectedDate: string, endTime: string, now: Date, timeZone?: string) {
+  return bookingStartIsPast(selectedDate, endTime, timeZone, now);
 }
 
 function statusDisplayLabel(status: BookingStatus) {
@@ -144,7 +132,7 @@ function bookingAlertTitle(action: string) {
 
 
 export default function AdminPage() {
-  const [selectedDate, setSelectedDate] = useState(getDateOffset(0));
+  const [selectedDate, setSelectedDate] = useState(() => getPracticeToday());
   const [procedureId, setProcedureId] = useState('checkup');
   const [selectedPractitionerId, setSelectedPractitionerId] = useState('practitioner_001');
   const [diaryPractitionerFilter, setDiaryPractitionerFilter] = useState('all');
@@ -212,14 +200,15 @@ export default function AdminPage() {
     diaryPractitionerFilter === 'all' ? true : booking.practitionerId === diaryPractitionerFilter
   );
   const selectedBookingFlowSlot = bookingFlowSlots.find((slot) => slot.time === selectedTime);
-  const visibleOpenSlots = diarySlots.filter((slot) => slot.available && !slotHasPassed(selectedDate, slot.time, now));
+  const visibleOpenSlots = diarySlots.filter((slot) => slot.available && !bookingStartIsPast(selectedDate, slot.time, practiceSettings.timezone, now));
   const visibleOpenSlotCount = diaryPractitionerFilter === 'all'
     ? visibleOpenSlots.reduce((total, slot) => total + (slot.availablePractitioners?.length ?? (slot.available ? 1 : 0)), 0)
     : visibleOpenSlots.length;
-  const upcomingBookingCount = dateBookings.filter((booking) => !bookingHasPassed(selectedDate, booking.endTime, now)).length;
+  const upcomingBookingCount = dateBookings.filter((booking) => !bookingHasPassed(selectedDate, booking.endTime, now, practiceSettings.timezone)).length;
   const currentClockLabel = formatTwelveHourClock(now);
   const lastRefreshedLabel = lastRefreshedAt ? new Date(lastRefreshedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true }) : 'Not refreshed yet';
-  const canSave = Boolean(selectedTime && activePractitionerId && patientName.trim() && patientPhone.trim() && patientEmail.trim());
+  const canSave = Boolean(selectedTime && activePractitionerId && patientName.trim() && patientPhone.trim() && patientEmail.trim()
+    && !bookingStartIsPast(selectedDate, selectedTime, practiceSettings.timezone, now));
 
   useEffect(() => {
     const timer = window.setInterval(() => setNow(new Date()), 30000);
@@ -619,7 +608,7 @@ export default function AdminPage() {
               const overlappingBookings = dateBookings.filter((booking) => bookingOverlapsSlot(booking, slot));
               const firstBooking = overlappingBookings[0];
               const startsInThisSlot = firstBooking ? bookingStartsOnSlot(firstBooking, slot) : false;
-              const passedSlot = slotHasPassed(selectedDate, slot.time, now);
+              const passedSlot = bookingStartIsPast(selectedDate, slot.time, practiceSettings.timezone, now);
               const slotStateClass = passedSlot ? 'past' : overlappingBookings.length ? 'booked' : slot.available ? 'available' : 'unavailable';
               return (
                 <article key={`${slot.time}-${slot.endTime}-admin-diary`} className={`slot diary-slot-card ${slotStateClass}`}>
@@ -647,7 +636,7 @@ export default function AdminPage() {
             <p className="notice">No bookings are showing for this date and practitioner filter.</p>
           )}
           {dateBookings.map((booking) => {
-            const passedBooking = bookingHasPassed(selectedDate, booking.endTime, now);
+            const passedBooking = bookingHasPassed(selectedDate, booking.endTime, now, practiceSettings.timezone);
             return (
             <article className={`booking-item diary-booking-item ${passedBooking ? 'is-past-booking' : ''}`} key={booking.id}>
               <div>
@@ -724,7 +713,7 @@ export default function AdminPage() {
               <div className="grid three controls-grid">
                 <div className="form-row">
                   <label>Date</label>
-                  <DatePickerField value={selectedDate} required ariaLabel="Choose booking date" onChange={(nextDate) => { setSelectedDate(nextDate); setSelectedTime(''); }} />
+                  <DatePickerField value={selectedDate} min={getPracticeToday(now, practiceSettings.timezone)} required ariaLabel="Choose booking date" onChange={(nextDate) => { setSelectedDate(nextDate); setSelectedTime(''); }} />
                 </div>
                 <div className="form-row">
                   <label>Procedure</label>
@@ -748,14 +737,15 @@ export default function AdminPage() {
               <div className="slot-grid popup-slots">
                 {bookingFlowSlots.map((slot) => {
                   const isSelectedSlot = selectedTime === slot.time;
+                  const hasPassed = bookingStartIsPast(selectedDate, slot.time, practiceSettings.timezone, now);
                   const isCoveredBySelection = Boolean(
                     selectedBookingFlowSlot &&
                     slotStartsInsideSelectedAppointment(slot.time, selectedBookingFlowSlot.time, selectedBookingFlowSlot.endTime)
                   );
                   return (
-                    <button key={`${slot.time}-${slot.endTime}-modal`} className={`slot ${slot.available ? 'available' : 'unavailable'} ${isSelectedSlot ? 'selected' : ''} ${isCoveredBySelection ? 'covered' : ''}`} disabled={!slot.available || saving} type="button" onClick={() => setSelectedTime(slot.time)}>
+                    <button key={`${slot.time}-${slot.endTime}-modal`} className={`slot ${slot.available && !hasPassed ? 'available' : 'unavailable'} ${hasPassed ? 'past' : ''} ${isSelectedSlot ? 'selected' : ''} ${isCoveredBySelection ? 'covered' : ''}`} disabled={!slot.available || hasPassed || saving} type="button" onClick={() => setSelectedTime(slot.time)}>
                       <strong>{slot.time}</strong>
-                      <span>{isCoveredBySelection ? 'Included in selected appointment' : slot.available ? slot.endTime : slot.reason ?? 'Unavailable'}</span>
+                      <span>{hasPassed ? 'Time passed' : isCoveredBySelection ? 'Included in selected appointment' : slot.available ? slot.endTime : slot.reason ?? 'Unavailable'}</span>
                     </button>
                   );
                 })}

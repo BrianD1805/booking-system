@@ -116,43 +116,35 @@ export default function AdminDataPage() {
         </div>
       </section>
 
-      <section className="card clean-panel admin-data-panel clients-search-panel">
-        <div className="grid two controls-grid">
-          <div className="form-row">
-            <label>Admin security</label>
-            <div className="readonly-admin-security">Master key and staff login verified for this browser session.</div>
-            <p className="micro-copy">All client adds, edits, deletes, password changes, document updates and family listing changes are recorded in the audit trail.</p>
+      <section className="card clean-panel admin-data-panel clients-search-panel clients-search-results-panel">
+        <form className="form-row" onSubmit={handleSearch}>
+          <label htmlFor="clientQuery">Search clients</label>
+          <div className="inline-action-row">
+            <input id="clientQuery" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Client or family member name, phone or email" />
+            <button type="submit" disabled={loading} className={`pill admin-busy-button ${loading ? 'is-loading' : ''}`}>{loading && <span className="admin-spinner" aria-hidden="true" />}Search</button>
           </div>
-          <form className="form-row" onSubmit={handleSearch}>
-            <label htmlFor="clientQuery">Search clients</label>
-            <div className="inline-action-row">
-              <input id="clientQuery" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Client or family member name, phone or email" />
-              <button type="submit" disabled={loading} className={`pill admin-busy-button ${loading ? 'is-loading' : ''}`}>{loading && <span className="admin-spinner" aria-hidden="true" />}Search</button>
-            </div>
-          </form>
-        </div>
+        </form>
         {error && <div className="notice warning" role="alert">{error}</div>}
         {!error && message && <div className="notice soft" role="status">{message}</div>}
-      </section>
-
-      <section className="card clean-panel clients-results-panel">
-        <div className="section-heading-row compact-row">
-          <div>
-            <h2 className="section-title compact">Search results</h2>
-            <p className="mini-copy">One client per line. Searching a family member name opens the main client record.</p>
+        <div className="clients-results-panel">
+          <div className="section-heading-row compact-row">
+            <div>
+              <h2 className="section-title compact">Search results</h2>
+              <p className="mini-copy">One client per line. Searching a family member name opens the main client record.</p>
+            </div>
+          </div>
+          <div className="clients-one-line-list">
+            {clients.map((client) => (
+              <Link key={client.id} className="client-one-line-row" href={`/admin/data/${encodeURIComponent(client.id)}`}>
+                <strong>{client.fullName}</strong>
+                <span>{client.phone}</span>
+              </Link>
+            ))}
+            {!clients.length && <p className="mini-copy">No clients loaded yet. Search above or add a new client.</p>}
           </div>
         </div>
-
-        <div className="clients-one-line-list">
-          {clients.map((client) => (
-            <Link key={client.id} className="client-one-line-row" href={`/admin/data/${encodeURIComponent(client.id)}`}>
-              <strong>{client.fullName}</strong>
-              <span>{client.phone}</span>
-            </Link>
-          ))}
-          {!clients.length && <p className="mini-copy">No clients loaded yet. Search above or add a new client.</p>}
-        </div>
       </section>
+      <p className="micro-copy clients-security-note">Master key and staff login verified for this browser session. Client and family record changes are recorded in the audit trail.</p>
       <section className="card clean-panel admin-data-panel">
         <div className="section-heading-row compact-row">
           <div>

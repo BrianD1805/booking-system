@@ -6,7 +6,8 @@ import Link from 'next/link';
 import { FormEvent, KeyboardEvent, useEffect, useMemo, useState } from 'react';
 import { Header } from '@/components/Header';
 import { APP_VERSION, practitionerName, procedureDuration, procedureName, type Booking, type Customer } from '@/lib/mockData';
-import { FIRST_AVAILABLE, getAvailabilityForDate, getDateOffset, getDayLabel, practitionersForProcedure } from '@/lib/availability';
+import { FIRST_AVAILABLE, getAvailabilityForDate, getDayLabel, practitionersForProcedure } from '@/lib/availability';
+import { bookingStartIsPast, getPracticeToday } from '@/lib/bookingTime.mjs';
 import { useBookingDatabase } from '@/lib/useBookingDatabase';
 import { makeAdminAuthHeaders } from '@/components/admin/AdminAuthGate';
 import { showAdminToast } from '@/components/admin/AdminToast';
@@ -39,21 +40,8 @@ function slotStartsInsideSelectedAppointment(slotTime: string, selectedStartTime
 }
 
 
-function localToday(date = new Date()) {
-  const local = new Date(date.getTime() - (date.getTimezoneOffset() * 60000));
-  return local.toISOString().slice(0, 10);
-}
-
-function currentMinutes(date: Date) {
-  return (date.getHours() * 60) + date.getMinutes();
-}
-
-function slotHasPassed(selectedDate: string, startTime: string, now: Date) {
-  return selectedDate === localToday(now) && timeToMinutes(startTime) <= currentMinutes(now);
-}
-
 export default function ReceptionBookingPage() {
-  const [selectedDate, setSelectedDate] = useState(getDateOffset(0));
+  const [selectedDate, setSelectedDate] = useState(() => getPracticeToday());
   const [procedureId, setProcedureId] = useState('checkup');
   const [selectedPractitionerId, setSelectedPractitionerId] = useState(FIRST_AVAILABLE);
   const [selectedTime, setSelectedTime] = useState('');
@@ -104,8 +92,8 @@ export default function ReceptionBookingPage() {
   const selectedSlotPractitionerId = selectedSlot?.practitionerId ?? (activePractitionerId === FIRST_AVAILABLE ? '' : activePractitionerId);
   const bookingPractitionerId = selectedSlotPractitionerId || eligiblePractitioners[0]?.id || '';
   const hasPatientDetails = Boolean(patientName.trim() && patientPhone.trim() && patientEmail.trim());
-  const selectedSlotHasPassed = selectedSlot ? slotHasPassed(selectedDate, selectedSlot.endTime, now) : false;
-  const canSave = Boolean(selectedTime && bookingPractitionerId && hasPatientDetails && !selectedSlotHasPassed);
+  const selectedSlotHasPassed = selectedTime ? bookingStartIsPast(selectedDate, selectedTime, practiceSettings.timezone, now) : false;
+  const canSave = Boolean(selectedSlot?.available && selectedTime && bookingPractitionerId && hasPatientDetails && !selectedSlotHasPassed);
 
   const currentStep = !hasPatientDetails ? 1 : !selectedTime ? 2 : 3;
   const lastRefreshedLabel = lastRefreshedAt ? new Date(lastRefreshedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true }) : 'Not refreshed yet';
@@ -114,6 +102,17 @@ export default function ReceptionBookingPage() {
     const timer = window.setInterval(() => setNow(new Date()), 30000);
     return () => window.clearInterval(timer);
   }, []);
+
+  // After selecting a client, take the receptionist straight to Step 2.
+  useEffect(() => {
+    if (!selectedCustomer) return;
+    const frame = window.requestAnimationFrame(() => {
+      const appointmentStep = document.getElementById('reception-step-two');
+      appointmentStep?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      appointmentStep?.focus({ preventScroll: true });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [selectedCustomer]);
 
   async function handleReceptionRefresh() {
     await refresh();
@@ -230,7 +229,9 @@ export default function ReceptionBookingPage() {
     event.preventDefault();
     setSaveMessage('');
     if (!canSave) {
-      setSaveMessage('Choose a client/patient, procedure, practitioner, date and available time before saving.');
+      setSaveMessage(selectedSlotHasPassed
+        ? 'Appointments cannot be booked in the past. Please choose a future date and time.'
+        : 'Choose a client/patient, procedure, practitioner, date and available time before saving.');
       return;
     }
 
@@ -312,24 +313,24 @@ export default function ReceptionBookingPage() {
           <div className="section-heading-row compact-row">
             <div>
               <p className="badge blue-badge">Step 1</p>
-              <h2 className="section-title compact">Select client</h2>
-              <p className="mini-copy">Open search, select the client in the popup, then continue the booking flow.</p>
+              <h2 className="section-title compact">{selectedCustomer ? `Client Selected: ${selectedCustomer.fullName}` : 'Select client'}</h2>
+              <p className="mini-copy">{selectedCustomer ? 'Client selected. Continue below to choose the appointment.' : 'Open search, select the client in the popup, then continue the booking flow.'}</p>
             </div>
-            <button className="button primary" type="button" onClick={() => setClientPopupOpen(true)}>Search client</button>
+            {!selectedCustomer && <button className="button primary" type="button" onClick={() => setClientPopupOpen(true)}>Search client</button>}
           </div>
 
-          <div className="reception-client-choice-row">
+          {!selectedCustomer && <div className="reception-client-choice-row">
             <button className={`reception-choice ${receptionMode === 'search' ? 'active' : ''}`} type="button" onClick={() => setClientPopupOpen(true)}>
               <span>Existing client</span>
-              <strong>{selectedCustomer ? selectedCustomer.fullName : 'Search and select'}</strong>
-              <small>{selectedCustomer ? `${selectedCustomer.phone} · ${selectedCustomer.email}` : 'Find by name, phone or email'}</small>
+              <strong>Search and select</strong>
+              <small>Find by name, phone or email</small>
             </button>
             <button className={`reception-choice ${receptionMode === 'adhoc' ? 'active' : ''}`} type="button" onClick={startAdhocPatient}>
               <span>Ad-hoc patient</span>
               <strong>Enter details manually</strong>
               <small>Useful for walk-ins or patients without an account</small>
             </button>
-          </div>
+          </div>}
 
           {selectedCustomer && (
             <article className="selected-client-card flow-selected-client">
@@ -355,11 +356,11 @@ export default function ReceptionBookingPage() {
           )}
         </section>
 
-        <section className="card clean-panel reception-card reception-flow-card">
+        <section id="reception-step-two" tabIndex={-1} className="card clean-panel reception-card reception-flow-card reception-appointment-step">
           <div className="section-heading-row compact-row">
             <div>
               <p className="badge blue-badge">Step 2</p>
-              <h2 className="section-title compact">Choose appointment</h2>
+              <h2 className="section-title compact">{selectedCustomer ? `Choose appointment: ${selectedCustomer.fullName}` : 'Choose appointment'}</h2>
               <p className="mini-copy">Slots are checked against the full procedure duration before they can be selected.</p>
             </div>
             <span className="duration-pill">{procedureDuration(activeProcedureId, procedures)} mins</span>
@@ -368,7 +369,7 @@ export default function ReceptionBookingPage() {
           <div className="grid three controls-grid reception-controls-grid">
             <div className="form-row">
               <label>Date</label>
-              <DatePickerField value={selectedDate} required ariaLabel="Choose reception booking date" onChange={(nextDate) => { setSelectedDate(nextDate); setSelectedTime(''); }} />
+              <DatePickerField value={selectedDate} min={getPracticeToday(now, practiceSettings.timezone)} required ariaLabel="Choose reception booking date" onChange={(nextDate) => { setSelectedDate(nextDate); setSelectedTime(''); }} />
             </div>
             <div className="form-row">
               <label>Procedure</label>
@@ -405,7 +406,7 @@ export default function ReceptionBookingPage() {
                 selectedSlot && slotStartsInsideSelectedAppointment(slot.time, selectedSlot.time, selectedSlot.endTime)
               );
               const slotPractitioner = slot.practitionerId ? practitionerName(slot.practitionerId, practitioners) : slot.practitionerName;
-              const hasPassed = slotHasPassed(selectedDate, slot.time, now);
+              const hasPassed = bookingStartIsPast(selectedDate, slot.time, practiceSettings.timezone, now);
               const canSelectSlot = slot.available && !hasPassed;
               return (
                 <button

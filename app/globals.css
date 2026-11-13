@@ -5650,3 +5650,15 @@ button.admin-password-eye .admin-password-eye-slash {
   font-size: 0.82rem;
   line-height: 1.15;
 }
+
+/* Ver-0.053: keep selected clients concise and move promptly to the appointment step. */
+.reception-appointment-step { scroll-margin-top: 18px; }
+.reception-appointment-step:focus { outline: none; }
+.clients-search-results-panel { display: grid; gap: 14px; }
+.clients-search-results-panel .clients-results-panel { margin: 0; }
+.clients-search-results-panel .notice { margin: 0; }
+.clients-security-note { margin: -3px 6px 18px; }
+@media (max-width: 600px) {
+  .clients-search-results-panel .inline-action-row { align-items: stretch; flex-direction: column; }
+  .clients-search-results-panel .inline-action-row input { width: 100%; }
+}

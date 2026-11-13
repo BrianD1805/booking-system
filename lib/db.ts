@@ -1,3 +1,4 @@
+import { assertFutureBookingStart } from '@/lib/bookingTime.mjs';
 import { createHash, randomBytes, randomInt } from 'crypto';
 import { getZipBookDatabase } from './dbProvider';
 import { deliverClientOtp, isOtpTestModeEnabled } from './otpDelivery';
@@ -1835,6 +1836,9 @@ export async function createBookingInDatabase(input: {
   actor?: AdminActor;
 }): Promise<Booking> {
   const bootstrap = await getBootstrapData();
+  // Reject expired starts before looking up or creating a client, inserting a
+  // booking, or sending notifications. This protects every booking entry point.
+  assertFutureBookingStart(input.date, input.time, bootstrap.practiceSettings.timezone);
   const duration = procedureDuration(input.procedureId, bootstrap.procedures);
   const endTime = addMinutes(input.time, duration);
   const id = `bk-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -1857,6 +1861,8 @@ export async function createBookingInDatabase(input: {
     actor: input.actor
   });
 
+  // Recheck immediately before the write: a slot can expire during DB checks.
+  assertFutureBookingStart(input.date, input.time, bootstrap.practiceSettings.timezone);
   const rows = await database.sql<BookingRow>`
     INSERT INTO bookings (
       id, practice_id, patient_name, patient_phone, patient_email, customer_id, procedure_id, practitioner_id,
@@ -1976,6 +1982,8 @@ export async function updateBookingDetailsInDatabase(id: string, input: BookingD
   if (!existingRow) throw new Error('Booking not found.');
 
   const bootstrap = await getBootstrapData();
+  // Rescheduling/editing cannot move an appointment into the past either.
+  assertFutureBookingStart(input.date, input.time, bootstrap.practiceSettings.timezone);
   const duration = procedureDuration(input.procedureId, bootstrap.procedures);
   const endTime = addMinutes(input.time, duration);
   const database = db();
@@ -2010,6 +2018,8 @@ export async function updateBookingDetailsInDatabase(id: string, input: BookingD
     `;
   }
 
+  // Recheck immediately before updating: a slot can expire during DB checks.
+  assertFutureBookingStart(input.date, input.time, bootstrap.practiceSettings.timezone);
   const rows = await database.sql<BookingRow>`
     UPDATE bookings
     SET patient_name = ${input.patientName},

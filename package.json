@@ -1,13 +1,14 @@
 {
   "name": "zippyweb-booking-system",
-  "version": "0.0.52",
+  "version": "0.0.53-a",
   "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "typecheck": "tsc --noEmit",
-    "test:heartbeat": "node --test tests/supabase-keepalive.test.mjs"
+    "test:heartbeat": "node --test tests/supabase-keepalive.test.mjs",
+    "test:booking-time": "node --test tests/booking-time.test.mjs"
   },
   "dependencies": {
     "@netlify/plugin-nextjs": "latest",
