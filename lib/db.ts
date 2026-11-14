@@ -6,6 +6,7 @@ import { deliverClientOtp, isOtpTestModeEnabled } from './otpDelivery';
 import { buildClientBookingConfirmationEmailHtml, sendZipBookEmail } from './emailDelivery';
 import { isPhonePushUserAgent, isPushDeliveryConfigured, normalisePushSubscription, sendPushNotification, type BrowserPushSubscription, type StoredPushSubscription } from './pushDelivery';
 import { getDefaultPracticeId } from './tenant';
+import { publicBookingSlots } from './publicAvailability.mjs';
 import { addMinutes } from '@/lib/availability';
 import {
   procedureDuration,
@@ -914,9 +915,9 @@ export async function getBootstrapData(): Promise<BootstrapData> {
     database.sql<BlockedDateRow>`SELECT blocked_date::text AS blocked_date, reason FROM blocked_dates WHERE practice_id = ${PRACTICE_ID} ORDER BY blocked_date`,
     database.sql<BlockedTimeRow>`SELECT id, blocked_date::text AS blocked_date, start_time::text AS start_time, end_time::text AS end_time, reason FROM blocked_times WHERE practice_id = ${PRACTICE_ID} ORDER BY blocked_date, start_time`,
     database.sql<PractitionerRow>`SELECT id, name, role, active, display_order FROM practitioners WHERE practice_id = ${PRACTICE_ID} ORDER BY display_order, name`,
-    database.sql<PractitionerWorkingHourRow>`SELECT practitioner_id, day_of_week, start_time::text AS start_time, end_time::text AS end_time, active, lunch_break_enabled, lunch_break_start::text AS lunch_break_start, lunch_break_end::text AS lunch_break_end FROM practitioner_working_hours WHERE active = TRUE ORDER BY practitioner_id, day_of_week`,
-    database.sql<PractitionerProcedureRow>`SELECT practitioner_id, procedure_id FROM practitioner_procedures ORDER BY practitioner_id, procedure_id`,
-    database.sql<PractitionerBlockedTimeRow>`SELECT id, practitioner_id, blocked_date::text AS blocked_date, start_time::text AS start_time, end_time::text AS end_time, reason FROM practitioner_blocked_times ORDER BY blocked_date, start_time`
+    database.sql<PractitionerWorkingHourRow>`SELECT practitioner_id, day_of_week, start_time::text AS start_time, end_time::text AS end_time, active, lunch_break_enabled, lunch_break_start::text AS lunch_break_start, lunch_break_end::text AS lunch_break_end FROM practitioner_working_hours WHERE active = TRUE AND practitioner_id IN (SELECT id FROM practitioners WHERE practice_id = ${PRACTICE_ID}) ORDER BY practitioner_id, day_of_week`,
+    database.sql<PractitionerProcedureRow>`SELECT practitioner_id, procedure_id FROM practitioner_procedures WHERE practitioner_id IN (SELECT id FROM practitioners WHERE practice_id = ${PRACTICE_ID}) AND procedure_id IN (SELECT id FROM procedures WHERE practice_id = ${PRACTICE_ID}) ORDER BY practitioner_id, procedure_id`,
+    database.sql<PractitionerBlockedTimeRow>`SELECT id, practitioner_id, blocked_date::text AS blocked_date, start_time::text AS start_time, end_time::text AS end_time, reason FROM practitioner_blocked_times WHERE practitioner_id IN (SELECT id FROM practitioners WHERE practice_id = ${PRACTICE_ID}) ORDER BY blocked_date, start_time`
   ]);
 
   if (!practiceRows[0]) throw new Error('Practice settings were not found. Check that the Netlify Database migration has run.');
@@ -942,6 +943,30 @@ export async function getBookings(date?: string): Promise<Booking[]> {
     ? await database.sql<BookingRow>`SELECT id, patient_name, patient_phone, patient_email, customer_id, procedure_id, practitioner_id, booking_date::text AS booking_date, start_time::text AS start_time, end_time::text AS end_time, status, source, notes, created_at::text AS created_at, updated_at::text AS updated_at FROM bookings WHERE practice_id = ${PRACTICE_ID} AND booking_date = ${date}::date ORDER BY booking_date, start_time`
     : await database.sql<BookingRow>`SELECT id, patient_name, patient_phone, patient_email, customer_id, procedure_id, practitioner_id, booking_date::text AS booking_date, start_time::text AS start_time, end_time::text AS end_time, status, source, notes, created_at::text AS created_at, updated_at::text AS updated_at FROM bookings WHERE practice_id = ${PRACTICE_ID} ORDER BY booking_date, start_time`;
   return rows.map(mapBooking);
+}
+
+// The public booking screen only needs occupied time intervals. Return the real
+// booking identifier exclusively to its own valid client session (for editing).
+export async function getPublicBookedSlots(date: string, sessionToken = ''): Promise<Booking[]> {
+  const tokenHash = sessionToken ? hashSecret(sessionToken) : '';
+  const rows = await db().sql<{ own_id: string | null; practitioner_id: string; booking_date: string; start_time: string; end_time: string }>`
+    SELECT CASE WHEN EXISTS (
+      SELECT 1 FROM client_sessions s
+      WHERE s.practice_id = b.practice_id AND s.customer_id = b.customer_id
+        AND s.session_token_hash = ${tokenHash} AND s.revoked_at IS NULL AND s.expires_at > NOW()
+    ) THEN b.id ELSE NULL END AS own_id,
+    b.practitioner_id, b.booking_date::text AS booking_date,
+    b.start_time::text AS start_time, b.end_time::text AS end_time
+    FROM bookings b
+    WHERE b.practice_id = ${PRACTICE_ID} AND b.booking_date = ${date}::date AND b.status <> 'cancelled'
+    ORDER BY b.start_time, b.practitioner_id, b.id
+  `;
+  return publicBookingSlots(rows);
+}
+
+// Bind a signed-in booking to the authenticated account, never a caller's ID.
+export async function getClientBookingCustomerId(sessionToken: string): Promise<string> {
+  return (await getClientSessionForToken(sessionToken)).customer_id;
 }
 
 export async function searchCustomers(query: string): Promise<Customer[]> {
@@ -977,7 +1002,7 @@ async function findCustomerById(customerId: string): Promise<Customer | null> {
   return rows[0] ? mapCustomer(rows[0]) : null;
 }
 
-async function findOrCreateCustomer(input: { customerId?: string; patientName: string; patientPhone: string; patientEmail: string; notes?: string; actor?: AdminActor }): Promise<string> {
+async function findOrCreateCustomer(input: { customerId?: string; patientName: string; patientPhone: string; patientEmail: string; notes?: string; actor?: AdminActor; separateGuest?: boolean }): Promise<string> {
   const database = db();
 
   if (input.customerId) {
@@ -993,7 +1018,7 @@ async function findOrCreateCustomer(input: { customerId?: string; patientName: s
     }
   }
 
-  const matchingRows = await database.sql<CustomerRow>`
+  const matchingRows = input.separateGuest ? [] : await database.sql<CustomerRow>`
     SELECT id, full_name, phone, email, notes, has_client_login, last_seen_at::text AS last_seen_at, created_at::text AS created_at, updated_at::text AS updated_at
     FROM customers
     WHERE practice_id = ${PRACTICE_ID}
@@ -1898,7 +1923,8 @@ export async function createBookingInDatabase(input: {
     patientPhone: input.patientPhone,
     patientEmail: input.patientEmail,
     notes: input.notes,
-    actor: input.actor
+    actor: input.actor,
+    separateGuest: input.source === 'client' && !input.customerId
   });
 
   // Recheck immediately before the write: a slot can expire during DB checks.

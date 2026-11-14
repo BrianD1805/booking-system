@@ -37,11 +37,10 @@ export function resolveTenantContext(input: { host?: string | null; pathname?: s
   // Future SaaS routing hook:
   // /book/<tenant-slug> can later resolve a tenant-specific practice.
   // For the current demo, all routes deliberately resolve to practice_001.
-  const possibleSlug = pathParts[0] === 'book' ? cleanTenantSlug(pathParts[1]) : '';
 
   return {
     practiceId: DEFAULT_PRACTICE_ID,
-    tenantSlug: possibleSlug || DEFAULT_TENANT_SLUG,
+    tenantSlug: DEFAULT_TENANT_SLUG,
     surface,
     host,
     pathname

@@ -280,7 +280,7 @@ export default function BookPage() {
   const [selectedTime, setSelectedTime] = useState('');
   const [selectedPractitionerId, setSelectedPractitionerId] = useState('');
   const [now, setNow] = useState(() => new Date());
-  const { bootstrap, bookings, loading, saving, error, createBooking, refresh } = useBookingDatabase(selectedDate);
+  const { bootstrap, bookings, loading, saving, error, createBooking, refresh } = useBookingDatabase(selectedDate, 'client', clientSessionToken);
   const { practiceSettings, procedures, blockedDates, blockedTimes, practitioners } = bootstrap;
   const selectedProcedure = useMemo(() => procedures.find((item) => item.id === procedureId) ?? procedures[0], [procedureId, procedures]);
   const activeProcedureId = selectedProcedure?.id ?? procedureId;

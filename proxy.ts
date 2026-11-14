@@ -39,7 +39,9 @@ export function proxy(request: NextRequest) {
 
   if (pathname.startsWith('/api')) {
     logApiRequest(pathname);
-    return NextResponse.next();
+    const response = NextResponse.next();
+    response.headers.set('Cache-Control', 'private, no-store, max-age=0');
+    return response;
   }
 
   if (

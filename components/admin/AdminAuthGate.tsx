@@ -23,12 +23,12 @@ export function getStoredAdminAuth() {
   };
 }
 
-export function makeAdminAuthHeaders() {
+export function makeAdminAuthHeaders(): Record<string, string> {
   const { masterKey, staffToken } = getStoredAdminAuth();
-  return {
-    ...(masterKey ? { 'x-zipbook-admin-key': masterKey } : {}),
-    ...(staffToken ? { 'x-zipbook-staff-token': staffToken } : {})
-  };
+  const headers: Record<string, string> = {};
+  if (masterKey) headers['x-zipbook-admin-key'] = masterKey;
+  if (staffToken) headers['x-zipbook-staff-token'] = staffToken;
+  return headers;
 }
 
 

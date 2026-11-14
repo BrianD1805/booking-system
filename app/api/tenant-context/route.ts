@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
     version: APP_VERSION,
     tenant: context,
     ...(diagnostic
-      ? { note: 'SaaS tenant resolver foundation. This diagnostic endpoint is deliberately DB-free and no-store to avoid waking Netlify Database.' }
+      ? { note: 'Single-practice runtime. Additional business accounts are not enabled.' }
       : {})
   });
 

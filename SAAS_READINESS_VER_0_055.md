@@ -1,0 +1,28 @@
+# ZipBook Ver-0.055 — SaaS readiness, Phase 1
+
+Baseline: Ver-0.054A. The existing runtime is still single-practice. Do not provision or advertise live multi-business registration or publish tenant embed snippets yet.
+
+## Changes
+
+- Full booking reads at GET `/api/bookings` now require a verified staff session and the existing master admin key. Public booking uses GET `/api/availability?date=YYYY-MM-DD`, which reads only occupied intervals for that date, with synthetic IDs except for appointments proven to belong to a valid signed-in client. No patient names, contact information, treatment IDs, private notes, customer IDs or actual IDs of other appointments are returned. Existing admin create/edit/delete and client own-booking management use their existing endpoints.
+- Public `/api/bootstrap` returns explicit booking-related fields only; leave and closure reasons are generic, inactive practitioners are excluded, and full bootstrap requires staff auth with `?view=admin`. Child practitioner queries are restricted through practice ownership.
+- Signed-in client creation resolves the customer ID from a valid bearer session, not a caller-supplied ID; unverified guest bookings create independent customer records instead of rewriting a match based on contact details. Staff may review duplicate guest records. Client signup/account linking and password/OTP identity checks need a separate security review before real multi-tenant onboarding.
+- Service worker uses network-only API requests, only caches public shell/static assets, and removes old ZipBook cache versions on activation. The API proxy sets no-store. No passwords, keys or tokens are added to the source archive. The previous cached responses may have existed on devices; reload all installed apps and verify the new service worker has activated. If needed clear site data and sign in again. Do not assume the new code establishes whether anyone previously accessed the old endpoint.
+- Public landing and website integration overview updated; the misleading root-page iframe starter is removed. There is no tenant-specific live snippet or signup yet. Locked `/book` presentation is unchanged.
+- Tenant diagnostics no longer report a guessed slug as a resolved tenant. The existing single-practice default remains unchanged.
+
+## Validation
+
+Run existing heartbeat, time and scheduling tests and `npm run test:saas`. The tests cover projection, own ID handling, public date validation, SW API caching, and static source contract checks. They do not substitute for a live DB-backed permission/integration test. No Supabase schema change from 0.054A. Original 0.054 migration must already be applied. Full TypeScript/build and runtime tests require local dependencies and the project's own Supabase configuration.
+
+## SaaS plan (proposed version numbers, subject to agreement)
+
+0.056: Tenant routing and data boundaries. Resolve registered active tenant server-side, reject unrecognised tenant paths, scope each query and session per request, include ownership constraints/transactional enforcement, adapt PWA manifests/storage/push per business, protect diagnostics and ensure no demo data fallback for new tenants. Verify two synthetic tenants A/B; test all read/write paths, cross-tenant IDs, concurrent requests, unknown/inactive tenant and API cache behavior. Verify booking races, OTP and client identity linking, roles, and no private data on the public surfaces. Keep existing data under its original tenant.
+
+0.057: Platform owner dashboard + invitation-only onboarding. Separate platform owner, business owner, staff and end clients. Business creation, approved invite, email verification, tenant activation, staff permissions, account recovery, security logs. No shared master key for business customers. Business profile, service catalogue, timezone, working hours, providers and launch checklist. Allow the first supervised pilot to be free or manually managed by owner without assuming payment terms. Test tenant suspension, support access and separation.
+
+0.058: Business-specific website integration. Copyable public booking link/button; responsive iframe when builder permits it; documented code-based/React integration; secure staff diary link plus optionally authorised-domain iframe after browser authentication/clickjacking testing. Always have full-page fallback if third-party browser storage is blocked. Embed origins validated by server policy, never as authentication. Tenant and permission verified on every request. No private browser API keys, shared master keys or session tokens in pasted HTML. Test restrictions on both the HTML-block route and code route; keep host website and ZipBook independently deployed.
+
+0.059: Supervised SPBIO pilot, separate account and data, no import of existing appointment records until permission and mapping are confirmed. Inspect most recent SPBIO project before editing (not included in this ZIP). Confirm organisation, services, timezone, owner contact, operating hours, staff, privacy expectations, and whether and when any existing appointment provider is replaced. Use synthetic test bookings first. Test direct website code and links on preview before changing production CTAs.
+
+0.060+: Subscription/billing if agreed; open public self-signup only after isolation/security, support, privacy/retention, backups, restore, load, notification routing, and integration acceptance tests. Review role enforcement, signup/account linking, rate limiting, sender identity, data deletion/export, public diagnostics and production health monitoring. Confirm supported countries/currency and legal obligations separately before go-live. No legal/compliance certification is implied.

@@ -1,7 +1,5 @@
 import Link from 'next/link';
 import { Header } from '@/components/Header';
-import { APP_VERSION } from '@/lib/mockData';
-import { ZIPBOOK_DOMAINS } from '@/lib/domains';
 
 export default function HomePage() {
   return (
@@ -9,21 +7,23 @@ export default function HomePage() {
       <Header area="landing" />
       <section className="focus-hero">
         <div>
-          <p className="badge blue-badge">{APP_VERSION} · Appointment booking</p>
-          <h1 className="hero-title clean-title">ZipBook keeps client bookings and practice diaries in sync.</h1>
-          <p className="hero-copy tight-copy">
-            Clients can choose a treatment, browse real availability and confirm a live appointment, while reception teams manage the same diary from the admin app.
-          </p>
+          <p className="badge blue-badge">Online appointment booking</p>
+          <h1 className="hero-title clean-title">Your appointments. Your business. One shared diary.</h1>
+          <p className="hero-copy tight-copy">ZipBook brings online bookings, staff diaries and client management together. Manage appointments and working hours in one place, and let your clients book from their phone or computer.</p>
           <div className="nav-pills">
-            <Link className="button primary" href="/book">Open Client App</Link>
-            <Link className="button green" href="/admin">Open Admin App</Link>
+            <Link className="button primary" href="/widget">Website integration</Link>
+            <Link className="button green" href="/admin">Staff sign in</Link>
           </div>
         </div>
         <div className="visual-card grid">
-          <div className="mini-card"><strong>Client domain</strong><span>{ZIPBOOK_DOMAINS.client.replace('https://', '')}</span></div>
-          <div className="mini-card"><strong>Admin domain</strong><span>{ZIPBOOK_DOMAINS.admin.replace('https://', '')}</span></div>
-          <div className="mini-card"><strong>Shared diary</strong><span>One booking source for both apps.</span></div>
+          <div className="mini-card"><strong>Online appointments</strong><span>Clients choose a service, practitioner and available time.</span></div>
+          <div className="mini-card"><strong>Staff diaries</strong><span>Manage working hours, breaks, leave and appointments.</span></div>
+          <div className="mini-card"><strong>Your existing website</strong><span>Keep your business website and connect it with ZipBook.</span></div>
         </div>
+      </section>
+      <section className="card" style={{ marginTop: 24 }}>
+        <h2>Already using ZipBook?</h2>
+        <div className="nav-pills"><Link className="button primary" href="/book">Open client app</Link><Link className="button" href="/admin">Open admin diary</Link></div>
       </section>
       <p className="footer-note">Built by Brian Hallam at ZippyWeb.</p>
     </main>

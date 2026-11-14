@@ -1,10 +1,7 @@
-const CACHE_NAME = 'zipbook-v0.054A';
+const CACHE_NAME = 'zipbook-v0.055';
 const CORE_ASSETS = [
   '/',
   '/book',
-  '/admin',
-  '/admin/data',
-  '/admin/settings',
   '/widget',
   '/offline.html',
   '/favicon.ico',
@@ -19,7 +16,7 @@ const CORE_ASSETS = [
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME)
-      .then((cache) => cache.addAll(CORE_ASSETS))
+      .then((cache) => cache.addAll(self.location.hostname.startsWith('admin.') ? CORE_ASSETS.filter((path) => !['/', '/book', '/widget'].includes(path)) : CORE_ASSETS))
       .catch(() => undefined)
   );
   self.skipWaiting();
@@ -28,7 +25,7 @@ self.addEventListener('install', (event) => {
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys()
-      .then((keys) => Promise.all(keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key))))
+      .then((keys) => Promise.all(keys.filter((key) => key.startsWith('zipbook-') && key !== CACHE_NAME).map((key) => caches.delete(key))))
       .then(() => self.clients.claim())
   );
 });
@@ -37,33 +34,40 @@ function isNavigationRequest(request) {
   return request.mode === 'navigate' || (request.headers.get('accept') || '').includes('text/html');
 }
 
+// API results and private/admin navigation are never stored in CacheStorage.
+// Restrict offline assets to the public shell and explicitly static resources.
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
-
-  if (isNavigationRequest(event.request)) {
-    event.respondWith(
-      fetch(event.request)
-        .then((response) => {
-          const copy = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy)).catch(() => undefined);
-          return response;
-        })
-        .catch(() => caches.match(event.request).then((cached) => cached || caches.match('/') || caches.match('/book') || caches.match('/offline.html')))
-    );
+  const url = new URL(event.request.url);
+  if (url.origin !== self.location.origin) return;
+  if (url.pathname === '/api' || url.pathname.startsWith('/api/')) {
+    event.respondWith(fetch(event.request, { cache: 'no-store' }));
     return;
   }
 
-  event.respondWith(
-    fetch(event.request)
-      .then((response) => {
-        if (response && response.ok) {
-          const copy = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy)).catch(() => undefined);
-        }
-        return response;
-      })
-      .catch(() => caches.match(event.request))
-  );
+  if (isNavigationRequest(event.request)) {
+    const publicShell = !url.hostname.startsWith('admin.') && !url.search && ['/', '/book', '/widget', '/offline.html'].includes(url.pathname);
+    event.respondWith(fetch(event.request).then((response) => {
+      if (publicShell && response.ok && !response.redirected) {
+        const copy = response.clone();
+        caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy)).catch(() => undefined);
+      }
+      return response;
+    }).catch(async () => (publicShell ? await caches.match(event.request) : undefined) || caches.match('/offline.html')));
+    return;
+  }
+
+  const staticAsset = url.pathname.startsWith('/_next/static/') || url.pathname.startsWith('/icons/') || [
+    '/favicon.ico', '/apple-touch-icon.png', '/og-image.png', '/manifest-client.json', '/manifest-admin.json'
+  ].includes(url.pathname);
+  if (!staticAsset) return;
+  event.respondWith(fetch(event.request).then((response) => {
+    if (response.ok && !response.redirected) {
+      const copy = response.clone();
+      caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy)).catch(() => undefined);
+    }
+    return response;
+  }).catch(() => caches.match(event.request)));
 });
 
 self.addEventListener('push', (event) => {

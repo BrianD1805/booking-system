@@ -131,7 +131,7 @@ function explainPractitionerAvailability(practitioner: Practitioner, date: strin
   ));
 
   if (bookingConflict) {
-    return { practitioner, available: false, reason: `Already booked: ${bookingConflict.patientName}` };
+    return { practitioner, available: false, reason: bookingConflict.patientName ? `Already booked: ${bookingConflict.patientName}` : 'Already booked' };
   }
 
   const practitionerBlock = context.practitionerBlockedTimes.find((block) => (

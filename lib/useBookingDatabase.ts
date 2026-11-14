@@ -41,7 +41,7 @@ async function parseJsonResponse<T>(response: Response): Promise<T> {
   return payload as T;
 }
 
-export function useBookingDatabase(selectedDate?: string) {
+export function useBookingDatabase(selectedDate?: string, mode: 'admin' | 'client' = 'admin', clientSessionToken = '') {
   const [state, setState] = useState<HookState>({
     bootstrap: fallbackBootstrap,
     bookings: [],
@@ -52,19 +52,21 @@ export function useBookingDatabase(selectedDate?: string) {
   });
 
   const loadBootstrap = useCallback(async () => {
-    const response = await fetch('/api/bootstrap', { cache: 'no-store' });
+    const response = await fetch(mode === 'admin' ? '/api/bootstrap?view=admin' : '/api/bootstrap', { cache: 'no-store', headers: mode === 'admin' ? makeAdminAuthHeaders() : {} });
     const payload = await parseJsonResponse<BootstrapData>(response);
     setState((current) => ({ ...current, bootstrap: payload }));
     return payload;
-  }, []);
+  }, [mode]);
 
   const loadBookings = useCallback(async () => {
     const query = selectedDate ? `?date=${encodeURIComponent(selectedDate)}` : '';
-    const response = await fetch(`/api/bookings${query}`, { cache: 'no-store' });
+    const headers = new Headers(mode === 'admin' ? makeAdminAuthHeaders() : {});
+    if (mode === 'client' && clientSessionToken) headers.set('Authorization', `Bearer ${clientSessionToken}`);
+    const response = await fetch(`${mode === 'admin' ? '/api/bookings' : '/api/availability'}${query}`, { cache: 'no-store', headers });
     const payload = await parseJsonResponse<{ bookings: Booking[] }>(response);
     setState((current) => ({ ...current, bookings: payload.bookings, lastRefreshedAt: new Date().toISOString() }));
     return payload.bookings;
-  }, [selectedDate]);
+  }, [selectedDate, mode, clientSessionToken]);
 
   const refresh = useCallback(async () => {
     setState((current) => ({ ...current, loading: true, error: '' }));
@@ -93,9 +95,12 @@ export function useBookingDatabase(selectedDate?: string) {
   const createBooking = useCallback(async (input: BookingInput) => {
     setState((current) => ({ ...current, saving: true, error: '' }));
     try {
+      const headers = new Headers(input.source === 'client' ? {} : makeAdminAuthHeaders());
+      headers.set('Content-Type', 'application/json');
+      if (input.source === 'client' && clientSessionToken) headers.set('Authorization', `Bearer ${clientSessionToken}`);
       const response = await fetch('/api/bookings', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...(input.source === 'client' ? {} : makeAdminAuthHeaders()) },
+        headers,
         body: JSON.stringify(input)
       });
       const payload = await parseJsonResponse<{ booking: Booking }>(response);
@@ -109,7 +114,7 @@ export function useBookingDatabase(selectedDate?: string) {
     } finally {
       setState((current) => ({ ...current, saving: false }));
     }
-  }, [loadBookings]);
+  }, [loadBookings, clientSessionToken]);
 
   const updateBookingDetails = useCallback(async (input: BookingUpdateInput) => {
     setState((current) => ({ ...current, saving: true, error: '' }));
