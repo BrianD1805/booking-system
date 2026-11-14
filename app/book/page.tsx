@@ -252,7 +252,7 @@ export default function BookPage() {
   const [clientLoginOpen, setClientLoginOpen] = useState(false);
   const [clientPasswordResetOpen, setClientPasswordResetOpen] = useState(false);
   const modalHistoryRef = useRef(false);
-  const [businessInfo, setBusinessInfo] = useState<{name:string;legacy:boolean} | null>(null);
+  const [businessInfo, setBusinessInfo] = useState<{name:string;legacy:boolean;publicBookings?:boolean} | null>(null);
   useEffect(() => {
     let cancelled = false;
     void fetch('/api/tenant-context',{cache:'no-store'}).then(async response => {
@@ -936,10 +936,10 @@ export default function BookPage() {
         <p className="badge blue-badge">ZipBook · {APP_VERSION}</p>
         <h1 id="client-home-title" className="hero-title clean-title">{businessInfo?.legacy === false ? `Welcome to ${businessInfo.name}.` : "Welcome to ZipBook."}</h1>
         <p className="hero-copy tight-copy">
-          {businessInfo?.legacy === false ? "Book your appointment using our secure guest booking service." : "Book your appointment quickly and clearly, with your details ready when you sign in."}
+          {businessInfo?.legacy === false ? (businessInfo.publicBookings === false ? "Online appointments are not open yet. Please contact the business directly." : "Book your appointment using our secure guest booking service.") : "Book your appointment quickly and clearly, with your details ready when you sign in."}
         </p>
         <div className="client-home-actions">
-          <button className="button green large-cta" type="button" disabled={loading || !!error || !procedures.length} onClick={openBookingFlow}>
+          <button className="button green large-cta" type="button" disabled={loading || !!error || !procedures.length || businessInfo?.publicBookings === false} onClick={openBookingFlow}>
             Make a booking
           </button>
         </div>
@@ -951,7 +951,7 @@ export default function BookPage() {
         {confirmedBookingId && (
           <p className="notice success" role="status">Appointment booked.</p>
         )}
-        {!bookingOpen && error && (
+        {!bookingOpen && error && businessInfo?.publicBookings !== false && (
           <div className="notice warning" role="alert">
             {error}
             <div style={{ marginTop: 10 }}><button className="pill" type="button" onClick={refresh}>Retry connection</button></div>

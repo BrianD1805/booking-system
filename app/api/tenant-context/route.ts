@@ -6,6 +6,6 @@ export const dynamic = 'force-dynamic';
 export async function GET(request: NextRequest) {
   return withTenantRequest(request, async () => {
     const tenant = currentTenant();
-    return NextResponse.json({ ok:true, version:APP_VERSION, tenant:{ tenantSlug:tenant.tenantSlug, name:tenant.name, legacy:tenant.legacy } },{headers:{'Cache-Control':'private, no-store, max-age=0'}});
+    return NextResponse.json({ ok:true, version:APP_VERSION, tenant:{ tenantSlug:tenant.tenantSlug, name:tenant.name, legacy:tenant.legacy, publicBookings:tenant.publicBookings !== false } },{headers:{'Cache-Control':'private, no-store, max-age=0'}});
   });
 }

@@ -1,5 +1,5 @@
 import { currentTenant } from './tenantScope.mjs';
-import { Pool, type PoolConfig } from 'pg';
+import { Pool, type PoolConfig, type PoolClient } from 'pg';
 
 type SqlQueryResult<T> = T[];
 
@@ -102,8 +102,25 @@ export function getMaskedSupabaseConnectionString() {
 
 // Only this narrow resolver uses the connection role. All booking queries must use the scoped role above.
 export async function lookupTenant(defaultId: string | null, slug: string | null) {
-  const result = await getSupabasePool().query<{practice_id:string; tenant_slug:string; practice_name:string}>(
-    'SELECT * FROM public.zipbook_resolve_business($1, $2)', [defaultId, slug]);
+  const result = await getSupabasePool().query<{practice_id:string; tenant_slug:string; practice_name:string; onboarding_completed:boolean}>(
+    'SELECT r.*, p.onboarding_completed FROM public.zipbook_resolve_business($1, $2) r JOIN public.practices p ON p.id=r.practice_id', [defaultId, slug]);
   const row = result.rows[0];
-  return row ? {practiceId:row.practice_id,tenantSlug:row.tenant_slug,name:row.practice_name} : null;
+  return row ? {practiceId:row.practice_id,tenantSlug:row.tenant_slug,name:row.practice_name, publicBookings: defaultId !== null || row.onboarding_completed === true} : null;
+}
+
+// Platform-only transactions. Never use for tenant booking requests. The caller
+// must first pass the platform-key/host boundary or a one-time invitation check.
+export async function platformTransaction<T>(work: (connection: PoolClient) => Promise<T>): Promise<T> {
+  const connection = await getSupabasePool().connect();
+  let discard = false;
+  try {
+    await connection.query('BEGIN');
+    await connection.query("SET LOCAL search_path = public, pg_catalog");
+    const result = await work(connection);
+    await connection.query('COMMIT');
+    return result;
+  } catch (error) {
+    try { await connection.query('ROLLBACK'); } catch { discard = true; }
+    throw error;
+  } finally { connection.release(discard); }
 }

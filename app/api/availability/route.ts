@@ -1,3 +1,4 @@
+import { currentTenant } from '@/lib/tenantScope.mjs';
 import { withTenantRequest } from '@/lib/tenantRequest';
 import { NextRequest, NextResponse } from 'next/server';
 import { getPublicBookedSlots } from '@/lib/db';
@@ -8,6 +9,7 @@ const noStore = { 'Cache-Control': 'private, no-store, max-age=0' };
 
 export async function GET(request: NextRequest) {
   return withTenantRequest(request, async () => {
+  if (currentTenant().publicBookings === false) return NextResponse.json({error:'Online bookings are not open yet.'},{status:403,headers:noStore});
   const date = request.nextUrl.searchParams.get('date');
   if (!isValidAvailabilityDate(date)) return NextResponse.json({ error: 'A valid appointment date is required.' }, { status: 400, headers: noStore });
   const auth = request.headers.get('authorization') ?? '';

@@ -1,3 +1,4 @@
+import { currentTenant } from '@/lib/tenantScope.mjs';
 import { withTenantRequest } from '@/lib/tenantRequest';
 import { NextRequest, NextResponse } from 'next/server';
 import { createBookingInDatabase, getBookings, getClientBookingCustomerId } from '@/lib/db';
@@ -34,6 +35,7 @@ export async function POST(request: NextRequest) {
     }
 
     const source = body.source === 'admin' ? 'admin' : body.source === 'staff' ? 'staff' : 'client';
+  if (source === 'client' && currentTenant().publicBookings === false) return NextResponse.json({error:'Online bookings are not open yet.'},{status:403,headers:noStore});
     const actor = source === 'client' ? undefined : (await requireAdminStaff(request)).actor;
     let customerId = body.customerId ? String(body.customerId) : undefined;
     if (source === 'client') {

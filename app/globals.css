@@ -5743,3 +5743,26 @@ button.admin-password-eye .admin-password-eye-slash {
 @media (max-width:1020px) { .settings-054-overview { grid-template-columns:repeat(2,minmax(0,1fr)); } .settings-054-clinician-banner { align-items:flex-start; flex-direction:column; } .settings-054-quick-actions { justify-content:flex-start; } }
 @media (max-width:730px) { .settings-054-overview,.settings-054-two-columns { grid-template-columns:1fr; } .settings-054-section-heading { flex-direction:column; } .settings-054-week-row { grid-template-columns:45px minmax(0,1fr); } .settings-054-week-row small { grid-column:2; } .settings-054-card,.settings-054-section { padding:18px !important; } }
 @media (max-width:530px) { .settings-054-overlay { padding:10px; } .settings-054-modal { max-height:calc(100dvh - 20px); border-radius:21px; } .settings-054-modal-head { padding:17px 16px 14px; } .settings-054-modal-scroll { padding:17px 16px 25px; } .settings-054-modal-footer { padding:13px 16px; } .settings-054-modal-footer button { flex:1 1 0; min-width:0; } .settings-054-form-grid { grid-template-columns:1fr; gap:12px; } .settings-054-clinician-banner { padding:14px; } .settings-054-quick-actions .button,.settings-054-quick-actions .pill { flex:1 1 auto; } .settings-054-list-item { flex-direction:column; align-items:flex-start; } .settings-054-day-selector button { padding:9px 11px; } }
+
+/* Ver-0.057 platform administration, independent from client and practice layouts. */
+.platform-shell { max-width:1160px; }
+.platform-signin { max-width:530px; margin:40px auto; padding:clamp(20px,4vw,36px); }
+.platform-signin h1,.platform-heading h1 { margin:0 0 10px; color:#193b60; font-size:clamp(1.65rem,3vw,2.3rem); }
+.platform-signin p,.platform-heading p { color:#536e88; }
+.platform-heading { display:flex; align-items:center; justify-content:space-between; gap:20px; margin-top:20px; }
+.platform-heading .nav-pills { flex-shrink:0; }
+.platform-metrics { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:14px; margin:16px 0; }
+.platform-metrics .card { display:grid; gap:8px; padding:20px; }
+.platform-metrics small { color:#627b93; }
+.platform-metrics strong { font-size:2rem; color:#336699; }
+.platform-list { margin-top:18px; }
+.platform-business { padding:18px 0; border-top:1px solid #dce8f4; display:grid; gap:12px; overflow-wrap:anywhere; }
+.platform-business-main { display:flex; align-items:flex-start; justify-content:space-between; gap:10px; }
+.platform-business h2 { font-size:1.2rem; margin:0 0 5px; }
+.platform-business p { margin:4px 0; color:#536e88; }
+.platform-note,.platform-error { padding:12px 16px; border-radius:12px; background:#eff6fd; color:#315c84; line-height:1.4; }
+.platform-error { background:#fff1ef; color:#8e2924; }
+.platform-dialog { position:fixed; inset:0; margin:auto; padding:0; width:min(760px,calc(100% - 24px)); }
+.platform-dialog:not([open]) { display:none; }
+.platform-dialog::backdrop { background:rgba(12,30,55,.48); backdrop-filter:blur(7px); }
+@media(max-width:700px){.platform-metrics{grid-template-columns:repeat(2,minmax(0,1fr));}.platform-heading,.platform-business-main{flex-direction:column;align-items:flex-start;}.platform-metrics .card{padding:15px;}}

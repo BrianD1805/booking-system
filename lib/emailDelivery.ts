@@ -74,8 +74,7 @@ export async function sendZipBookEmail(input: {
   }
 
   if (!response.ok) {
-    const text = await response.text().catch(() => '');
-    console.error(`[ZipBook Email] Resend failed: ${response.status} ${text}`);
+    console.error(`[ZipBook Email] Resend failed: ${response.status}`);
     return {
       attempted: true,
       delivered: false,

@@ -37,7 +37,7 @@ test('every database-backed request handler enters the tenant boundary',()=>{
   const crawl=folder=>readdirSync(folder,{withFileTypes:true}).flatMap(e=>e.isDirectory()?crawl(join(folder,e.name)):[join(folder,e.name)]);
   for(const path of crawl(fileURLToPath(new URL('../app/api',import.meta.url))).filter(p=>p.endsWith('route.ts'))){
     const source=readFileSync(path,'utf8');
-    for(const match of source.matchAll(/export async function (GET|POST|PATCH|DELETE|PUT)\(request: NextRequest[^\n]*\) \{\s*([^\n]*)/g)) assert.match(match[2],/^return withTenantRequest\(request,/,path);
+    for(const match of source.matchAll(/export async function (GET|POST|PATCH|DELETE|PUT)\(request: NextRequest[^\n]*\) \{\s*([^\n]*)/g)) if (path.includes('/api/platform/')) assert.match(match[2],/^return withPlatformRequest\(request,/,path); else assert.match(match[2],/^return withTenantRequest\(request,/,path);
   }
 });
 test('database wrapper uses transaction-local role and context, never raw tenant SQL on pool',()=>{

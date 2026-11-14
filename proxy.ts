@@ -37,6 +37,16 @@ export function proxy(request: NextRequest) {
   const host = normaliseHost(request.headers.get('host'));
   const { pathname } = request.nextUrl;
 
+  if (pathname === '/platform' || pathname.startsWith('/platform/') || pathname === '/join' || pathname.startsWith('/join/')) {
+    if (!(['zipbook.app','www.zipbook.app'].includes(host) || (process.env.NODE_ENV !== 'production' && ['localhost','127.0.0.1'].includes(host)))) return new NextResponse('Not found.', {status:404});
+    const response = NextResponse.next();
+    response.headers.set('Content-Security-Policy', "frame-ancestors 'none'");
+    response.headers.set('Referrer-Policy', 'no-referrer');
+    response.headers.set('Cache-Control', 'private, no-store, max-age=0');
+    response.headers.set('X-Robots-Tag', 'noindex, nofollow');
+    return response;
+  }
+
   if (pathname.startsWith('/api')) {
     logApiRequest(pathname);
     const response = NextResponse.next();

@@ -25,6 +25,7 @@ export default function HomePage() {
         <h2>Already using ZipBook?</h2>
         <div className="nav-pills"><Link className="button primary" href="/book">Open client app</Link><Link className="button" href="/admin">Open admin diary</Link></div>
       </section>
+      <section className="card" style={{ marginTop: 24 }}><h2>Set up your business</h2><p>Business accounts are currently created by invitation. If you have received an invitation, open the link in your email to set up your owner account.</p></section>
       <p className="footer-note">Built by Brian Hallam at ZippyWeb.</p>
     </main>
   );
