@@ -1,3 +1,4 @@
+import { withTenantRequest } from '@/lib/tenantRequest';
 import { NextRequest, NextResponse } from 'next/server';
 import { disableAdminPushSubscription, getAdminPushSubscriptionStatus, saveAdminPushSubscription } from '@/lib/db';
 import { requireAdminStaff } from '@/lib/adminStaffAuth';
@@ -5,6 +6,7 @@ import { requireAdminStaff } from '@/lib/adminStaffAuth';
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
+  return withTenantRequest(request, async () => {
   try {
     const { actor } = await requireAdminStaff(request);
     const result = await getAdminPushSubscriptionStatus(actor);
@@ -14,9 +16,11 @@ export async function GET(request: NextRequest) {
       error: error instanceof Error ? error.message : 'Could not load admin push subscription status.'
     }, { status: 401 });
   }
+  });
 }
 
 export async function POST(request: NextRequest) {
+  return withTenantRequest(request, async () => {
   try {
     const { actor } = await requireAdminStaff(request);
     const body = await request.json();
@@ -31,9 +35,11 @@ export async function POST(request: NextRequest) {
       error: error instanceof Error ? error.message : 'Could not save admin push subscription.'
     }, { status: 400 });
   }
+  });
 }
 
 export async function DELETE(request: NextRequest) {
+  return withTenantRequest(request, async () => {
   try {
     const { actor } = await requireAdminStaff(request);
     const body = await request.json().catch(() => ({}));
@@ -47,4 +53,5 @@ export async function DELETE(request: NextRequest) {
       error: error instanceof Error ? error.message : 'Could not disable admin push subscription.'
     }, { status: 400 });
   }
+  });
 }

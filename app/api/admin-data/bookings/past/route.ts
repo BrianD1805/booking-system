@@ -1,3 +1,4 @@
+import { withTenantRequest } from '@/lib/tenantRequest';
 import { NextRequest, NextResponse } from 'next/server';
 import { deletePastBookingsForDemo, getPastBookingsDemoCleanupSummary } from '@/lib/db';
 import { requireAdminStaff } from '@/lib/adminStaffAuth';
@@ -5,6 +6,7 @@ import { requireAdminStaff } from '@/lib/adminStaffAuth';
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
+  return withTenantRequest(request, async () => {
   try {
     await requireAdminStaff(request);
     const summary = await getPastBookingsDemoCleanupSummary();
@@ -12,9 +14,11 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : 'Could not check past bookings.' }, { status: 401 });
   }
+  });
 }
 
 export async function DELETE(request: NextRequest) {
+  return withTenantRequest(request, async () => {
   try {
     await requireAdminStaff(request);
     const confirm = request.nextUrl.searchParams.get('confirm') ?? '';
@@ -26,4 +30,5 @@ export async function DELETE(request: NextRequest) {
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : 'Could not remove past bookings.' }, { status: 400 });
   }
+  });
 }

@@ -252,6 +252,16 @@ export default function BookPage() {
   const [clientLoginOpen, setClientLoginOpen] = useState(false);
   const [clientPasswordResetOpen, setClientPasswordResetOpen] = useState(false);
   const modalHistoryRef = useRef(false);
+  const [businessInfo, setBusinessInfo] = useState<{name:string;legacy:boolean} | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    void fetch('/api/tenant-context',{cache:'no-store'}).then(async response => {
+      if (!response.ok) return;
+      const payload = await response.json();
+      if (!cancelled) setBusinessInfo(payload.tenant);
+    }).catch(()=>undefined);
+    return () => {cancelled=true;};
+  }, []);
   const [clientLoginStage, setClientLoginStage] = useState<LoginStage>('login');
   const [clientLoginCountryInput, setClientLoginCountryInput] = useState(phoneCountryLabel(DEFAULT_PHONE_COUNTRY));
   const [clientLoginPhone, setClientLoginPhone] = useState('');
@@ -310,7 +320,7 @@ export default function BookPage() {
   const canRequestPasswordReset = Boolean(selectedLoginCountry && clientLoginFullPhone && clientLoginEmail.trim());
   const canCompletePasswordReset = Boolean(clientOtpCode.trim().length >= 4 && clientResetPassword.length >= 6);
   const canGoToTreatment = patientName.trim() && patientPhone.trim() && patientEmail.trim();
-  const canGoToDiary = Boolean(activeProcedureId && practitionerChoice);
+  const canGoToDiary = Boolean(selectedProcedure && eligiblePractitioners.length && practitionerChoice);
   const selectedSlotHasPassed = selectedTime ? bookingStartIsPast(selectedDate, selectedTime, practiceSettings.timezone, now) : false;
   const canConfirm = Boolean(selectedSlot?.available && selectedTime && selectedPractitionerId && !selectedSlotHasPassed);
 
@@ -908,7 +918,7 @@ export default function BookPage() {
           <img src="/icons/icon-72.png" alt="" width="44" height="44" />
           <span>ZipBook</span>
         </a>
-        <button
+        {businessInfo?.legacy === false ? null : <button
           className="client-login-icon-button"
           type="button"
           aria-label={clientProfile ? 'Open my account' : 'Open login and sign up'}
@@ -916,7 +926,7 @@ export default function BookPage() {
         >
           <span aria-hidden="true">{clientProfile ? '✓' : '👤'}</span>
           <strong>{clientProfile ? 'My account' : 'Login'}</strong>
-        </button>
+        </button>}
       </header>
 
       <section className="client-home-welcome" aria-labelledby="client-home-title">
@@ -924,12 +934,12 @@ export default function BookPage() {
           <img src="/icons/icon-192.png" alt="" width="96" height="96" />
         </div>
         <p className="badge blue-badge">ZipBook · {APP_VERSION}</p>
-        <h1 id="client-home-title" className="hero-title clean-title">Welcome to ZipBook.</h1>
+        <h1 id="client-home-title" className="hero-title clean-title">{businessInfo?.legacy === false ? `Welcome to ${businessInfo.name}.` : "Welcome to ZipBook."}</h1>
         <p className="hero-copy tight-copy">
-          Book your appointment quickly and clearly, with your details ready when you sign in.
+          {businessInfo?.legacy === false ? "Book your appointment using our secure guest booking service." : "Book your appointment quickly and clearly, with your details ready when you sign in."}
         </p>
         <div className="client-home-actions">
-          <button className="button green large-cta" type="button" onClick={openBookingFlow}>
+          <button className="button green large-cta" type="button" disabled={loading || !!error || !procedures.length} onClick={openBookingFlow}>
             Make a booking
           </button>
         </div>

@@ -1,3 +1,4 @@
+import { currentTenant } from './tenantScope.mjs';
 import { NextRequest } from 'next/server';
 import { getAdminStaffBySession, type AdminActor, type AdminStaffMember } from '@/lib/db';
 import { verifyAdminDataKey } from '@/lib/adminDataAuth';
@@ -14,7 +15,7 @@ export function readStaffToken(request: NextRequest) {
 }
 
 export async function requireAdminStaff(request: NextRequest): Promise<{ staff: AdminStaffMember; actor: AdminActor }> {
-  if (!verifyAdminDataKey(request)) throw new Error('Master admin key is required.');
+  if (currentTenant().legacy && !verifyAdminDataKey(request)) throw new Error('Master admin key is required.');
   const staff = await getAdminStaffBySession(readStaffToken(request));
   if (!staff) throw new Error('Staff login is required.');
   return {
@@ -26,4 +27,10 @@ export async function requireAdminStaff(request: NextRequest): Promise<{ staff: 
       ...readAdminActorRequestMeta(request)
     }
   };
+}
+
+export async function requireBusinessOwner(request: NextRequest) {
+  const result = await requireAdminStaff(request);
+  if (!currentTenant().legacy && result.staff.role !== 'Owner') throw new Error('Business owner access is required.');
+  return result;
 }

@@ -1,9 +1,11 @@
+import { withTenantRequest } from '@/lib/tenantRequest';
 import { NextRequest, NextResponse } from 'next/server';
 import { getClientProfileBySession } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
+  return withTenantRequest(request, async () => {
   try {
     const authHeader = request.headers.get('authorization') ?? '';
     const bearerToken = authHeader.toLowerCase().startsWith('bearer ') ? authHeader.slice(7) : '';
@@ -15,4 +17,5 @@ export async function GET(request: NextRequest) {
       error: error instanceof Error ? error.message : 'Client session not available.'
     }, { status: 401 });
   }
+  });
 }

@@ -43,7 +43,7 @@ async function parseJsonResponse<T>(response: Response): Promise<T> {
 
 export function useBookingDatabase(selectedDate?: string, mode: 'admin' | 'client' = 'admin', clientSessionToken = '') {
   const [state, setState] = useState<HookState>({
-    bootstrap: fallbackBootstrap,
+    bootstrap: { ...fallbackBootstrap, practiceSettings: {...fallbackBootstrap.practiceSettings, practiceName: "ZipBook"}, procedures: [], practitioners: [], blockedDates: [], blockedTimes: [], practitionerWorkingHours: [], practitionerProcedures: [], practitionerBlockedTimes: [] },
     bookings: [],
     loading: true,
     saving: false,

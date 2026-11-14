@@ -44,6 +44,11 @@ export function proxy(request: NextRequest) {
     return response;
   }
 
+  const isBusinessHost = /^[a-z0-9-]+\.(zipbook\.app|localhost)$/.test(host) && !ADMIN_HOSTS.has(host) && !CLIENT_HOSTS.has(host);
+  if (isBusinessHost && (pathname === '/manifest-admin.json' || pathname === '/manifest-client.json')) {
+    const admin = pathname.includes('admin');
+    return NextResponse.json({id:admin?'/admin':'/book',name:admin?'ZipBook Admin':'ZipBook',short_name:admin?'ZipBook Admin':'ZipBook',start_url:admin?'/admin':'/book',scope:admin?'/admin':'/book',display:'standalone',background_color:'#eff6ff',theme_color:'#336699',icons:[{src:'/icons/icon-192.png',sizes:'192x192',type:'image/png'},{src:'/icons/icon-512.png',sizes:'512x512',type:'image/png'}]}, {headers:{'Content-Type':'application/manifest+json','Cache-Control':'no-store'}});
+  }
   if (
     
     pathname.startsWith('/_next') ||
@@ -57,6 +62,13 @@ export function proxy(request: NextRequest) {
     PUBLIC_FILE.test(pathname)
   ) {
     return NextResponse.next();
+  }
+
+  if (isBusinessHost) {
+    if (pathname === '/') return NextResponse.redirect(new URL('/book', request.url));
+    const response = NextResponse.next();
+    response.headers.set('Content-Security-Policy', "frame-ancestors 'none'");
+    return response;
   }
 
   if (isLocalHost(host) || host.endsWith('netlify.app')) {

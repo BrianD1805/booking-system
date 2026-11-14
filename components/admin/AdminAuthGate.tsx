@@ -44,6 +44,7 @@ function AdminPasswordEyeIcon({ hidden }: { hidden: boolean }) {
 
 export function AdminAuthGate({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const [business, setBusiness] = useState<{name:string;legacy:boolean} | null>(null);
   const [masterKey, setMasterKey] = useState('');
   const [staffEmail, setStaffEmail] = useState('');
   const [staffPassword, setStaffPassword] = useState('');
@@ -74,13 +75,24 @@ export function AdminAuthGate({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const stored = getStoredAdminAuth();
-    setMasterKey(stored.masterKey);
-    setStaff(stored.staff);
-    if (stored.masterKey) void checkStatus(stored.masterKey, stored.staffToken, false);
-    else setChecking(false);
+    void (async () => {
+      try {
+        const response = await fetch('/api/tenant-context', {cache:'no-store'});
+        const payload = await response.json();
+        if (!response.ok || !payload.tenant) throw new Error(payload.error || 'Business is unavailable.');
+        const resolved = payload.tenant as {name:string;legacy:boolean};
+        setBusiness(resolved);
+        setMasterKey(resolved.legacy ? stored.masterKey : '');
+        if (!resolved.legacy || stored.masterKey) await checkStatus(resolved.legacy ? stored.masterKey : '', stored.staffToken, false, resolved.legacy);
+        else setChecking(false);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Business is unavailable.');
+        setChecking(false);
+      }
+    })();
   }, []);
 
-  async function checkStatus(nextMasterKey = masterKey, nextToken = getStoredAdminAuth().staffToken, showMessage = true) {
+  async function checkStatus(nextMasterKey = masterKey, nextToken = getStoredAdminAuth().staffToken, showMessage = true, legacy = business?.legacy !== false) {
     setChecking(true);
     setError('');
     try {
@@ -98,8 +110,11 @@ export function AdminAuthGate({ children }: { children: React.ReactNode }) {
         setStaff(payload.staff as Staff);
         window.sessionStorage.setItem(STAFF_PROFILE_STORAGE, JSON.stringify(payload.staff));
       } else {
-        const nextMessage = Number(payload.staffCount ?? 0) > 0 ? 'Master key accepted. Now sign in as a staff member.' : 'Master key accepted. Create the first staff login below.';
-        if (showMessage || nextMasterKey) setMessage(nextMessage);
+        setStaff(null);
+        window.sessionStorage.removeItem(STAFF_PROFILE_STORAGE);
+        window.sessionStorage.removeItem(STAFF_TOKEN_STORAGE);
+        const nextMessage = !legacy ? 'Sign in with your business staff email and password.' : Number(payload.staffCount ?? 0) > 0 ? 'Master key accepted. Now sign in as a staff member.' : 'Master key accepted. Create the first staff login below.';
+        if (showMessage || nextMasterKey || !legacy) setMessage(nextMessage);
       }
       window.sessionStorage.setItem(MASTER_KEY_STORAGE, nextMasterKey);
     } catch (statusError) {
@@ -184,11 +199,12 @@ export function AdminAuthGate({ children }: { children: React.ReactNode }) {
   }
 
   function signOut() {
+    void fetch('/api/admin-auth/staff/logout', {method:'POST',headers:makeAdminAuthHeaders()}).catch(()=>undefined);
     window.sessionStorage.removeItem(STAFF_TOKEN_STORAGE);
     window.sessionStorage.removeItem(STAFF_PROFILE_STORAGE);
     setStaff(null);
     setStaffPassword('');
-    setMessage('Staff signed out. Master key is still stored for this browser session.');
+    setMessage(business?.legacy ? 'Staff signed out. Master key is still stored for this browser session.' : 'Staff signed out.');
     showAdminToast('Staff signed out.', 'info');
   }
 
@@ -196,10 +212,11 @@ export function AdminAuthGate({ children }: { children: React.ReactNode }) {
     return <><AdminToastHost /><main className="shell fresh-shell admin-shell"><section className="card clean-panel"><p className="badge blue-badge">Admin security</p><h1 className="section-title">Checking admin login…</h1></section></main></>;
   }
 
+  if (!business) return <main className="shell fresh-shell admin-shell"><section className="card clean-panel"><h1 className="section-title">Business unavailable</h1><p>{error || 'Please check your business address.'}</p></section></main>;
   if (!staff) {
-    const masterKeyScreen = staffCount === null;
-    const firstStaffScreen = staffCount === 0;
-    const staffLoginScreen = (staffCount ?? 0) > 0;
+    const masterKeyScreen = business.legacy && staffCount === null;
+    const firstStaffScreen = business.legacy && staffCount === 0;
+    const staffLoginScreen = !business.legacy || (staffCount ?? 0) > 0;
 
     return (
       <>
@@ -249,7 +266,7 @@ export function AdminAuthGate({ children }: { children: React.ReactNode }) {
                   <h1 className="hero-title clean-title admin-staff-login-title">Create first staff login.</h1>
                   <p className="hero-copy tight-copy">Master key accepted. Create the first staff login on this screen.</p>
                 </div>
-                <button className="button ghost admin-master-back" type="button" onClick={returnToMasterKey}>Change master key</button>
+                {business.legacy && <button className="button ghost admin-master-back" type="button" onClick={returnToMasterKey}>Change master key</button>}
               </div>
 
               {error && <div className="notice warning" role="alert">{error}</div>}
@@ -291,16 +308,16 @@ export function AdminAuthGate({ children }: { children: React.ReactNode }) {
               <div className="admin-login-screen-head">
                 <div>
                   <h1 className="hero-title clean-title admin-staff-login-title">Staff login.</h1>
-                  <p className="hero-copy tight-copy">Master key accepted. Sign in with your staff email and password.</p>
+                  <p className="hero-copy tight-copy">{business.legacy ? "Master key accepted. Sign in with your staff email and password." : `Sign in to ${business.name} with your staff email and password.`}</p>
                 </div>
-                <button className="button ghost admin-master-back" type="button" onClick={returnToMasterKey}>Change master key</button>
+                {business.legacy && <button className="button ghost admin-master-back" type="button" onClick={returnToMasterKey}>Change master key</button>}
               </div>
 
               {error && <div className="notice warning" role="alert">{error}</div>}
               {!error && message && <div className="notice soft" role="status">{message}</div>}
 
               <form className="admin-login-card admin-staff-login-card" onSubmit={handleStaffLogin}>
-                <h2>2. Staff login</h2>
+                <h2>{business.legacy ? "2. Staff login" : "Staff login"}</h2>
                 <div className="grid two controls-grid admin-staff-fields-row">
                   <input value={staffEmail} onChange={(event) => setStaffEmail(event.target.value)} placeholder="Staff email" />
                   <div className="admin-password-control">
@@ -322,7 +339,7 @@ export function AdminAuthGate({ children }: { children: React.ReactNode }) {
                   </div>
                 </div>
                 <div className="admin-login-submit-row admin-staff-submit-row">
-                  <button className="button primary" type="submit" disabled={loading || !masterKey.trim()}>Sign in to admin</button>
+                  <button className="button primary" type="submit" disabled={loading || (business.legacy && !masterKey.trim())}>Sign in to admin</button>
                 </div>
               </form>
             </div>
@@ -340,7 +357,7 @@ export function AdminAuthGate({ children }: { children: React.ReactNode }) {
         <div className="admin-staff-identity">
           <span>Signed in</span>
           <strong>{staff.fullName}</strong>
-          <small>{staff.role}</small>
+          <small>{business.legacy ? staff.role : `${business.name} · ${staff.role}`}</small>
         </div>
         <a href="/admin" className="admin-staff-center-brand" aria-label="ZipBook admin diary">
           <img className="admin-staff-brand-icon" src="/icons/icon-72.png" alt="" width="44" height="44" />
@@ -366,7 +383,7 @@ export function AdminAuthGate({ children }: { children: React.ReactNode }) {
                 <span>One clean menu for diary, reception, clients and practice tools.</span>
               </div>
               <div className="admin-mega-menu-grid">
-                {adminMenuItems.map((item) => {
+                {adminMenuItems.filter(item => business.legacy || staff.role === "Owner" || !["/admin/staff", "/admin/settings"].includes(item.href)).map((item) => {
                   const active = pathname === item.href || (item.href !== '/admin' && pathname?.startsWith(item.href));
                   return (
                     <a key={item.href} href={item.href} className={active ? 'active' : ''} role="menuitem" onClick={() => setMenuOpen(false)}>

@@ -1,6 +1,6 @@
 'use client';
 
-import { FormEvent, useState } from 'react';
+import { FormEvent, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Header } from '@/components/Header';
 import { APP_VERSION } from '@/lib/mockData';
@@ -18,6 +18,8 @@ type AdminClient = {
 };
 
 export default function AdminDataPage() {
+  const [legacy, setLegacy] = useState(false);
+  useEffect(()=>{void fetch('/api/tenant-context',{cache:'no-store'}).then(r=>r.json()).then(p=>setLegacy(p.tenant?.legacy === true)).catch(()=>undefined);},[]);
   const [query, setQuery] = useState('');
   const [clients, setClients] = useState<AdminClient[]>([]);
   const [loading, setLoading] = useState(false);
@@ -144,8 +146,8 @@ export default function AdminDataPage() {
           </div>
         </div>
       </section>
-      <p className="micro-copy clients-security-note">Master key and staff login verified for this browser session. Client and family record changes are recorded in the audit trail.</p>
-      <section className="card clean-panel admin-data-panel">
+      <p className="micro-copy clients-security-note">Staff login verified for this browser session. Client and family record changes are recorded in the audit trail.</p>
+      {legacy && <section className="card clean-panel admin-data-panel">
         <div className="section-heading-row compact-row">
           <div>
             <h2 className="section-title compact">Demo cleanup</h2>
@@ -159,7 +161,7 @@ export default function AdminDataPage() {
         <p className="micro-copy">
           {pastBookingCount === null ? 'This only targets bookings dated before today.' : `${pastBookingCount} past booking${pastBookingCount === 1 ? '' : 's'} before ${pastBookingBeforeDate || 'today'}.`}
         </p>
-      </section>
+      </section>}
 
     </main>
   );

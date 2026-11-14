@@ -1,3 +1,4 @@
+import { withTenantRequest } from '@/lib/tenantRequest';
 import { NextRequest, NextResponse } from 'next/server';
 import { deleteAdminDataCustomerAndBookings, getAdminDataCustomerById, updateAdminDataCustomer } from '@/lib/db';
 import { requireAdminStaff } from '@/lib/adminStaffAuth';
@@ -6,6 +7,7 @@ export const dynamic = 'force-dynamic';
 
 
 export async function GET(request: NextRequest, context: { params: Promise<{ id: string }> }) {
+  return withTenantRequest(request, async () => {
   try {
     await requireAdminStaff(request);
     const { id } = await context.params;
@@ -17,9 +19,11 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : 'Could not load client.' }, { status: 401 });
   }
+  });
 }
 
 export async function PATCH(request: NextRequest, context: { params: Promise<{ id: string }> }) {
+  return withTenantRequest(request, async () => {
   try {
     const { actor } = await requireAdminStaff(request);
     const { id } = await context.params;
@@ -50,9 +54,11 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ i
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : 'Could not update client.' }, { status: 400 });
   }
+  });
 }
 
 export async function DELETE(request: NextRequest, context: { params: Promise<{ id: string }> }) {
+  return withTenantRequest(request, async () => {
   try {
     const { actor } = await requireAdminStaff(request);
     const { id } = await context.params;
@@ -65,4 +71,5 @@ export async function DELETE(request: NextRequest, context: { params: Promise<{ 
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : 'Could not delete client data.' }, { status: 400 });
   }
+  });
 }

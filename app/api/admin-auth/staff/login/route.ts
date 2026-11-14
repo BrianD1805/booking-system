@@ -1,3 +1,5 @@
+import { currentTenant } from '@/lib/tenantScope.mjs';
+import { withTenantRequest } from '@/lib/tenantRequest';
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAdminDataKey } from '@/lib/adminDataAuth';
 import { loginAdminStaff } from '@/lib/db';
@@ -6,7 +8,8 @@ import { readAdminActorRequestMeta } from '@/lib/adminStaffAuth';
 export const dynamic = 'force-dynamic';
 
 export async function POST(request: NextRequest) {
-  if (!verifyAdminDataKey(request)) {
+  return withTenantRequest(request, async () => {
+  if (currentTenant().legacy && !verifyAdminDataKey(request)) {
     return NextResponse.json({ error: 'Master admin key is required before staff login.' }, { status: 401 });
   }
 
@@ -29,4 +32,5 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : 'Staff login failed.' }, { status: 401 });
   }
+  });
 }

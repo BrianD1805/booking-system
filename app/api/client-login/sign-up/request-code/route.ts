@@ -1,9 +1,11 @@
+import { withTenantRequest } from '@/lib/tenantRequest';
 import { NextRequest, NextResponse } from 'next/server';
 import { requestClientSignupOtp } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
 
 export async function POST(request: NextRequest) {
+  return withTenantRequest(request, async () => {
   try {
     const body = await request.json();
     const result = await requestClientSignupOtp({
@@ -31,4 +33,5 @@ export async function POST(request: NextRequest) {
       error: error instanceof Error ? error.message : 'Could not create your sign-up code.'
     }, { status: 400 });
   }
+  });
 }

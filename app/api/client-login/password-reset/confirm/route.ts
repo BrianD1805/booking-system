@@ -1,9 +1,11 @@
+import { withTenantRequest } from '@/lib/tenantRequest';
 import { NextRequest, NextResponse } from 'next/server';
 import { confirmClientPasswordReset } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
 
 export async function POST(request: NextRequest) {
+  return withTenantRequest(request, async () => {
   try {
     const body = await request.json();
     const result = await confirmClientPasswordReset({
@@ -18,4 +20,5 @@ export async function POST(request: NextRequest) {
       error: error instanceof Error ? error.message : 'Could not reset this password.'
     }, { status: 400 });
   }
+  });
 }

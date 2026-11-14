@@ -1,3 +1,4 @@
+import { hashStaffPassword, verifyStaffPassword } from './staffPassword.mjs';
 import { assertFutureBookingStart, assertClientBookingRules } from '@/lib/bookingTime.mjs';
 import { insideHours, crossesLunch, dayOfWeek } from '@/lib/schedulingPolicy.mjs';
 import { createHash, randomBytes, randomInt } from 'crypto';
@@ -5,7 +6,7 @@ import { getZipBookDatabase } from './dbProvider';
 import { deliverClientOtp, isOtpTestModeEnabled } from './otpDelivery';
 import { buildClientBookingConfirmationEmailHtml, sendZipBookEmail } from './emailDelivery';
 import { isPhonePushUserAgent, isPushDeliveryConfigured, normalisePushSubscription, sendPushNotification, type BrowserPushSubscription, type StoredPushSubscription } from './pushDelivery';
-import { getDefaultPracticeId } from './tenant';
+import { currentTenant } from './tenantScope.mjs';
 import { publicBookingSlots } from './publicAvailability.mjs';
 import { addMinutes } from '@/lib/availability';
 import {
@@ -27,7 +28,7 @@ import {
   type Procedure
 } from '@/lib/mockData';
 
-const PRACTICE_ID = getDefaultPracticeId();
+
 
 type PracticeRow = {
   id: string;
@@ -306,7 +307,7 @@ async function createClientSession(customerId: string) {
   const sessionId = `sess-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   await database.sql`
     INSERT INTO client_sessions (id, practice_id, customer_id, session_token_hash, expires_at)
-    VALUES (${sessionId}, ${PRACTICE_ID}, ${customerId}, ${hashSecret(sessionToken)}, NOW() + INTERVAL '30 days')
+    VALUES (${sessionId}, ${currentTenant().practiceId}, ${customerId}, ${hashSecret(sessionToken)}, NOW() + INTERVAL '30 days')
   `;
   return sessionToken;
 }
@@ -574,7 +575,7 @@ export async function listAdminDataCustomers(query?: string): Promise<AdminDataC
         LIMIT 1
       ) ca ON TRUE
       LEFT JOIN bookings b ON b.customer_id = c.id
-      WHERE c.practice_id = ${PRACTICE_ID}
+      WHERE c.practice_id = ${currentTenant().practiceId}
         AND (lower(c.full_name) LIKE ${pattern} OR lower(c.phone) LIKE ${pattern} OR lower(c.email) LIKE ${pattern} OR lower(ca.login_phone) LIKE ${pattern} OR lower(ca.login_email) LIKE ${pattern} OR EXISTS (SELECT 1 FROM customer_family_members fm WHERE fm.practice_id = c.practice_id AND fm.customer_id = c.id AND lower(fm.full_name) LIKE ${pattern}))
       GROUP BY c.id, c.full_name, c.phone, c.email, c.notes, c.has_client_login, c.last_seen_at, c.created_at, c.updated_at, ca.login_phone, ca.login_email, ca.verified_at, ca.password_hash, c.date_of_birth, c.id_passport_info, c.address, c.medical_insurance_name, c.notification_app_push, c.notification_email, c.notification_sms, c.emergency_contact_name, c.emergency_contact_phone, c.allergies_medical_alerts, c.preferred_language, c.preferred_contact_time
       ORDER BY c.updated_at DESC, c.created_at DESC
@@ -596,7 +597,7 @@ export async function listAdminDataCustomers(query?: string): Promise<AdminDataC
         LIMIT 1
       ) ca ON TRUE
       LEFT JOIN bookings b ON b.customer_id = c.id
-      WHERE c.practice_id = ${PRACTICE_ID}
+      WHERE c.practice_id = ${currentTenant().practiceId}
       GROUP BY c.id, c.full_name, c.phone, c.email, c.notes, c.has_client_login, c.last_seen_at, c.created_at, c.updated_at, ca.login_phone, ca.login_email, ca.verified_at, ca.password_hash, c.date_of_birth, c.id_passport_info, c.address, c.medical_insurance_name, c.notification_app_push, c.notification_email, c.notification_sms, c.emergency_contact_name, c.emergency_contact_phone, c.allergies_medical_alerts, c.preferred_language, c.preferred_contact_time
       ORDER BY c.updated_at DESC, c.created_at DESC
       LIMIT 50
@@ -623,7 +624,7 @@ export async function getAdminDataCustomerById(customerId: string): Promise<Admi
       LIMIT 1
     ) ca ON TRUE
     LEFT JOIN bookings b ON b.customer_id = c.id
-    WHERE c.practice_id = ${PRACTICE_ID} AND c.id = ${customerId}
+    WHERE c.practice_id = ${currentTenant().practiceId} AND c.id = ${customerId}
     GROUP BY c.id, c.full_name, c.phone, c.email, c.notes, c.has_client_login, c.last_seen_at, c.created_at, c.updated_at, ca.login_phone, ca.login_email, ca.verified_at, ca.password_hash, c.date_of_birth, c.id_passport_info, c.address, c.medical_insurance_name, c.notification_app_push, c.notification_email, c.notification_sms, c.emergency_contact_name, c.emergency_contact_phone, c.allergies_medical_alerts, c.preferred_language, c.preferred_contact_time
     LIMIT 1
   `;
@@ -637,7 +638,7 @@ async function getCustomerFamilyMembers(customerId: string): Promise<CustomerFam
   const rows = await database.sql<CustomerFamilyMemberRow>`
     SELECT id, customer_id, full_name, date_of_birth::text AS date_of_birth, relationship, notes, created_at::text AS created_at, updated_at::text AS updated_at
     FROM customer_family_members
-    WHERE practice_id = ${PRACTICE_ID} AND customer_id = ${customerId}
+    WHERE practice_id = ${currentTenant().practiceId} AND customer_id = ${customerId}
     ORDER BY full_name
   `;
   return rows.map(mapCustomerFamilyMember);
@@ -648,7 +649,7 @@ async function getCustomerDocuments(customerId: string): Promise<CustomerDocumen
   const rows = await database.sql<CustomerDocumentRow>`
     SELECT id, customer_id, file_name, mime_type, file_size, file_data_base64, notes, uploaded_at::text AS uploaded_at
     FROM customer_documents
-    WHERE practice_id = ${PRACTICE_ID} AND customer_id = ${customerId}
+    WHERE practice_id = ${currentTenant().practiceId} AND customer_id = ${customerId}
     ORDER BY uploaded_at DESC
   `;
   return rows.map(mapCustomerDocument);
@@ -717,22 +718,22 @@ function cleanDocuments(value?: SaveAdminDataCustomerInput['documents']) {
 
 async function replaceCustomerFamilyMembers(customerId: string, familyMembers: ReturnType<typeof cleanFamilyMembers>) {
   const database = db();
-  await database.sql`DELETE FROM customer_family_members WHERE practice_id = ${PRACTICE_ID} AND customer_id = ${customerId}`;
+  await database.sql`DELETE FROM customer_family_members WHERE practice_id = ${currentTenant().practiceId} AND customer_id = ${customerId}`;
   for (const member of familyMembers) {
     await database.sql`
       INSERT INTO customer_family_members (id, practice_id, customer_id, full_name, date_of_birth, relationship, notes)
-      VALUES (${member.id}, ${PRACTICE_ID}, ${customerId}, ${member.fullName}, ${member.dateOfBirth}::date, ${member.relationship}, ${member.notes})
+      VALUES (${member.id}, ${currentTenant().practiceId}, ${customerId}, ${member.fullName}, ${member.dateOfBirth}::date, ${member.relationship}, ${member.notes})
     `;
   }
 }
 
 async function replaceCustomerDocuments(customerId: string, documents: ReturnType<typeof cleanDocuments>) {
   const database = db();
-  await database.sql`DELETE FROM customer_documents WHERE practice_id = ${PRACTICE_ID} AND customer_id = ${customerId}`;
+  await database.sql`DELETE FROM customer_documents WHERE practice_id = ${currentTenant().practiceId} AND customer_id = ${customerId}`;
   for (const document of documents) {
     await database.sql`
       INSERT INTO customer_documents (id, practice_id, customer_id, file_name, mime_type, file_size, file_data_base64, notes)
-      VALUES (${document.id}, ${PRACTICE_ID}, ${customerId}, ${document.fileName}, ${document.mimeType}, ${document.fileSize}, ${document.fileDataBase64}, ${document.notes})
+      VALUES (${document.id}, ${currentTenant().practiceId}, ${customerId}, ${document.fileName}, ${document.mimeType}, ${document.fileSize}, ${document.fileDataBase64}, ${document.notes})
     `;
   }
 }
@@ -754,7 +755,7 @@ export async function createAdminDataCustomer(input: SaveAdminDataCustomerInput)
       emergency_contact_phone, allergies_medical_alerts, preferred_language, preferred_contact_time
     )
     VALUES (
-      ${id}, ${PRACTICE_ID}, ${fullName}, ${phone}, ${email}, ${input.notes ?? ''}, FALSE, ${normaliseOptionalDate(input.dateOfBirth)}::date,
+      ${id}, ${currentTenant().practiceId}, ${fullName}, ${phone}, ${email}, ${input.notes ?? ''}, FALSE, ${normaliseOptionalDate(input.dateOfBirth)}::date,
       ${input.idPassportInfo ?? ''}, ${input.address ?? ''}, ${input.medicalInsuranceName ?? ''}, ${input.notificationAppPush !== false},
       ${input.notificationEmail !== false}, ${input.notificationSms !== false}, ${input.emergencyContactName ?? ''}, ${input.emergencyContactPhone ?? ''},
       ${input.allergiesMedicalAlerts ?? ''}, ${input.preferredLanguage ?? ''}, ${input.preferredContactTime ?? ''}
@@ -796,7 +797,7 @@ export async function updateAdminDataCustomer(input: SaveAdminDataCustomerInput 
         preferred_language = ${input.preferredLanguage ?? ''},
         preferred_contact_time = ${input.preferredContactTime ?? ''},
         updated_at = NOW()
-    WHERE practice_id = ${PRACTICE_ID} AND id = ${input.id}
+    WHERE practice_id = ${currentTenant().practiceId} AND id = ${input.id}
     RETURNING id, full_name, phone, email, notes, has_client_login, last_seen_at::text AS last_seen_at, created_at::text AS created_at, updated_at::text AS updated_at
   `;
   if (!rows[0]) throw new Error('Client not found.');
@@ -807,7 +808,7 @@ export async function updateAdminDataCustomer(input: SaveAdminDataCustomerInput 
   await database.sql`
     UPDATE client_accounts
     SET login_phone = ${phone}, login_email = ${email}, updated_at = NOW()
-    WHERE practice_id = ${PRACTICE_ID} AND customer_id = ${input.id}
+    WHERE practice_id = ${currentTenant().practiceId} AND customer_id = ${input.id}
   `;
 
   await writeAdminAuditLog({ action: 'customer_updated', entityType: 'customer', entityId: input.id, source: 'admin', details: { fullName, phone, email, familyMembers: input.familyMembers?.length ?? 0, documents: input.documents?.length ?? 0 }, actor: input.actor });
@@ -833,7 +834,7 @@ export async function setAdminDataCustomerPassword(input: { customerId: string; 
   const existing = await database.sql<{ id: string; customer_id: string }>`
     SELECT id, customer_id
     FROM client_accounts
-    WHERE practice_id = ${PRACTICE_ID}
+    WHERE practice_id = ${currentTenant().practiceId}
       AND (customer_id = ${customer.id} OR login_phone = ${loginPhone})
     ORDER BY (customer_id = ${customer.id}) DESC, updated_at DESC, created_at DESC
     LIMIT 1
@@ -845,19 +846,19 @@ export async function setAdminDataCustomerPassword(input: { customerId: string; 
     await database.sql`
       UPDATE client_accounts
       SET customer_id = ${customer.id}, login_phone = ${loginPhone}, login_email = ${loginEmail}, password_hash = ${passwordHash}, verified_at = COALESCE(verified_at, NOW()), phone_verified_at = COALESCE(phone_verified_at, verified_at, NOW()), otp_enabled = FALSE, updated_at = NOW()
-      WHERE practice_id = ${PRACTICE_ID} AND id = ${accountId}
+      WHERE practice_id = ${currentTenant().practiceId} AND id = ${accountId}
     `;
   } else {
     await database.sql`
       INSERT INTO client_accounts (id, customer_id, practice_id, login_phone, login_email, password_hash, verified_at, phone_verified_at, otp_enabled)
-      VALUES (${accountId}, ${customer.id}, ${PRACTICE_ID}, ${loginPhone}, ${loginEmail}, ${passwordHash}, NOW(), NOW(), FALSE)
+      VALUES (${accountId}, ${customer.id}, ${currentTenant().practiceId}, ${loginPhone}, ${loginEmail}, ${passwordHash}, NOW(), NOW(), FALSE)
     `;
   }
 
   await database.sql`
     UPDATE customers
     SET phone = ${loginPhone}, email = ${loginEmail}, has_client_login = TRUE, updated_at = NOW()
-    WHERE practice_id = ${PRACTICE_ID} AND id = ${customer.id}
+    WHERE practice_id = ${currentTenant().practiceId} AND id = ${customer.id}
   `;
 
   const updatedCustomer = await getAdminDataCustomerById(customer.id);
@@ -871,11 +872,11 @@ export async function deleteAdminDataCustomerAndBookings(customerId: string, act
   const customer = await findCustomerById(customerId);
   if (!customer) throw new Error('Customer not found.');
 
-  const sessions = await database.sql<{ count: number }>`WITH deleted AS (DELETE FROM client_sessions WHERE practice_id = ${PRACTICE_ID} AND customer_id = ${customerId} RETURNING id) SELECT COUNT(*)::int AS count FROM deleted`;
-  const otps = await database.sql<{ count: number }>`WITH deleted AS (DELETE FROM client_login_otps WHERE practice_id = ${PRACTICE_ID} AND customer_id = ${customerId} RETURNING id) SELECT COUNT(*)::int AS count FROM deleted`;
-  const bookings = await database.sql<{ count: number }>`WITH deleted AS (DELETE FROM bookings WHERE practice_id = ${PRACTICE_ID} AND customer_id = ${customerId} RETURNING id) SELECT COUNT(*)::int AS count FROM deleted`;
-  const accounts = await database.sql<{ count: number }>`WITH deleted AS (DELETE FROM client_accounts WHERE practice_id = ${PRACTICE_ID} AND customer_id = ${customerId} RETURNING id) SELECT COUNT(*)::int AS count FROM deleted`;
-  const customers = await database.sql<{ count: number }>`WITH deleted AS (DELETE FROM customers WHERE practice_id = ${PRACTICE_ID} AND id = ${customerId} RETURNING id) SELECT COUNT(*)::int AS count FROM deleted`;
+  const sessions = await database.sql<{ count: number }>`WITH deleted AS (DELETE FROM client_sessions WHERE practice_id = ${currentTenant().practiceId} AND customer_id = ${customerId} RETURNING id) SELECT COUNT(*)::int AS count FROM deleted`;
+  const otps = await database.sql<{ count: number }>`WITH deleted AS (DELETE FROM client_login_otps WHERE practice_id = ${currentTenant().practiceId} AND customer_id = ${customerId} RETURNING id) SELECT COUNT(*)::int AS count FROM deleted`;
+  const bookings = await database.sql<{ count: number }>`WITH deleted AS (DELETE FROM bookings WHERE practice_id = ${currentTenant().practiceId} AND customer_id = ${customerId} RETURNING id) SELECT COUNT(*)::int AS count FROM deleted`;
+  const accounts = await database.sql<{ count: number }>`WITH deleted AS (DELETE FROM client_accounts WHERE practice_id = ${currentTenant().practiceId} AND customer_id = ${customerId} RETURNING id) SELECT COUNT(*)::int AS count FROM deleted`;
+  const customers = await database.sql<{ count: number }>`WITH deleted AS (DELETE FROM customers WHERE practice_id = ${currentTenant().practiceId} AND id = ${customerId} RETURNING id) SELECT COUNT(*)::int AS count FROM deleted`;
 
   const result = {
     deletedSessions: Number(sessions[0]?.count ?? 0),
@@ -891,33 +892,19 @@ export async function deleteAdminDataCustomerAndBookings(customerId: string, act
 
 // Settings can change from another Netlify function/instance. The diary loads
 // bootstrap only on navigation or explicit refresh, so do not serve stale hours.
-const BOOTSTRAP_CACHE_TTL_MS = 0;
-let cachedBootstrap: { data: BootstrapData; expiresAt: number } | null = null;
-
-function cloneBootstrapData(data: BootstrapData): BootstrapData {
-  return JSON.parse(JSON.stringify(data)) as BootstrapData;
-}
-
-export function invalidateBootstrapCache() {
-  cachedBootstrap = null;
-}
-
+// No process-wide cache: data belongs to a single request's tenant.
+export function invalidateBootstrapCache() { /* bootstrap is always fetched afresh */ }
 export async function getBootstrapData(): Promise<BootstrapData> {
-  const now = Date.now();
-  if (cachedBootstrap && cachedBootstrap.expiresAt > now) {
-    return cloneBootstrapData(cachedBootstrap.data);
-  }
-
   const database = db();
   const [practiceRows, procedureRows, blockedDateRows, blockedTimeRows, practitionerRows, practitionerWorkingHourRows, practitionerProcedureRows, practitionerBlockedTimeRows] = await Promise.all([
-    database.sql<PracticeRow>`SELECT * FROM practices WHERE id = ${PRACTICE_ID} LIMIT 1`,
-    database.sql<ProcedureRow>`SELECT id, name, duration_minutes, price_guide FROM procedures WHERE practice_id = ${PRACTICE_ID} AND active = TRUE ORDER BY display_order, name`,
-    database.sql<BlockedDateRow>`SELECT blocked_date::text AS blocked_date, reason FROM blocked_dates WHERE practice_id = ${PRACTICE_ID} ORDER BY blocked_date`,
-    database.sql<BlockedTimeRow>`SELECT id, blocked_date::text AS blocked_date, start_time::text AS start_time, end_time::text AS end_time, reason FROM blocked_times WHERE practice_id = ${PRACTICE_ID} ORDER BY blocked_date, start_time`,
-    database.sql<PractitionerRow>`SELECT id, name, role, active, display_order FROM practitioners WHERE practice_id = ${PRACTICE_ID} ORDER BY display_order, name`,
-    database.sql<PractitionerWorkingHourRow>`SELECT practitioner_id, day_of_week, start_time::text AS start_time, end_time::text AS end_time, active, lunch_break_enabled, lunch_break_start::text AS lunch_break_start, lunch_break_end::text AS lunch_break_end FROM practitioner_working_hours WHERE active = TRUE AND practitioner_id IN (SELECT id FROM practitioners WHERE practice_id = ${PRACTICE_ID}) ORDER BY practitioner_id, day_of_week`,
-    database.sql<PractitionerProcedureRow>`SELECT practitioner_id, procedure_id FROM practitioner_procedures WHERE practitioner_id IN (SELECT id FROM practitioners WHERE practice_id = ${PRACTICE_ID}) AND procedure_id IN (SELECT id FROM procedures WHERE practice_id = ${PRACTICE_ID}) ORDER BY practitioner_id, procedure_id`,
-    database.sql<PractitionerBlockedTimeRow>`SELECT id, practitioner_id, blocked_date::text AS blocked_date, start_time::text AS start_time, end_time::text AS end_time, reason FROM practitioner_blocked_times WHERE practitioner_id IN (SELECT id FROM practitioners WHERE practice_id = ${PRACTICE_ID}) ORDER BY blocked_date, start_time`
+    database.sql<PracticeRow>`SELECT * FROM practices WHERE id = ${currentTenant().practiceId} LIMIT 1`,
+    database.sql<ProcedureRow>`SELECT id, name, duration_minutes, price_guide FROM procedures WHERE practice_id = ${currentTenant().practiceId} AND active = TRUE ORDER BY display_order, name`,
+    database.sql<BlockedDateRow>`SELECT blocked_date::text AS blocked_date, reason FROM blocked_dates WHERE practice_id = ${currentTenant().practiceId} ORDER BY blocked_date`,
+    database.sql<BlockedTimeRow>`SELECT id, blocked_date::text AS blocked_date, start_time::text AS start_time, end_time::text AS end_time, reason FROM blocked_times WHERE practice_id = ${currentTenant().practiceId} ORDER BY blocked_date, start_time`,
+    database.sql<PractitionerRow>`SELECT id, name, role, active, display_order FROM practitioners WHERE practice_id = ${currentTenant().practiceId} ORDER BY display_order, name`,
+    database.sql<PractitionerWorkingHourRow>`SELECT practitioner_id, day_of_week, start_time::text AS start_time, end_time::text AS end_time, active, lunch_break_enabled, lunch_break_start::text AS lunch_break_start, lunch_break_end::text AS lunch_break_end FROM practitioner_working_hours WHERE active = TRUE AND practitioner_id IN (SELECT id FROM practitioners WHERE practice_id = ${currentTenant().practiceId}) ORDER BY practitioner_id, day_of_week`,
+    database.sql<PractitionerProcedureRow>`SELECT practitioner_id, procedure_id FROM practitioner_procedures WHERE practitioner_id IN (SELECT id FROM practitioners WHERE practice_id = ${currentTenant().practiceId}) AND procedure_id IN (SELECT id FROM procedures WHERE practice_id = ${currentTenant().practiceId}) ORDER BY practitioner_id, procedure_id`,
+    database.sql<PractitionerBlockedTimeRow>`SELECT id, practitioner_id, blocked_date::text AS blocked_date, start_time::text AS start_time, end_time::text AS end_time, reason FROM practitioner_blocked_times WHERE practitioner_id IN (SELECT id FROM practitioners WHERE practice_id = ${currentTenant().practiceId}) ORDER BY blocked_date, start_time`
   ]);
 
   if (!practiceRows[0]) throw new Error('Practice settings were not found. Check that the Netlify Database migration has run.');
@@ -933,15 +920,14 @@ export async function getBootstrapData(): Promise<BootstrapData> {
     practitionerBlockedTimes: practitionerBlockedTimeRows.map(mapPractitionerBlockedTime)
   };
 
-  cachedBootstrap = { data: cloneBootstrapData(data), expiresAt: now + BOOTSTRAP_CACHE_TTL_MS };
   return data;
 }
 
 export async function getBookings(date?: string): Promise<Booking[]> {
   const database = db();
   const rows = date
-    ? await database.sql<BookingRow>`SELECT id, patient_name, patient_phone, patient_email, customer_id, procedure_id, practitioner_id, booking_date::text AS booking_date, start_time::text AS start_time, end_time::text AS end_time, status, source, notes, created_at::text AS created_at, updated_at::text AS updated_at FROM bookings WHERE practice_id = ${PRACTICE_ID} AND booking_date = ${date}::date ORDER BY booking_date, start_time`
-    : await database.sql<BookingRow>`SELECT id, patient_name, patient_phone, patient_email, customer_id, procedure_id, practitioner_id, booking_date::text AS booking_date, start_time::text AS start_time, end_time::text AS end_time, status, source, notes, created_at::text AS created_at, updated_at::text AS updated_at FROM bookings WHERE practice_id = ${PRACTICE_ID} ORDER BY booking_date, start_time`;
+    ? await database.sql<BookingRow>`SELECT id, patient_name, patient_phone, patient_email, customer_id, procedure_id, practitioner_id, booking_date::text AS booking_date, start_time::text AS start_time, end_time::text AS end_time, status, source, notes, created_at::text AS created_at, updated_at::text AS updated_at FROM bookings WHERE practice_id = ${currentTenant().practiceId} AND booking_date = ${date}::date ORDER BY booking_date, start_time`
+    : await database.sql<BookingRow>`SELECT id, patient_name, patient_phone, patient_email, customer_id, procedure_id, practitioner_id, booking_date::text AS booking_date, start_time::text AS start_time, end_time::text AS end_time, status, source, notes, created_at::text AS created_at, updated_at::text AS updated_at FROM bookings WHERE practice_id = ${currentTenant().practiceId} ORDER BY booking_date, start_time`;
   return rows.map(mapBooking);
 }
 
@@ -958,7 +944,7 @@ export async function getPublicBookedSlots(date: string, sessionToken = ''): Pro
     b.practitioner_id, b.booking_date::text AS booking_date,
     b.start_time::text AS start_time, b.end_time::text AS end_time
     FROM bookings b
-    WHERE b.practice_id = ${PRACTICE_ID} AND b.booking_date = ${date}::date AND b.status <> 'cancelled'
+    WHERE b.practice_id = ${currentTenant().practiceId} AND b.booking_date = ${date}::date AND b.status <> 'cancelled'
     ORDER BY b.start_time, b.practitioner_id, b.id
   `;
   return publicBookingSlots(rows);
@@ -978,7 +964,7 @@ export async function searchCustomers(query: string): Promise<Customer[]> {
   const rows = await database.sql<CustomerRow>`
     SELECT id, full_name, phone, email, notes, has_client_login, last_seen_at::text AS last_seen_at, created_at::text AS created_at, updated_at::text AS updated_at
     FROM customers
-    WHERE practice_id = ${PRACTICE_ID}
+    WHERE practice_id = ${currentTenant().practiceId}
       AND (
         lower(full_name) LIKE ${pattern}
         OR lower(email) LIKE ${pattern}
@@ -996,7 +982,7 @@ async function findCustomerById(customerId: string): Promise<Customer | null> {
   const rows = await database.sql<CustomerRow>`
     SELECT id, full_name, phone, email, notes, has_client_login, last_seen_at::text AS last_seen_at, created_at::text AS created_at, updated_at::text AS updated_at
     FROM customers
-    WHERE practice_id = ${PRACTICE_ID} AND id = ${customerId}
+    WHERE practice_id = ${currentTenant().practiceId} AND id = ${customerId}
     LIMIT 1
   `;
   return rows[0] ? mapCustomer(rows[0]) : null;
@@ -1011,7 +997,7 @@ async function findOrCreateCustomer(input: { customerId?: string; patientName: s
       await database.sql`
         UPDATE customers
         SET full_name = ${input.patientName}, phone = ${input.patientPhone}, email = ${input.patientEmail}, last_seen_at = NOW(), updated_at = NOW()
-        WHERE practice_id = ${PRACTICE_ID} AND id = ${input.customerId}
+        WHERE practice_id = ${currentTenant().practiceId} AND id = ${input.customerId}
       `;
       await writeAdminAuditLog({ action: 'customer_updated_from_booking', entityType: 'customer', entityId: input.customerId, source: input.actor?.source ?? 'booking', details: { patientName: input.patientName, patientPhone: input.patientPhone, patientEmail: input.patientEmail }, actor: input.actor });
       return input.customerId;
@@ -1021,7 +1007,7 @@ async function findOrCreateCustomer(input: { customerId?: string; patientName: s
   const matchingRows = input.separateGuest ? [] : await database.sql<CustomerRow>`
     SELECT id, full_name, phone, email, notes, has_client_login, last_seen_at::text AS last_seen_at, created_at::text AS created_at, updated_at::text AS updated_at
     FROM customers
-    WHERE practice_id = ${PRACTICE_ID}
+    WHERE practice_id = ${currentTenant().practiceId}
       AND (phone = ${input.patientPhone} OR lower(email) = ${input.patientEmail.toLowerCase()})
     ORDER BY updated_at DESC
     LIMIT 1
@@ -1031,7 +1017,7 @@ async function findOrCreateCustomer(input: { customerId?: string; patientName: s
     await database.sql`
       UPDATE customers
       SET full_name = ${input.patientName}, phone = ${input.patientPhone}, email = ${input.patientEmail}, last_seen_at = NOW(), updated_at = NOW()
-      WHERE practice_id = ${PRACTICE_ID} AND id = ${matchingRows[0].id}
+      WHERE practice_id = ${currentTenant().practiceId} AND id = ${matchingRows[0].id}
     `;
     await writeAdminAuditLog({ action: 'customer_updated_from_booking', entityType: 'customer', entityId: matchingRows[0].id, source: input.actor?.source ?? 'booking', details: { patientName: input.patientName, patientPhone: input.patientPhone, patientEmail: input.patientEmail }, actor: input.actor });
     return matchingRows[0].id;
@@ -1040,7 +1026,7 @@ async function findOrCreateCustomer(input: { customerId?: string; patientName: s
   const id = `cust-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   await database.sql`
     INSERT INTO customers (id, practice_id, full_name, phone, email, notes, has_client_login, last_seen_at)
-    VALUES (${id}, ${PRACTICE_ID}, ${input.patientName}, ${input.patientPhone}, ${input.patientEmail}, ${input.notes ?? ''}, ${false}, NOW())
+    VALUES (${id}, ${currentTenant().practiceId}, ${input.patientName}, ${input.patientPhone}, ${input.patientEmail}, ${input.notes ?? ''}, ${false}, NOW())
   `;
   await writeAdminAuditLog({ action: 'customer_created', entityType: 'customer', entityId: id, source: input.actor?.source ?? 'booking', details: { patientName: input.patientName, patientPhone: input.patientPhone, patientEmail: input.patientEmail }, actor: input.actor });
   return id;
@@ -1088,7 +1074,7 @@ async function ensurePractitionerCanTakeBooking(input: { practitionerId: string;
   const practiceRows = await database.sql<{ working_days: number[]; working_start_time: string; working_end_time: string; lunch_break_enabled: boolean | null; lunch_break_start: string | null; lunch_break_end: string | null }>`
     SELECT working_days, working_start_time::text AS working_start_time, working_end_time::text AS working_end_time,
            lunch_break_enabled, lunch_break_start::text AS lunch_break_start, lunch_break_end::text AS lunch_break_end
-    FROM practices WHERE id = ${PRACTICE_ID} LIMIT 1
+    FROM practices WHERE id = ${currentTenant().practiceId} LIMIT 1
   `;
   const practice = practiceRows[0];
   if (!practice) throw new Error('Practice not found.');
@@ -1104,7 +1090,7 @@ async function ensurePractitionerCanTakeBooking(input: { practitionerId: string;
     SELECT p.id
     FROM practitioners p
     INNER JOIN practitioner_procedures pp ON pp.practitioner_id = p.id AND pp.procedure_id = ${input.procedureId}
-    WHERE p.id = ${input.practitionerId} AND p.practice_id = ${PRACTICE_ID} AND p.active = TRUE
+    WHERE p.id = ${input.practitionerId} AND p.practice_id = ${currentTenant().practiceId} AND p.active = TRUE
     LIMIT 1
   `;
   if (!practitionerRows[0]) throw new Error('The selected practitioner cannot perform this procedure.');
@@ -1126,7 +1112,7 @@ async function ensurePractitionerCanTakeBooking(input: { practitionerId: string;
   const blockedDateRows = await database.sql<{ id: string }>`
     SELECT id
     FROM blocked_dates
-    WHERE practice_id = ${PRACTICE_ID}
+    WHERE practice_id = ${currentTenant().practiceId}
       AND blocked_date = ${input.date}::date
     LIMIT 1
   `;
@@ -1135,7 +1121,7 @@ async function ensurePractitionerCanTakeBooking(input: { practitionerId: string;
   const bookingConflicts = await database.sql<{ id: string }>`
     SELECT id
     FROM bookings
-    WHERE practice_id = ${PRACTICE_ID}
+    WHERE practice_id = ${currentTenant().practiceId}
       AND practitioner_id = ${input.practitionerId}
       AND booking_date = ${input.date}::date
       AND status <> 'cancelled'
@@ -1149,7 +1135,7 @@ async function ensurePractitionerCanTakeBooking(input: { practitionerId: string;
   const practiceBlocks = await database.sql<{ id: string }>`
     SELECT id
     FROM blocked_times
-    WHERE practice_id = ${PRACTICE_ID}
+    WHERE practice_id = ${currentTenant().practiceId}
       AND blocked_date = ${input.date}::date
       AND start_time < ${input.endTime}::time
       AND ${input.time}::time < end_time
@@ -1178,7 +1164,7 @@ async function findCustomerForClientLogin(input: { phone?: string; localPhone?: 
   const rows = await database.sql<CustomerRow>`
     SELECT id, full_name, phone, email, notes, has_client_login, last_seen_at::text AS last_seen_at, created_at::text AS created_at, updated_at::text AS updated_at
     FROM customers
-    WHERE practice_id = ${PRACTICE_ID}
+    WHERE practice_id = ${currentTenant().practiceId}
       AND phone = ${phone}
     ORDER BY last_seen_at DESC NULLS LAST, updated_at DESC
     LIMIT 1
@@ -1200,7 +1186,7 @@ async function ensureClientLoginCustomer(input: { phone: string; localPhone?: st
           has_client_login = TRUE,
           last_seen_at = NOW(),
           updated_at = NOW()
-      WHERE practice_id = ${PRACTICE_ID} AND id = ${existing.id}
+      WHERE practice_id = ${currentTenant().practiceId} AND id = ${existing.id}
       RETURNING id, full_name, phone, email, notes, has_client_login, last_seen_at::text AS last_seen_at, created_at::text AS created_at, updated_at::text AS updated_at
     `;
     return mapCustomer(rows[0]);
@@ -1210,7 +1196,7 @@ async function ensureClientLoginCustomer(input: { phone: string; localPhone?: st
   const safeEmail = email || `${id}@client-login.local`;
   const rows = await database.sql<CustomerRow>`
     INSERT INTO customers (id, practice_id, full_name, phone, email, notes, has_client_login, last_seen_at)
-    VALUES (${id}, ${PRACTICE_ID}, ${'Client user'}, ${phone}, ${safeEmail}, ${'Created from client phone account identifier.'}, TRUE, NOW())
+    VALUES (${id}, ${currentTenant().practiceId}, ${'Client user'}, ${phone}, ${safeEmail}, ${'Created from client phone account identifier.'}, TRUE, NOW())
     RETURNING id, full_name, phone, email, notes, has_client_login, last_seen_at::text AS last_seen_at, created_at::text AS created_at, updated_at::text AS updated_at
   `;
   return mapCustomer(rows[0]);
@@ -1223,7 +1209,7 @@ async function ensureClientAccount(customer: Customer, input: { phone: string; l
   const existing = await database.sql<{ id: string }>`
     SELECT id
     FROM client_accounts
-    WHERE practice_id = ${PRACTICE_ID}
+    WHERE practice_id = ${currentTenant().practiceId}
       AND (customer_id = ${customer.id} OR login_phone = ${phone})
     LIMIT 1
   `;
@@ -1240,7 +1226,7 @@ async function ensureClientAccount(customer: Customer, input: { phone: string; l
   const id = `acct-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   await database.sql`
     INSERT INTO client_accounts (id, customer_id, practice_id, login_phone, login_email, otp_enabled)
-    VALUES (${id}, ${customer.id}, ${PRACTICE_ID}, ${phone}, ${email}, TRUE)
+    VALUES (${id}, ${customer.id}, ${currentTenant().practiceId}, ${phone}, ${email}, TRUE)
   `;
   return id;
 }
@@ -1251,7 +1237,7 @@ async function findClientAccountByPhone(phone: string): Promise<ClientAccountRow
   const rows = await database.sql<ClientAccountRow>`
     SELECT id, customer_id, login_phone, login_email, password_hash, verified_at::text AS verified_at
     FROM client_accounts
-    WHERE practice_id = ${PRACTICE_ID} AND login_phone = ${phone}
+    WHERE practice_id = ${currentTenant().practiceId} AND login_phone = ${phone}
     LIMIT 1
   `;
   return rows[0] ?? null;
@@ -1278,7 +1264,7 @@ export async function requestClientSignupOtp(input: { phone?: string; localPhone
   await database.sql`
     UPDATE client_accounts
     SET login_phone = ${phone}, login_email = ${email}, password_hash = ${passwordHash}, otp_enabled = TRUE, updated_at = NOW()
-    WHERE practice_id = ${PRACTICE_ID} AND id = ${accountId}
+    WHERE practice_id = ${currentTenant().practiceId} AND id = ${accountId}
   `;
 
   const otpId = `otp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -1288,14 +1274,14 @@ export async function requestClientSignupOtp(input: { phone?: string; localPhone
 
   await database.sql`
     INSERT INTO client_login_otps (id, practice_id, customer_id, destination, channel, otp_code_hash, expires_at)
-    VALUES (${otpId}, ${PRACTICE_ID}, ${customer.id}, ${destination}, ${channel}, ${hashSecret(`${otpId}:${code}`)}, NOW() + INTERVAL '10 minutes')
+    VALUES (${otpId}, ${currentTenant().practiceId}, ${customer.id}, ${destination}, ${channel}, ${hashSecret(`${otpId}:${code}`)}, NOW() + INTERVAL '10 minutes')
   `;
 
   const delivery = await deliverClientOtp({ channel, destination, code, otpId, purpose: 'signup' });
 
   await database.sql`
     INSERT INTO audit_logs (id, practice_id, action, entity_type, entity_id, source, details)
-    VALUES (${`audit-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`}, ${PRACTICE_ID}, ${'client_signup_otp_requested'}, ${'customer'}, ${customer.id}, ${'client'}, ${JSON.stringify({ channel, destination, accountPhone: phone, deliveryMode: delivery.mode, deliveryProvider: delivery.provider, deliveryReady: delivery.delivered })}::jsonb)
+    VALUES (${`audit-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`}, ${currentTenant().practiceId}, ${'client_signup_otp_requested'}, ${'customer'}, ${customer.id}, ${'client'}, ${JSON.stringify({ channel, destination, accountPhone: phone, deliveryMode: delivery.mode, deliveryProvider: delivery.provider, deliveryReady: delivery.delivered })}::jsonb)
   `;
 
   const rows = await database.sql<{ expires_at: string }>`SELECT expires_at::text AS expires_at FROM client_login_otps WHERE id = ${otpId} LIMIT 1`;
@@ -1322,7 +1308,7 @@ export async function verifyClientSignupOtp(input: { otpId: string; code: string
   const rows = await database.sql<ClientLoginOtpRow>`
     SELECT id, customer_id, destination, channel, otp_code_hash, expires_at::text AS expires_at, attempts, consumed_at::text AS consumed_at
     FROM client_login_otps
-    WHERE practice_id = ${PRACTICE_ID} AND id = ${otpId}
+    WHERE practice_id = ${currentTenant().practiceId} AND id = ${otpId}
     LIMIT 1
   `;
   const otp = rows[0];
@@ -1339,9 +1325,9 @@ export async function verifyClientSignupOtp(input: { otpId: string; code: string
   await database.sql`
     UPDATE client_accounts
     SET verified_at = COALESCE(verified_at, NOW()), last_login_at = NOW(), updated_at = NOW()
-    WHERE practice_id = ${PRACTICE_ID} AND customer_id = ${otp.customer_id}
+    WHERE practice_id = ${currentTenant().practiceId} AND customer_id = ${otp.customer_id}
   `;
-  await database.sql`UPDATE customers SET has_client_login = TRUE, last_seen_at = NOW(), updated_at = NOW() WHERE practice_id = ${PRACTICE_ID} AND id = ${otp.customer_id}`;
+  await database.sql`UPDATE customers SET has_client_login = TRUE, last_seen_at = NOW(), updated_at = NOW() WHERE practice_id = ${currentTenant().practiceId} AND id = ${otp.customer_id}`;
 
   const sessionToken = await createClientSession(otp.customer_id);
   const profile = await getClientProfile(otp.customer_id);
@@ -1364,9 +1350,9 @@ export async function loginClientWithPassword(input: { phone?: string; localPhon
   await database.sql`
     UPDATE client_accounts
     SET last_login_at = NOW(), updated_at = NOW()
-    WHERE practice_id = ${PRACTICE_ID} AND id = ${account.id}
+    WHERE practice_id = ${currentTenant().practiceId} AND id = ${account.id}
   `;
-  await database.sql`UPDATE customers SET last_seen_at = NOW(), updated_at = NOW() WHERE practice_id = ${PRACTICE_ID} AND id = ${account.customer_id}`;
+  await database.sql`UPDATE customers SET last_seen_at = NOW(), updated_at = NOW() WHERE practice_id = ${currentTenant().practiceId} AND id = ${account.customer_id}`;
 
   const sessionToken = await createClientSession(account.customer_id);
   const profile = await getClientProfile(account.customer_id);
@@ -1395,14 +1381,14 @@ export async function requestClientPasswordResetOtp(input: { phone?: string; loc
 
   await database.sql`
     INSERT INTO client_login_otps (id, practice_id, customer_id, destination, channel, otp_code_hash, expires_at)
-    VALUES (${otpId}, ${PRACTICE_ID}, ${account.customer_id}, ${destination}, ${channel}, ${hashSecret(`${otpId}:${code}`)}, NOW() + INTERVAL '10 minutes')
+    VALUES (${otpId}, ${currentTenant().practiceId}, ${account.customer_id}, ${destination}, ${channel}, ${hashSecret(`${otpId}:${code}`)}, NOW() + INTERVAL '10 minutes')
   `;
 
   const delivery = await deliverClientOtp({ channel, destination, code, otpId, purpose: 'password-reset' });
 
   await database.sql`
     INSERT INTO audit_logs (id, practice_id, action, entity_type, entity_id, source, details)
-    VALUES (${`audit-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`}, ${PRACTICE_ID}, ${'client_password_reset_otp_requested'}, ${'customer'}, ${account.customer_id}, ${'client'}, ${JSON.stringify({ channel, destination, accountPhone: phone, deliveryMode: delivery.mode, deliveryProvider: delivery.provider, deliveryReady: delivery.delivered })}::jsonb)
+    VALUES (${`audit-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`}, ${currentTenant().practiceId}, ${'client_password_reset_otp_requested'}, ${'customer'}, ${account.customer_id}, ${'client'}, ${JSON.stringify({ channel, destination, accountPhone: phone, deliveryMode: delivery.mode, deliveryProvider: delivery.provider, deliveryReady: delivery.delivered })}::jsonb)
   `;
 
   const rows = await database.sql<{ expires_at: string }>`SELECT expires_at::text AS expires_at FROM client_login_otps WHERE id = ${otpId} LIMIT 1`;
@@ -1430,7 +1416,7 @@ export async function confirmClientPasswordReset(input: { otpId: string; code: s
   const rows = await database.sql<ClientLoginOtpRow>`
     SELECT id, customer_id, destination, channel, otp_code_hash, expires_at::text AS expires_at, attempts, consumed_at::text AS consumed_at
     FROM client_login_otps
-    WHERE practice_id = ${PRACTICE_ID} AND id = ${otpId}
+    WHERE practice_id = ${currentTenant().practiceId} AND id = ${otpId}
     LIMIT 1
   `;
   const otp = rows[0];
@@ -1446,7 +1432,7 @@ export async function confirmClientPasswordReset(input: { otpId: string; code: s
   const accountRows = await database.sql<ClientAccountRow>`
     SELECT id, customer_id, login_phone, login_email, password_hash, verified_at::text AS verified_at
     FROM client_accounts
-    WHERE practice_id = ${PRACTICE_ID} AND customer_id = ${otp.customer_id}
+    WHERE practice_id = ${currentTenant().practiceId} AND customer_id = ${otp.customer_id}
     ORDER BY updated_at DESC, created_at DESC
     LIMIT 1
   `;
@@ -1457,17 +1443,17 @@ export async function confirmClientPasswordReset(input: { otpId: string; code: s
   await database.sql`
     UPDATE client_accounts
     SET password_hash = ${hashClientPassword(account.id, password)}, verified_at = COALESCE(verified_at, NOW()), last_login_at = NOW(), updated_at = NOW()
-    WHERE practice_id = ${PRACTICE_ID} AND id = ${account.id}
+    WHERE practice_id = ${currentTenant().practiceId} AND id = ${account.id}
   `;
   await database.sql`
     UPDATE client_sessions
     SET revoked_at = NOW()
-    WHERE practice_id = ${PRACTICE_ID} AND customer_id = ${otp.customer_id} AND revoked_at IS NULL
+    WHERE practice_id = ${currentTenant().practiceId} AND customer_id = ${otp.customer_id} AND revoked_at IS NULL
   `;
-  await database.sql`UPDATE customers SET has_client_login = TRUE, last_seen_at = NOW(), updated_at = NOW() WHERE practice_id = ${PRACTICE_ID} AND id = ${otp.customer_id}`;
+  await database.sql`UPDATE customers SET has_client_login = TRUE, last_seen_at = NOW(), updated_at = NOW() WHERE practice_id = ${currentTenant().practiceId} AND id = ${otp.customer_id}`;
   await database.sql`
     INSERT INTO audit_logs (id, practice_id, action, entity_type, entity_id, source, details)
-    VALUES (${`audit-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`}, ${PRACTICE_ID}, ${'client_password_reset_completed'}, ${'customer'}, ${otp.customer_id}, ${'client'}, ${JSON.stringify({ destination: otp.destination, channel: otp.channel })}::jsonb)
+    VALUES (${`audit-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`}, ${currentTenant().practiceId}, ${'client_password_reset_completed'}, ${'customer'}, ${otp.customer_id}, ${'client'}, ${JSON.stringify({ destination: otp.destination, channel: otp.channel })}::jsonb)
   `;
 
   const sessionToken = await createClientSession(otp.customer_id);
@@ -1494,14 +1480,14 @@ export async function requestClientLoginOtp(input: { phone?: string; localPhone?
 
   await database.sql`
     INSERT INTO client_login_otps (id, practice_id, customer_id, destination, channel, otp_code_hash, expires_at)
-    VALUES (${otpId}, ${PRACTICE_ID}, ${customer.id}, ${destination}, ${channel}, ${hashSecret(`${otpId}:${code}`)}, NOW() + INTERVAL '10 minutes')
+    VALUES (${otpId}, ${currentTenant().practiceId}, ${customer.id}, ${destination}, ${channel}, ${hashSecret(`${otpId}:${code}`)}, NOW() + INTERVAL '10 minutes')
   `;
 
   const delivery = await deliverClientOtp({ channel, destination, code, otpId, purpose: 'login' });
 
   await database.sql`
     INSERT INTO audit_logs (id, practice_id, action, entity_type, entity_id, source, details)
-    VALUES (${`audit-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`}, ${PRACTICE_ID}, ${'client_login_otp_requested'}, ${'customer'}, ${customer.id}, ${'client'}, ${JSON.stringify({ channel, destination, accountPhone: phone, deliveryMode: delivery.mode, deliveryProvider: delivery.provider, deliveryReady: delivery.delivered })}::jsonb)
+    VALUES (${`audit-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`}, ${currentTenant().practiceId}, ${'client_login_otp_requested'}, ${'customer'}, ${customer.id}, ${'client'}, ${JSON.stringify({ channel, destination, accountPhone: phone, deliveryMode: delivery.mode, deliveryProvider: delivery.provider, deliveryReady: delivery.delivered })}::jsonb)
   `;
 
   const rows = await database.sql<{ expires_at: string }>`SELECT expires_at::text AS expires_at FROM client_login_otps WHERE id = ${otpId} LIMIT 1`;
@@ -1535,7 +1521,7 @@ async function getClientBookingsForCustomer(customerId: string): Promise<ClientL
     FROM bookings b
     LEFT JOIN procedures p ON p.id = b.procedure_id
     LEFT JOIN practitioners pr ON pr.id = b.practitioner_id
-    WHERE b.practice_id = ${PRACTICE_ID} AND b.customer_id = ${customerId}
+    WHERE b.practice_id = ${currentTenant().practiceId} AND b.customer_id = ${customerId}
     ORDER BY b.booking_date DESC, b.start_time DESC
     LIMIT 20
   `;
@@ -1570,7 +1556,7 @@ export async function verifyClientLoginOtp(input: { otpId: string; code: string 
   const rows = await database.sql<ClientLoginOtpRow>`
     SELECT id, customer_id, destination, channel, otp_code_hash, expires_at::text AS expires_at, attempts, consumed_at::text AS consumed_at
     FROM client_login_otps
-    WHERE practice_id = ${PRACTICE_ID} AND id = ${otpId}
+    WHERE practice_id = ${currentTenant().practiceId} AND id = ${otpId}
     LIMIT 1
   `;
   const otp = rows[0];
@@ -1587,9 +1573,9 @@ export async function verifyClientLoginOtp(input: { otpId: string; code: string 
   await database.sql`
     UPDATE client_accounts
     SET verified_at = COALESCE(verified_at, NOW()), last_login_at = NOW(), updated_at = NOW()
-    WHERE practice_id = ${PRACTICE_ID} AND customer_id = ${otp.customer_id}
+    WHERE practice_id = ${currentTenant().practiceId} AND customer_id = ${otp.customer_id}
   `;
-  await database.sql`UPDATE customers SET has_client_login = TRUE, last_seen_at = NOW(), updated_at = NOW() WHERE practice_id = ${PRACTICE_ID} AND id = ${otp.customer_id}`;
+  await database.sql`UPDATE customers SET has_client_login = TRUE, last_seen_at = NOW(), updated_at = NOW() WHERE practice_id = ${currentTenant().practiceId} AND id = ${otp.customer_id}`;
 
   const sessionToken = await createClientSession(otp.customer_id);
   const profile = await getClientProfile(otp.customer_id);
@@ -1609,7 +1595,7 @@ async function getClientSessionForToken(sessionToken: string): Promise<ClientSes
   const rows = await database.sql<ClientSessionRow>`
     SELECT id, customer_id, expires_at::text AS expires_at
     FROM client_sessions
-    WHERE practice_id = ${PRACTICE_ID}
+    WHERE practice_id = ${currentTenant().practiceId}
       AND session_token_hash = ${hashSecret(token)}
       AND revoked_at IS NULL
     LIMIT 1
@@ -1634,7 +1620,7 @@ export async function saveAdminPushSubscription(input: { actor: AdminActor; subs
 
   await database.sql`
     INSERT INTO admin_push_subscriptions (id, practice_id, staff_id, staff_name, endpoint, p256dh, auth, user_agent, enabled, last_seen_at)
-    VALUES (${subscription.id}, ${PRACTICE_ID}, ${staffId}, ${staffName}, ${subscription.endpoint}, ${subscription.p256dh}, ${subscription.auth}, ${input.userAgent ?? ''}, ${true}, NOW())
+    VALUES (${subscription.id}, ${currentTenant().practiceId}, ${staffId}, ${staffName}, ${subscription.endpoint}, ${subscription.p256dh}, ${subscription.auth}, ${input.userAgent ?? ''}, ${true}, NOW())
     ON CONFLICT (practice_id, endpoint)
     DO UPDATE SET
       staff_id = EXCLUDED.staff_id,
@@ -1649,7 +1635,7 @@ export async function saveAdminPushSubscription(input: { actor: AdminActor; subs
 
   await database.sql`
     INSERT INTO audit_logs (id, practice_id, action, entity_type, entity_id, source, staff_id, staff_name, details)
-    VALUES (${`audit-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`}, ${PRACTICE_ID}, ${'admin_push_subscription_saved'}, ${'staff'}, ${staffId}, ${'staff'}, ${staffId}, ${staffName}, ${JSON.stringify({ endpoint: subscription.endpoint.slice(0, 80), configured: isPushDeliveryConfigured(), phoneOnly: true })}::jsonb)
+    VALUES (${`audit-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`}, ${currentTenant().practiceId}, ${'admin_push_subscription_saved'}, ${'staff'}, ${staffId}, ${'staff'}, ${staffId}, ${staffName}, ${JSON.stringify({ endpoint: subscription.endpoint.slice(0, 80), configured: isPushDeliveryConfigured(), phoneOnly: true })}::jsonb)
   `;
 
   return { saved: true, configured: isPushDeliveryConfigured() };
@@ -1665,19 +1651,19 @@ export async function disableAdminPushSubscription(input: { actor: AdminActor; e
     await database.sql`
       UPDATE admin_push_subscriptions
       SET enabled = FALSE, updated_at = NOW()
-      WHERE practice_id = ${PRACTICE_ID} AND staff_id = ${staffId} AND endpoint = ${endpoint}
+      WHERE practice_id = ${currentTenant().practiceId} AND staff_id = ${staffId} AND endpoint = ${endpoint}
     `;
   } else {
     await database.sql`
       UPDATE admin_push_subscriptions
       SET enabled = FALSE, updated_at = NOW()
-      WHERE practice_id = ${PRACTICE_ID} AND staff_id = ${staffId}
+      WHERE practice_id = ${currentTenant().practiceId} AND staff_id = ${staffId}
     `;
   }
 
   await database.sql`
     INSERT INTO audit_logs (id, practice_id, action, entity_type, entity_id, source, staff_id, staff_name, details)
-    VALUES (${`audit-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`}, ${PRACTICE_ID}, ${'admin_push_subscription_disabled'}, ${'staff'}, ${staffId}, ${'staff'}, ${staffId}, ${staffName}, ${JSON.stringify({ endpoint: endpoint ? endpoint.slice(0, 80) : 'all' })}::jsonb)
+    VALUES (${`audit-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`}, ${currentTenant().practiceId}, ${'admin_push_subscription_disabled'}, ${'staff'}, ${staffId}, ${'staff'}, ${staffId}, ${staffName}, ${JSON.stringify({ endpoint: endpoint ? endpoint.slice(0, 80) : 'all' })}::jsonb)
   `;
 
   return { disabled: true };
@@ -1689,7 +1675,7 @@ export async function getAdminPushSubscriptionStatus(actor: AdminActor) {
   const rows = await database.sql<{ count: number }>`
     SELECT COUNT(*)::int AS count
     FROM admin_push_subscriptions
-    WHERE practice_id = ${PRACTICE_ID} AND staff_id = ${staffId} AND enabled = TRUE
+    WHERE practice_id = ${currentTenant().practiceId} AND staff_id = ${staffId} AND enabled = TRUE
   `;
   return { configured: isPushDeliveryConfigured(), activeSubscriptions: Number(rows[0]?.count ?? 0) };
 }
@@ -1699,7 +1685,7 @@ async function getActiveAdminPushSubscriptions(): Promise<StoredPushSubscription
   const rows = await database.sql<{ id: string; endpoint: string; p256dh: string; auth: string; user_agent: string | null }>`
     SELECT id, endpoint, p256dh, auth, user_agent
     FROM admin_push_subscriptions
-    WHERE practice_id = ${PRACTICE_ID} AND enabled = TRUE
+    WHERE practice_id = ${currentTenant().practiceId} AND enabled = TRUE
     ORDER BY updated_at DESC
   `;
   return rows
@@ -1739,14 +1725,14 @@ async function sendAdminBookingChangePush(input: { booking: Booking; action: 'bo
       await database.sql`
         UPDATE admin_push_subscriptions
         SET last_success_at = NOW(), last_seen_at = NOW(), failure_count = 0, updated_at = NOW()
-        WHERE practice_id = ${PRACTICE_ID} AND id = ${subscription.id}
+        WHERE practice_id = ${currentTenant().practiceId} AND id = ${subscription.id}
       `;
     } else {
       failed += 1;
       await database.sql`
         UPDATE admin_push_subscriptions
         SET last_failure_at = NOW(), failure_count = failure_count + 1, enabled = CASE WHEN ${Boolean(result.invalidSubscription)} THEN FALSE ELSE enabled END, updated_at = NOW()
-        WHERE practice_id = ${PRACTICE_ID} AND id = ${subscription.id}
+        WHERE practice_id = ${currentTenant().practiceId} AND id = ${subscription.id}
       `;
     }
   }
@@ -1762,7 +1748,7 @@ export async function saveClientPushSubscriptionForSession(input: { sessionToken
 
   await database.sql`
     INSERT INTO client_push_subscriptions (id, practice_id, customer_id, endpoint, p256dh, auth, user_agent, enabled, last_seen_at)
-    VALUES (${subscription.id}, ${PRACTICE_ID}, ${session.customer_id}, ${subscription.endpoint}, ${subscription.p256dh}, ${subscription.auth}, ${input.userAgent ?? ''}, ${true}, NOW())
+    VALUES (${subscription.id}, ${currentTenant().practiceId}, ${session.customer_id}, ${subscription.endpoint}, ${subscription.p256dh}, ${subscription.auth}, ${input.userAgent ?? ''}, ${true}, NOW())
     ON CONFLICT (practice_id, endpoint)
     DO UPDATE SET
       customer_id = EXCLUDED.customer_id,
@@ -1776,7 +1762,7 @@ export async function saveClientPushSubscriptionForSession(input: { sessionToken
 
   await database.sql`
     INSERT INTO audit_logs (id, practice_id, action, entity_type, entity_id, source, details)
-    VALUES (${`audit-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`}, ${PRACTICE_ID}, ${'client_push_subscription_saved'}, ${'customer'}, ${session.customer_id}, ${'client'}, ${JSON.stringify({ endpoint: subscription.endpoint.slice(0, 80), configured: isPushDeliveryConfigured() })}::jsonb)
+    VALUES (${`audit-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`}, ${currentTenant().practiceId}, ${'client_push_subscription_saved'}, ${'customer'}, ${session.customer_id}, ${'client'}, ${JSON.stringify({ endpoint: subscription.endpoint.slice(0, 80), configured: isPushDeliveryConfigured() })}::jsonb)
   `;
 
   return { saved: true, configured: isPushDeliveryConfigured() };
@@ -1791,19 +1777,19 @@ export async function disableClientPushSubscriptionForSession(input: { sessionTo
     await database.sql`
       UPDATE client_push_subscriptions
       SET enabled = FALSE, updated_at = NOW()
-      WHERE practice_id = ${PRACTICE_ID} AND customer_id = ${session.customer_id} AND endpoint = ${endpoint}
+      WHERE practice_id = ${currentTenant().practiceId} AND customer_id = ${session.customer_id} AND endpoint = ${endpoint}
     `;
   } else {
     await database.sql`
       UPDATE client_push_subscriptions
       SET enabled = FALSE, updated_at = NOW()
-      WHERE practice_id = ${PRACTICE_ID} AND customer_id = ${session.customer_id}
+      WHERE practice_id = ${currentTenant().practiceId} AND customer_id = ${session.customer_id}
     `;
   }
 
   await database.sql`
     INSERT INTO audit_logs (id, practice_id, action, entity_type, entity_id, source, details)
-    VALUES (${`audit-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`}, ${PRACTICE_ID}, ${'client_push_subscription_disabled'}, ${'customer'}, ${session.customer_id}, ${'client'}, ${JSON.stringify({ endpoint: endpoint ? endpoint.slice(0, 80) : 'all' })}::jsonb)
+    VALUES (${`audit-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`}, ${currentTenant().practiceId}, ${'client_push_subscription_disabled'}, ${'customer'}, ${session.customer_id}, ${'client'}, ${JSON.stringify({ endpoint: endpoint ? endpoint.slice(0, 80) : 'all' })}::jsonb)
   `;
 
   return { disabled: true };
@@ -1815,7 +1801,7 @@ export async function getClientPushSubscriptionStatus(sessionToken: string) {
   const rows = await database.sql<{ count: number }>`
     SELECT COUNT(*)::int AS count
     FROM client_push_subscriptions
-    WHERE practice_id = ${PRACTICE_ID} AND customer_id = ${session.customer_id} AND enabled = TRUE
+    WHERE practice_id = ${currentTenant().practiceId} AND customer_id = ${session.customer_id} AND enabled = TRUE
   `;
   return { configured: isPushDeliveryConfigured(), activeSubscriptions: Number(rows[0]?.count ?? 0) };
 }
@@ -1825,7 +1811,7 @@ async function getActiveClientPushSubscriptions(customerId: string): Promise<Sto
   const rows = await database.sql<{ id: string; endpoint: string; p256dh: string; auth: string; user_agent: string | null }>`
     SELECT id, endpoint, p256dh, auth, user_agent
     FROM client_push_subscriptions
-    WHERE practice_id = ${PRACTICE_ID} AND customer_id = ${customerId} AND enabled = TRUE
+    WHERE practice_id = ${currentTenant().practiceId} AND customer_id = ${customerId} AND enabled = TRUE
     ORDER BY updated_at DESC
   `;
   return rows
@@ -1871,14 +1857,14 @@ async function sendClientBookingPushNotification(input: {
       await database.sql`
         UPDATE client_push_subscriptions
         SET last_success_at = NOW(), last_seen_at = NOW(), failure_count = 0, updated_at = NOW()
-        WHERE practice_id = ${PRACTICE_ID} AND id = ${subscription.id}
+        WHERE practice_id = ${currentTenant().practiceId} AND id = ${subscription.id}
       `;
     } else {
       failed += 1;
       await database.sql`
         UPDATE client_push_subscriptions
         SET last_failure_at = NOW(), failure_count = failure_count + 1, enabled = CASE WHEN ${Boolean(result.invalidSubscription)} THEN FALSE ELSE enabled END, updated_at = NOW()
-        WHERE practice_id = ${PRACTICE_ID} AND id = ${subscription.id}
+        WHERE practice_id = ${currentTenant().practiceId} AND id = ${subscription.id}
       `;
     }
   }
@@ -1934,7 +1920,7 @@ export async function createBookingInDatabase(input: {
       id, practice_id, patient_name, patient_phone, patient_email, customer_id, procedure_id, practitioner_id,
       booking_date, start_time, end_time, status, source, notes
     ) VALUES (
-      ${id}, ${PRACTICE_ID}, ${input.patientName}, ${input.patientPhone}, ${input.patientEmail}, ${customerId}, ${input.procedureId}, ${input.practitionerId},
+      ${id}, ${currentTenant().practiceId}, ${input.patientName}, ${input.patientPhone}, ${input.patientEmail}, ${customerId}, ${input.procedureId}, ${input.practitionerId},
       ${input.date}, ${input.time}, ${endTime}, ${'confirmed'}, ${input.source}, ${input.notes ?? ''}
     )
     RETURNING id, patient_name, patient_phone, patient_email, customer_id, procedure_id, practitioner_id, booking_date::text AS booking_date, start_time::text AS start_time, end_time::text AS end_time, status, source, notes, created_at::text AS created_at, updated_at::text AS updated_at
@@ -1942,7 +1928,7 @@ export async function createBookingInDatabase(input: {
 
   await database.sql`
     INSERT INTO audit_logs (id, practice_id, action, entity_type, entity_id, source, details)
-    VALUES (${`audit-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`}, ${PRACTICE_ID}, ${'booking_created'}, ${'booking'}, ${id}, ${input.source}, ${JSON.stringify({ patientName: input.patientName, patientPhone: input.patientPhone, patientEmail: input.patientEmail, date: input.date, time: input.time, procedureId: input.procedureId, practitionerId: input.practitionerId, customerId, staffId: input.actor?.staffId, staffName: input.actor?.staffName })}::jsonb)
+    VALUES (${`audit-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`}, ${currentTenant().practiceId}, ${'booking_created'}, ${'booking'}, ${id}, ${input.source}, ${JSON.stringify({ patientName: input.patientName, patientPhone: input.patientPhone, patientEmail: input.patientEmail, date: input.date, time: input.time, procedureId: input.procedureId, practitionerId: input.practitionerId, customerId, staffId: input.actor?.staffId, staffName: input.actor?.staffName })}::jsonb)
   `;
 
   const booking = mapBooking(rows[0]);
@@ -1956,7 +1942,7 @@ export async function createBookingInDatabase(input: {
 
   await database.sql`
     INSERT INTO audit_logs (id, practice_id, action, entity_type, entity_id, source, details)
-    VALUES (${`audit-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`}, ${PRACTICE_ID}, ${'booking_client_confirmation_email'}, ${'booking'}, ${id}, ${input.source}, ${JSON.stringify(clientNotification)}::jsonb)
+    VALUES (${`audit-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`}, ${currentTenant().practiceId}, ${'booking_client_confirmation_email'}, ${'booking'}, ${id}, ${input.source}, ${JSON.stringify(clientNotification)}::jsonb)
   `;
 
   const clientPushNotification = await sendClientBookingPushNotification({
@@ -1968,7 +1954,7 @@ export async function createBookingInDatabase(input: {
 
   await database.sql`
     INSERT INTO audit_logs (id, practice_id, action, entity_type, entity_id, source, details)
-    VALUES (${`audit-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`}, ${PRACTICE_ID}, ${'booking_client_push_notification'}, ${'booking'}, ${id}, ${input.source}, ${JSON.stringify(clientPushNotification)}::jsonb)
+    VALUES (${`audit-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`}, ${currentTenant().practiceId}, ${'booking_client_push_notification'}, ${'booking'}, ${id}, ${input.source}, ${JSON.stringify(clientPushNotification)}::jsonb)
   `;
 
   return booking;
@@ -2004,7 +1990,7 @@ async function getBookingRowById(id: string): Promise<BookingRow | null> {
            booking_date::text AS booking_date, start_time::text AS start_time, end_time::text AS end_time,
            status, source, notes, created_at::text AS created_at, updated_at::text AS updated_at
     FROM bookings
-    WHERE practice_id = ${PRACTICE_ID} AND id = ${id}
+    WHERE practice_id = ${currentTenant().practiceId} AND id = ${id}
     LIMIT 1
   `;
   return rows[0] ?? null;
@@ -2022,7 +2008,7 @@ async function auditBookingPushNotification(input: { bookingId: string; source: 
   const database = db();
   await database.sql`
     INSERT INTO audit_logs (id, practice_id, action, entity_type, entity_id, source, details)
-    VALUES (${`audit-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`}, ${PRACTICE_ID}, ${input.action}, ${'booking'}, ${input.bookingId}, ${input.source}, ${JSON.stringify(input.result)}::jsonb)
+    VALUES (${`audit-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`}, ${currentTenant().practiceId}, ${input.action}, ${'booking'}, ${input.bookingId}, ${input.source}, ${JSON.stringify(input.result)}::jsonb)
   `;
 }
 
@@ -2081,7 +2067,7 @@ export async function updateBookingDetailsInDatabase(id: string, input: BookingD
     await database.sql`
       UPDATE customers
       SET full_name = ${input.patientName}, phone = ${input.patientPhone}, email = ${input.patientEmail}, last_seen_at = NOW(), updated_at = NOW()
-      WHERE practice_id = ${PRACTICE_ID} AND id = ${customerId}
+      WHERE practice_id = ${currentTenant().practiceId} AND id = ${customerId}
     `;
   }
 
@@ -2101,7 +2087,7 @@ export async function updateBookingDetailsInDatabase(id: string, input: BookingD
         status = CASE WHEN status = 'cancelled' THEN 'confirmed' ELSE status END,
         notes = ${input.notes ?? ''},
         updated_at = NOW()
-    WHERE practice_id = ${PRACTICE_ID} AND id = ${id}
+    WHERE practice_id = ${currentTenant().practiceId} AND id = ${id}
     RETURNING id, patient_name, patient_phone, patient_email, customer_id, procedure_id, practitioner_id, booking_date::text AS booking_date, start_time::text AS start_time, end_time::text AS end_time, status, source, notes, created_at::text AS created_at, updated_at::text AS updated_at
   `;
 
@@ -2118,7 +2104,7 @@ export async function updateBookingDetailsInDatabase(id: string, input: BookingD
 
   await database.sql`
     INSERT INTO audit_logs (id, practice_id, action, entity_type, entity_id, source, details)
-    VALUES (${`audit-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`}, ${PRACTICE_ID}, ${'booking_updated'}, ${'booking'}, ${id}, ${source}, ${JSON.stringify(details)}::jsonb)
+    VALUES (${`audit-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`}, ${currentTenant().practiceId}, ${'booking_updated'}, ${'booking'}, ${id}, ${source}, ${JSON.stringify(details)}::jsonb)
   `;
 
   const pushResult = await sendBookingChangePush({
@@ -2156,7 +2142,7 @@ export async function updateBookingStatusInDatabase(id: string, status: BookingS
   const rows = await database.sql<BookingRow>`
     UPDATE bookings
     SET status = ${status}, updated_at = NOW()
-    WHERE practice_id = ${PRACTICE_ID} AND id = ${id}
+    WHERE practice_id = ${currentTenant().practiceId} AND id = ${id}
     RETURNING id, patient_name, patient_phone, patient_email, customer_id, procedure_id, practitioner_id, booking_date::text AS booking_date, start_time::text AS start_time, end_time::text AS end_time, status, source, notes, created_at::text AS created_at, updated_at::text AS updated_at
   `;
 
@@ -2164,7 +2150,7 @@ export async function updateBookingStatusInDatabase(id: string, status: BookingS
 
   await database.sql`
     INSERT INTO audit_logs (id, practice_id, action, entity_type, entity_id, source, details)
-    VALUES (${`audit-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`}, ${PRACTICE_ID}, ${'booking_status_updated'}, ${'booking'}, ${id}, ${'admin'}, ${JSON.stringify({ status, staffId: actor?.staffId, staffName: actor?.staffName })}::jsonb)
+    VALUES (${`audit-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`}, ${currentTenant().practiceId}, ${'booking_status_updated'}, ${'booking'}, ${id}, ${'admin'}, ${JSON.stringify({ status, staffId: actor?.staffId, staffName: actor?.staffName })}::jsonb)
   `;
 
   const booking = mapBooking(rows[0]);
@@ -2188,7 +2174,7 @@ export async function getPastBookingsDemoCleanupSummary(): Promise<{ pastBooking
   const rows = await database.sql<{ count: number; before_date: string }>`
     SELECT COUNT(*)::int AS count, CURRENT_DATE::text AS before_date
     FROM bookings
-    WHERE practice_id = ${PRACTICE_ID}
+    WHERE practice_id = ${currentTenant().practiceId}
       AND booking_date < CURRENT_DATE
   `;
 
@@ -2203,7 +2189,7 @@ export async function deletePastBookingsForDemo(): Promise<{ deletedBookings: nu
   const deleted = await database.sql<{ count: number; before_date: string }>`
     WITH removed AS (
       DELETE FROM bookings
-      WHERE practice_id = ${PRACTICE_ID}
+      WHERE practice_id = ${currentTenant().practiceId}
         AND booking_date < CURRENT_DATE
       RETURNING id
     )
@@ -2216,7 +2202,7 @@ export async function deletePastBookingsForDemo(): Promise<{ deletedBookings: nu
 
   await database.sql`
     INSERT INTO audit_logs (id, practice_id, action, entity_type, entity_id, source, details)
-    VALUES (${`audit-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`}, ${PRACTICE_ID}, ${'past_bookings_demo_cleanup'}, ${'booking'}, ${'past-bookings'}, ${'admin'}, ${JSON.stringify({ deletedBookings, beforeDate })}::jsonb)
+    VALUES (${`audit-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`}, ${currentTenant().practiceId}, ${'past_bookings_demo_cleanup'}, ${'booking'}, ${'past-bookings'}, ${'admin'}, ${JSON.stringify({ deletedBookings, beforeDate })}::jsonb)
   `;
 
   return { deletedBookings, beforeDate };
@@ -2228,10 +2214,10 @@ export async function deleteBookingFromDatabase(id: string, actor?: AdminActor, 
   if (!existingRow) throw new Error('Booking not found.');
   const booking = mapBooking(existingRow);
 
-  await database.sql`DELETE FROM bookings WHERE practice_id = ${PRACTICE_ID} AND id = ${id}`;
+  await database.sql`DELETE FROM bookings WHERE practice_id = ${currentTenant().practiceId} AND id = ${id}`;
   await database.sql`
     INSERT INTO audit_logs (id, practice_id, action, entity_type, entity_id, source, details)
-    VALUES (${`audit-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`}, ${PRACTICE_ID}, ${'booking_deleted'}, ${'booking'}, ${id}, ${source}, ${JSON.stringify({ deleted: true, patientName: booking.patientName, date: booking.date, time: booking.time, procedureId: booking.procedureId, practitionerId: booking.practitionerId, customerId: booking.customerId, staffId: actor?.staffId, staffName: actor?.staffName })}::jsonb)
+    VALUES (${`audit-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`}, ${currentTenant().practiceId}, ${'booking_deleted'}, ${'booking'}, ${id}, ${source}, ${JSON.stringify({ deleted: true, patientName: booking.patientName, date: booking.date, time: booking.time, procedureId: booking.procedureId, practitionerId: booking.practitionerId, customerId: booking.customerId, staffId: actor?.staffId, staffName: actor?.staffName })}::jsonb)
   `;
 
   const pushResult = await sendBookingChangePush({
@@ -2268,7 +2254,7 @@ export async function getClientBookingChangeAlertsSince(since?: string): Promise
   const rows = await database.sql<{ id: string; action: string; entity_id: string | null; details: any; created_at: string }>`
     SELECT id, action, entity_id, details, created_at::text AS created_at
     FROM audit_logs
-    WHERE practice_id = ${PRACTICE_ID}
+    WHERE practice_id = ${currentTenant().practiceId}
       AND source = 'client'
       AND entity_type = 'booking'
       AND action IN ('booking_created', 'booking_updated', 'booking_deleted')
@@ -2368,12 +2354,12 @@ function mapAdminStaff(row: AdminStaffRow): AdminStaffMember {
 }
 
 function hashAdminStaffPassword(staffId: string, password: string) {
-  return hashSecret(`zipbook-admin-staff-password:${staffId}:${password}`);
+  return currentTenant().legacy ? hashSecret(`zipbook-admin-staff-password:${staffId}:${password}`) : hashStaffPassword(password);
 }
 
 function validateAdminStaffPassword(value?: string) {
   const password = value ?? '';
-  if (password.length < 6) throw new Error('Enter a staff password with at least 6 characters.');
+  if (password.length < (currentTenant().legacy ? 6 : 12) || password.length > 256) throw new Error('Enter a staff password of the required length (12 characters for business accounts).');
   return password;
 }
 
@@ -2409,7 +2395,7 @@ export async function writeAdminAuditLog(input: {
     INSERT INTO audit_logs (id, practice_id, action, entity_type, entity_id, source, staff_id, staff_name, request_ip, user_agent, details)
     VALUES (
       ${`audit-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`},
-      ${PRACTICE_ID},
+      ${currentTenant().practiceId},
       ${input.action},
       ${input.entityType},
       ${input.entityId ?? null},
@@ -2428,7 +2414,7 @@ export async function countAdminStaffMembers(): Promise<number> {
   const rows = await database.sql<{ count: number }>`
     SELECT COUNT(*)::int AS count
     FROM admin_staff_members
-    WHERE practice_id = ${PRACTICE_ID}
+    WHERE practice_id = ${currentTenant().practiceId}
   `;
   return Number(rows[0]?.count ?? 0);
 }
@@ -2438,7 +2424,7 @@ export async function listAdminStaffMembers(): Promise<AdminStaffMember[]> {
   const rows = await database.sql<AdminStaffRow>`
     SELECT id, full_name, email, phone, role, active, last_login_at::text AS last_login_at, created_at::text AS created_at, updated_at::text AS updated_at
     FROM admin_staff_members
-    WHERE practice_id = ${PRACTICE_ID}
+    WHERE practice_id = ${currentTenant().practiceId}
     ORDER BY active DESC, full_name
   `;
   return rows.map(mapAdminStaff);
@@ -2450,6 +2436,7 @@ export async function createAdminStaffMember(input: { fullName: string; email: s
   const email = normaliseEmail(input.email);
   const phone = cleanLoginValue(input.phone);
   const role = cleanLoginValue(input.role) || 'Reception';
+  if (!currentTenant().legacy && role.toLowerCase() === 'owner') throw new Error('Owner accounts are provisioned separately.');
   const password = validateAdminStaffPassword(input.password);
   if (!fullName) throw new Error('Staff full name is required.');
   if (!isValidEmail(email)) throw new Error('Enter a valid staff email address.');
@@ -2457,7 +2444,7 @@ export async function createAdminStaffMember(input: { fullName: string; email: s
   const id = `staff-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   const rows = await database.sql<AdminStaffRow>`
     INSERT INTO admin_staff_members (id, practice_id, full_name, email, phone, role, active, password_hash)
-    VALUES (${id}, ${PRACTICE_ID}, ${fullName}, ${email}, ${phone}, ${role}, ${input.active ?? true}, ${hashAdminStaffPassword(id, password)})
+    VALUES (${id}, ${currentTenant().practiceId}, ${fullName}, ${email}, ${phone}, ${role}, ${input.active ?? true}, ${hashAdminStaffPassword(id, password)})
     RETURNING id, full_name, email, phone, role, active, last_login_at::text AS last_login_at, created_at::text AS created_at, updated_at::text AS updated_at
   `;
   await writeAdminAuditLog({ action: 'staff_created', entityType: 'staff', entityId: id, source: 'admin', details: { fullName, email, role, active: input.active ?? true }, actor: input.actor });
@@ -2470,6 +2457,10 @@ export async function updateAdminStaffMember(input: { id: string; fullName: stri
   const email = normaliseEmail(input.email);
   const phone = cleanLoginValue(input.phone);
   const role = cleanLoginValue(input.role) || 'Reception';
+  if (!currentTenant().legacy) {
+    const target = await database.sql<{role:string}>`SELECT role FROM admin_staff_members WHERE practice_id=${currentTenant().practiceId} AND id=${input.id}`;
+    if (target[0]?.role === 'Owner' || role.toLowerCase() === 'owner') throw new Error('Owner accounts are managed separately.');
+  }
   if (!fullName) throw new Error('Staff full name is required.');
   if (!isValidEmail(email)) throw new Error('Enter a valid staff email address.');
 
@@ -2478,10 +2469,11 @@ export async function updateAdminStaffMember(input: { id: string; fullName: stri
     const rows = await database.sql<AdminStaffRow>`
       UPDATE admin_staff_members
       SET full_name = ${fullName}, email = ${email}, phone = ${phone}, role = ${role}, active = ${input.active ?? true}, password_hash = ${hashAdminStaffPassword(input.id, password)}, updated_at = NOW()
-      WHERE practice_id = ${PRACTICE_ID} AND id = ${input.id}
+      WHERE practice_id = ${currentTenant().practiceId} AND id = ${input.id}
       RETURNING id, full_name, email, phone, role, active, last_login_at::text AS last_login_at, created_at::text AS created_at, updated_at::text AS updated_at
     `;
     if (!rows[0]) throw new Error('Staff member not found.');
+    await database.sql`UPDATE admin_staff_sessions SET revoked_at=NOW() WHERE practice_id=${currentTenant().practiceId} AND staff_id=${input.id} AND revoked_at IS NULL`;
     await writeAdminAuditLog({ action: 'staff_updated', entityType: 'staff', entityId: input.id, source: 'admin', details: { fullName, email, role, active: input.active ?? true, passwordChanged: true }, actor: input.actor });
     return mapAdminStaff(rows[0]);
   }
@@ -2489,7 +2481,7 @@ export async function updateAdminStaffMember(input: { id: string; fullName: stri
   const rows = await database.sql<AdminStaffRow>`
     UPDATE admin_staff_members
     SET full_name = ${fullName}, email = ${email}, phone = ${phone}, role = ${role}, active = ${input.active ?? true}, updated_at = NOW()
-    WHERE practice_id = ${PRACTICE_ID} AND id = ${input.id}
+    WHERE practice_id = ${currentTenant().practiceId} AND id = ${input.id}
     RETURNING id, full_name, email, phone, role, active, last_login_at::text AS last_login_at, created_at::text AS created_at, updated_at::text AS updated_at
   `;
   if (!rows[0]) throw new Error('Staff member not found.');
@@ -2499,14 +2491,18 @@ export async function updateAdminStaffMember(input: { id: string; fullName: stri
 
 export async function deleteAdminStaffMember(input: { id: string; actor?: AdminActor }): Promise<void> {
   const database = db();
+  if (!currentTenant().legacy) {
+    const target = await database.sql<{role:string}>`SELECT role FROM admin_staff_members WHERE practice_id=${currentTenant().practiceId} AND id=${input.id}`;
+    if (target[0]?.role === 'Owner') throw new Error('Owner accounts are managed separately.');
+  }
   const activeRows = await database.sql<{ count: number }>`
-    SELECT COUNT(*)::int AS count FROM admin_staff_members WHERE practice_id = ${PRACTICE_ID} AND active = TRUE AND id <> ${input.id}
+    SELECT COUNT(*)::int AS count FROM admin_staff_members WHERE practice_id = ${currentTenant().practiceId} AND active = TRUE AND id <> ${input.id}
   `;
   if (Number(activeRows[0]?.count ?? 0) < 1) throw new Error('You must keep at least one other active staff member before deleting this one.');
 
   const rows = await database.sql<{ id: string; full_name: string; email: string }>`
     DELETE FROM admin_staff_members
-    WHERE practice_id = ${PRACTICE_ID} AND id = ${input.id}
+    WHERE practice_id = ${currentTenant().practiceId} AND id = ${input.id}
     RETURNING id, full_name, email
   `;
   if (!rows[0]) throw new Error('Staff member not found.');
@@ -2522,19 +2518,31 @@ export async function loginAdminStaff(input: { email?: string; password?: string
   const rows = await database.sql<(AdminStaffRow & { password_hash: string })>`
     SELECT id, full_name, email, phone, role, active, password_hash, last_login_at::text AS last_login_at, created_at::text AS created_at, updated_at::text AS updated_at
     FROM admin_staff_members
-    WHERE practice_id = ${PRACTICE_ID} AND lower(email) = ${email} AND active = TRUE
+    WHERE practice_id = ${currentTenant().practiceId} AND lower(email) = ${email} AND active = TRUE
     LIMIT 1
   `;
   const row = rows[0];
-  if (!row || row.password_hash !== hashAdminStaffPassword(row.id, password)) throw new Error('Staff login failed. Check the staff email and password.');
+  if (row) {
+    const limit = await database.sql<{attempts:number}>`
+      INSERT INTO zipbook_staff_login_limits(practice_id,staff_id,window_start,attempts)
+      VALUES (${currentTenant().practiceId},${row.id},now(),1)
+      ON CONFLICT (practice_id,staff_id) DO UPDATE SET
+        attempts=CASE WHEN zipbook_staff_login_limits.window_start <= now()-interval '15 minutes' THEN 1 ELSE least(zipbook_staff_login_limits.attempts+1,100) END,
+        window_start=CASE WHEN zipbook_staff_login_limits.window_start <= now()-interval '15 minutes' THEN now() ELSE zipbook_staff_login_limits.window_start END
+      RETURNING attempts`;
+    if (Number(limit[0]?.attempts ?? 100) > 8) throw new Error('Staff login temporarily limited. Try again in 15 minutes.');
+  }
+  if (!row || !verifyStaffPassword(row.id, password, row.password_hash)) throw new Error('Staff login failed. Check the staff email and password.');
 
+  await database.sql`DELETE FROM zipbook_staff_login_limits WHERE practice_id=${currentTenant().practiceId} AND staff_id=${row.id}`;
+  if (!currentTenant().legacy && !row.password_hash.startsWith('scrypt$')) await database.sql`UPDATE admin_staff_members SET password_hash=${hashStaffPassword(password)} WHERE practice_id=${currentTenant().practiceId} AND id=${row.id} AND password_hash=${row.password_hash}`;
   const sessionToken = makeToken('admin-staff');
   const sessionId = `staff-sess-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   await database.sql`
     INSERT INTO admin_staff_sessions (id, practice_id, staff_id, session_token_hash, expires_at)
-    VALUES (${sessionId}, ${PRACTICE_ID}, ${row.id}, ${hashSecret(sessionToken)}, NOW() + INTERVAL '12 hours')
+    VALUES (${sessionId}, ${currentTenant().practiceId}, ${row.id}, ${hashSecret(sessionToken)}, NOW() + INTERVAL '12 hours')
   `;
-  await database.sql`UPDATE admin_staff_members SET last_login_at = NOW(), updated_at = NOW() WHERE practice_id = ${PRACTICE_ID} AND id = ${row.id}`;
+  await database.sql`UPDATE admin_staff_members SET last_login_at = NOW(), updated_at = NOW() WHERE practice_id = ${currentTenant().practiceId} AND id = ${row.id}`;
   const staff = mapAdminStaff({ ...row, last_login_at: new Date().toISOString() });
   await writeAdminAuditLog({ action: 'staff_login', entityType: 'staff', entityId: row.id, source: 'admin', details: { email }, actor: { ...input.actor, staffId: row.id, staffName: row.full_name } });
   return { sessionToken, staff };
@@ -2548,7 +2556,7 @@ export async function getAdminStaffBySession(sessionToken?: string | null): Prom
     SELECT s.id, s.full_name, s.email, s.phone, s.role, s.active, s.last_login_at::text AS last_login_at, s.created_at::text AS created_at, s.updated_at::text AS updated_at
     FROM admin_staff_sessions sess
     INNER JOIN admin_staff_members s ON s.id = sess.staff_id AND s.practice_id = sess.practice_id
-    WHERE sess.practice_id = ${PRACTICE_ID}
+    WHERE sess.practice_id = ${currentTenant().practiceId}
       AND sess.session_token_hash = ${hashSecret(token)}
       AND sess.revoked_at IS NULL
       AND sess.expires_at > NOW()
@@ -2556,7 +2564,7 @@ export async function getAdminStaffBySession(sessionToken?: string | null): Prom
     LIMIT 1
   `;
   if (!rows[0]) return null;
-  await database.sql`UPDATE admin_staff_sessions SET last_seen_at = NOW() WHERE practice_id = ${PRACTICE_ID} AND session_token_hash = ${hashSecret(token)}`;
+  await database.sql`UPDATE admin_staff_sessions SET last_seen_at = NOW() WHERE practice_id = ${currentTenant().practiceId} AND session_token_hash = ${hashSecret(token)}`;
   return mapAdminStaff(rows[0]);
 }
 
@@ -2565,9 +2573,14 @@ export async function listAdminAuditLogs(limit = 100): Promise<AdminAuditLog[]> 
   const rows = await database.sql<AdminAuditLogRow>`
     SELECT id, action, entity_type, entity_id, source, staff_id, staff_name, details, created_at::text AS created_at
     FROM audit_logs
-    WHERE practice_id = ${PRACTICE_ID}
+    WHERE practice_id = ${currentTenant().practiceId}
     ORDER BY created_at DESC
     LIMIT ${Math.max(20, Math.min(250, limit))}
   `;
   return rows.map(mapAdminAuditLog);
+}
+
+export async function revokeAdminStaffSession(token:string) {
+  if (!token) return;
+  await db().sql`UPDATE admin_staff_sessions SET revoked_at=NOW() WHERE practice_id=${currentTenant().practiceId} AND session_token_hash=${hashSecret(token)} AND revoked_at IS NULL`;
 }

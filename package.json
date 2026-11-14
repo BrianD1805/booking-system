@@ -1,6 +1,6 @@
 {
   "name": "zippyweb-booking-system",
-  "version": "0.0.55",
+  "version": "0.0.56",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -10,7 +10,8 @@
     "test:heartbeat": "node --test tests/supabase-keepalive.test.mjs",
     "test:booking-time": "node --test tests/booking-time.test.mjs",
     "test:scheduling": "node --test tests/scheduling-policy.test.mjs tests/client-booking-rules.test.mjs",
-    "test:saas": "node --test tests/saas-privacy.test.mjs"
+    "test:saas": "node --test tests/saas-privacy.test.mjs",
+    "test:tenants": "node --test tests/multi-business.test.mjs"
   },
   "dependencies": {
     "@netlify/plugin-nextjs": "latest",

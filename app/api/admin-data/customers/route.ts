@@ -1,3 +1,4 @@
+import { withTenantRequest } from '@/lib/tenantRequest';
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminDataCustomer, listAdminDataCustomers } from '@/lib/db';
 import { requireAdminStaff } from '@/lib/adminStaffAuth';
@@ -5,6 +6,7 @@ import { requireAdminStaff } from '@/lib/adminStaffAuth';
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
+  return withTenantRequest(request, async () => {
   try {
     await requireAdminStaff(request);
     const query = request.nextUrl.searchParams.get('query') ?? '';
@@ -13,9 +15,11 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : 'Could not load client data.' }, { status: 401 });
   }
+  });
 }
 
 export async function POST(request: NextRequest) {
+  return withTenantRequest(request, async () => {
   try {
     const { actor } = await requireAdminStaff(request);
     const body = await request.json();
@@ -44,4 +48,5 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : 'Could not create client.' }, { status: 400 });
   }
+  });
 }

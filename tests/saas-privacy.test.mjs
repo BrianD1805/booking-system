@@ -79,6 +79,6 @@ test('full booking read uses staff authorisation before the query; public query 
   assert.match(publicRead,/s\.customer_id = b\.customer_id/);
   assert.match(publicRead,/s\.practice_id = b\.practice_id/);
   assert.match(publicRead,/s\.revoked_at IS NULL AND s\.expires_at > NOW\(\)/);
-  assert.match(publicRead,/b\.practice_id = \$\{PRACTICE_ID\} AND b\.booking_date/);
+  assert.match(publicRead,/b\.practice_id = \$\{currentTenant\(\)\.practiceId\} AND b\.booking_date/);
   assert.doesNotMatch(publicRead,/patient_name|patient_phone|patient_email|notes|procedure_id/);
 });

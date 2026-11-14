@@ -1,8 +1,10 @@
+import { currentTenant } from './tenantScope.mjs';
 import { NextRequest } from 'next/server';
 
 export function verifyAdminDataKey(request: NextRequest) {
+  if (!currentTenant().legacy) return false;
   const configuredKey = process.env.ZIPBOOK_ADMIN_DATA_KEY ?? '';
-  const suppliedKey = request.headers.get('x-zipbook-admin-key') ?? request.nextUrl.searchParams.get('key') ?? '';
+  const suppliedKey = request.headers.get('x-zipbook-admin-key') ?? '';
 
   if (!configuredKey) {
     if (process.env.NODE_ENV !== 'production' && suppliedKey === 'zipbook-admin-dev') return true;

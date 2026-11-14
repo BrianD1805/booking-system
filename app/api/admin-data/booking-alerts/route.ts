@@ -1,3 +1,4 @@
+import { withTenantRequest } from '@/lib/tenantRequest';
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAdminStaff } from '@/lib/adminStaffAuth';
 import { getClientBookingChangeAlertsSince } from '@/lib/db';
@@ -5,6 +6,7 @@ import { getClientBookingChangeAlertsSince } from '@/lib/db';
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
+  return withTenantRequest(request, async () => {
   try {
     await requireAdminStaff(request);
     const since = request.nextUrl.searchParams.get('since') ?? undefined;
@@ -14,4 +16,5 @@ export async function GET(request: NextRequest) {
     const message = error instanceof Error ? error.message : 'Could not check booking alerts.';
     return NextResponse.json({ error: message }, { status: message.includes('Staff login') || message.includes('Master admin') ? 401 : 400 });
   }
+  });
 }

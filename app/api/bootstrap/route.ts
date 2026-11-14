@@ -1,3 +1,4 @@
+import { withTenantRequest } from '@/lib/tenantRequest';
 import { NextRequest, NextResponse } from 'next/server';
 import { getBootstrapData } from '@/lib/db';
 import { requireAdminStaff } from '@/lib/adminStaffAuth';
@@ -7,6 +8,7 @@ export const dynamic = 'force-dynamic';
 const noStore = { 'Cache-Control': 'private, no-store, max-age=0' };
 
 export async function GET(request: NextRequest) {
+  return withTenantRequest(request, async () => {
   const adminView = request.nextUrl.searchParams.get('view') === 'admin';
   if (adminView) {
     try { await requireAdminStaff(request); }
@@ -19,4 +21,5 @@ export async function GET(request: NextRequest) {
     console.error('ZipBook bootstrap lookup failed');
     return NextResponse.json({ error: 'Could not load booking settings.' }, { status: 500, headers: noStore });
   }
+  });
 }

@@ -1,3 +1,4 @@
+import { withTenantRequest } from '@/lib/tenantRequest';
 import { NextRequest, NextResponse } from 'next/server';
 import { disableClientPushSubscriptionForSession, getClientPushSubscriptionStatus, saveClientPushSubscriptionForSession } from '@/lib/db';
 
@@ -9,6 +10,7 @@ function getBearerToken(request: NextRequest) {
 }
 
 export async function GET(request: NextRequest) {
+  return withTenantRequest(request, async () => {
   try {
     const result = await getClientPushSubscriptionStatus(getBearerToken(request));
     return NextResponse.json({ ok: true, ...result });
@@ -17,9 +19,11 @@ export async function GET(request: NextRequest) {
       error: error instanceof Error ? error.message : 'Could not load push subscription status.'
     }, { status: 401 });
   }
+  });
 }
 
 export async function POST(request: NextRequest) {
+  return withTenantRequest(request, async () => {
   try {
     const body = await request.json();
     const result = await saveClientPushSubscriptionForSession({
@@ -33,9 +37,11 @@ export async function POST(request: NextRequest) {
       error: error instanceof Error ? error.message : 'Could not save push subscription.'
     }, { status: 400 });
   }
+  });
 }
 
 export async function DELETE(request: NextRequest) {
+  return withTenantRequest(request, async () => {
   try {
     const body = await request.json().catch(() => ({}));
     const result = await disableClientPushSubscriptionForSession({
@@ -48,4 +54,5 @@ export async function DELETE(request: NextRequest) {
       error: error instanceof Error ? error.message : 'Could not disable push subscription.'
     }, { status: 400 });
   }
+  });
 }

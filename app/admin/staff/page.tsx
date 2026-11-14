@@ -113,7 +113,7 @@ export default function AdminStaffPage() {
         <div>
           <p className="badge blue-badge">Staff security · {APP_VERSION}</p>
           <h1 className="hero-title clean-title">Staff logins.</h1>
-          <p className="hero-copy tight-copy">Add, edit or remove the reception/admin staff who can use ZipBook after the master key has unlocked the admin system.</p>
+          <p className="hero-copy tight-copy">Add, edit or remove the reception/admin staff who can use your ZipBook diary.</p>
         </div>
         <div className="command-actions admin-compact-actions">
           <button type="button" onClick={() => void loadStaff()} disabled={loading} className={`pill admin-action-button admin-compact-button ${loading ? 'is-loading' : ''}`}><span className="refresh-icon" aria-hidden="true">↻</span>{loading ? 'Refreshing…' : 'Refresh staff'}</button>

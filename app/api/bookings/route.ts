@@ -1,3 +1,4 @@
+import { withTenantRequest } from '@/lib/tenantRequest';
 import { NextRequest, NextResponse } from 'next/server';
 import { createBookingInDatabase, getBookings, getClientBookingCustomerId } from '@/lib/db';
 import { requireAdminStaff } from '@/lib/adminStaffAuth';
@@ -6,6 +7,7 @@ export const dynamic = 'force-dynamic';
 const noStore = { 'Cache-Control': 'private, no-store, max-age=0' };
 
 export async function GET(request: NextRequest) {
+  return withTenantRequest(request, async () => {
   try { await requireAdminStaff(request); }
   catch { return NextResponse.json({ error: 'Staff login is required.' }, { status: 401, headers: noStore }); }
   try {
@@ -17,9 +19,11 @@ export async function GET(request: NextRequest) {
       error: 'Could not load the practice diary.'
     }, { status: 500, headers: noStore });
   }
+  });
 }
 
 export async function POST(request: NextRequest) {
+  return withTenantRequest(request, async () => {
   try {
     const body = await request.json();
     const required = ['patientName', 'patientPhone', 'patientEmail', 'procedureId', 'practitionerId', 'date', 'time', 'source'];
@@ -65,4 +69,5 @@ export async function POST(request: NextRequest) {
     const message = error instanceof Error ? error.message : 'Could not create booking.';
     return NextResponse.json({ error: message }, { status: message.includes('Staff login') || message.includes('Master admin') ? 401 : 500, headers: noStore });
   }
+  });
 }

@@ -1,3 +1,4 @@
+import { withTenantRequest } from '@/lib/tenantRequest';
 import { NextRequest, NextResponse } from 'next/server';
 import { deleteBookingFromDatabase, updateBookingDetailsInDatabase, updateBookingStatusInDatabase } from '@/lib/db';
 import { requireAdminStaff } from '@/lib/adminStaffAuth';
@@ -31,6 +32,7 @@ function readBookingInput(body: Record<string, unknown>) {
 }
 
 export async function PATCH(request: NextRequest, context: { params: Promise<{ id: string }> }) {
+  return withTenantRequest(request, async () => {
   try {
     const { actor } = await requireAdminStaff(request);
     const { id } = await context.params;
@@ -48,9 +50,11 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ i
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : 'Could not update booking.' }, { status: 400 });
   }
+  });
 }
 
 export async function DELETE(request: NextRequest, context: { params: Promise<{ id: string }> }) {
+  return withTenantRequest(request, async () => {
   try {
     const { actor } = await requireAdminStaff(request);
     const { id } = await context.params;
@@ -59,4 +63,5 @@ export async function DELETE(request: NextRequest, context: { params: Promise<{ 
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : 'Could not delete booking.' }, { status: 400 });
   }
+  });
 }
