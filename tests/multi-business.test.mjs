@@ -7,6 +7,9 @@ import { createHash } from 'node:crypto';
 import { classifyTenantHost, currentTenant, runInTenant } from '../lib/tenantScope.mjs';
 import { hashStaffPassword, verifyStaffPassword } from '../lib/staffPassword.mjs';
 const read = name => readFileSync(new URL(`../${name}`,import.meta.url),'utf8');
+// Node's path values use backslashes on Windows and forward slashes on Unix.
+// Platform API routes have a separate privileged wrapper and must not be mistaken for tenant API routes.
+const isPlatformApiRoute = path => /(?:^|[\\/])api[\\/]platform[\\/]/.test(path);
 
 test('unknown or disabled business never resolves to demo',()=>{
   for (const host of ['spbio.zipbook.app','spbio.localhost','attacker.com','fake.netlify.app','spbio.zipbook.app.attacker.com','two.parts.zipbook.app','mail.zipbook.app','spbio.zipbook.app:443']) assert.equal(classifyTenantHost(host).kind,'unknown');
@@ -33,11 +36,17 @@ test('scrypt password random salts, wrong password rejected, legacy compatibilit
   const legacy=createHash('sha256').update('zipbook-admin-staff-password:id:old-pass').digest('hex');
   assert.equal(verifyStaffPassword('id','old-pass',legacy),true);assert.equal(verifyStaffPassword('other','old-pass',legacy),false);assert.equal(verifyStaffPassword('id','x','bad'),false);
 });
+test('platform route classification works on Windows and Unix',()=>{
+  assert.equal(isPlatformApiRoute('C:\\ZipBook\\app\\api\\platform\\accept\\route.ts'),true);
+  assert.equal(isPlatformApiRoute('/mnt/zipbook/app/api/platform/accept/route.ts'),true);
+  assert.equal(isPlatformApiRoute('C:\\ZipBook\\app\\api\\bookings\\route.ts'),false);
+  assert.equal(isPlatformApiRoute('/mnt/zipbook/app/api/platform-extra/route.ts'),false);
+});
 test('every database-backed request handler enters the tenant boundary',()=>{
   const crawl=folder=>readdirSync(folder,{withFileTypes:true}).flatMap(e=>e.isDirectory()?crawl(join(folder,e.name)):[join(folder,e.name)]);
   for(const path of crawl(fileURLToPath(new URL('../app/api',import.meta.url))).filter(p=>p.endsWith('route.ts'))){
     const source=readFileSync(path,'utf8');
-    for(const match of source.matchAll(/export async function (GET|POST|PATCH|DELETE|PUT)\(request: NextRequest[^\n]*\) \{\s*([^\n]*)/g)) if (path.includes('/api/platform/')) assert.match(match[2],/^return withPlatformRequest\(request,/,path); else assert.match(match[2],/^return withTenantRequest\(request,/,path);
+    for(const match of source.matchAll(/export async function (GET|POST|PATCH|DELETE|PUT)\(request: NextRequest[^\n]*\) \{\s*([^\n]*)/g)) if (isPlatformApiRoute(path)) assert.match(match[2],/^return withPlatformRequest\(request,/,path); else assert.match(match[2],/^return withTenantRequest\(request,/,path);
   }
 });
 test('database wrapper uses transaction-local role and context, never raw tenant SQL on pool',()=>{

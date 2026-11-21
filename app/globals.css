@@ -5766,3 +5766,18 @@ button.admin-password-eye .admin-password-eye-slash {
 .platform-dialog:not([open]) { display:none; }
 .platform-dialog::backdrop { background:rgba(12,30,55,.48); backdrop-filter:blur(7px); }
 @media(max-width:700px){.platform-metrics{grid-template-columns:repeat(2,minmax(0,1fr));}.platform-heading,.platform-business-main{flex-direction:column;align-items:flex-start;}.platform-metrics .card{padding:15px;}}
+
+/* Ver-0.058: authorised website integrations. Keep existing ZipBook popup rules. */
+.embed-058-page .embed-058-snippet{margin-top:14px;padding:16px;border:1px solid var(--line);border-radius:16px;background:#f8fbff;min-width:0}
+.embed-058-snippet-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:12px}
+.embed-058-snippet h3{margin:0;font-size:1.05rem}
+.embed-058-snippet p{margin:5px 0 0;color:var(--muted);font-size:0.94rem;line-height:1.5}
+.embed-058-snippet textarea{display:block;width:100%;max-width:100%;min-height:74px;padding:12px;resize:vertical;border:1px solid var(--line);border-radius:12px;background:#fff;color:#12253d;font:0.82rem/1.5 Consolas,Monaco,monospace;overflow:auto}
+.embed-058-modal-fields{display:grid;gap:16px}
+.embed-058-modal-fields>label:first-child{font-weight:700}
+.embed-058-modal-fields input[type=url]{width:100%;padding:13px;border:1px solid var(--line);border-radius:12px}
+.embed-058-toggle{display:flex;gap:12px;align-items:flex-start;border:1px solid var(--line);border-radius:12px;padding:14px;cursor:pointer}
+.embed-058-toggle input{width:18px;height:18px;flex-shrink:0;margin:3px 0 0}
+.embed-058-toggle span{display:grid;gap:4px}
+.embed-058-toggle small{color:var(--muted);line-height:1.5}
+@media(max-width:640px){.embed-058-snippet-heading{align-items:stretch;flex-direction:column}.embed-058-snippet-heading .pill{align-self:flex-start}}

@@ -10,15 +10,36 @@ type Staff = { id: string; fullName: string; email: string; role: string; active
 const MASTER_KEY_STORAGE = 'zipbook-admin-master-key';
 const STAFF_TOKEN_STORAGE = 'zipbook-admin-staff-token';
 const STAFF_PROFILE_STORAGE = 'zipbook-admin-staff-profile';
+function canUseAdminSessionStorage() {
+  try {
+    const key = 'zipbook-session-check';
+    window.sessionStorage.setItem(key, '1');
+    window.sessionStorage.removeItem(key);
+    return true;
+  } catch { return false; }
+}
+function adminSessionSet(key: string, value: string) {
+  try { window.sessionStorage.setItem(key, value); } catch { /* Embedded browser may block storage. */ }
+}
+function adminSessionRemove(key: string) {
+  try { window.sessionStorage.removeItem(key); } catch { /* Embedded browser may block storage. */ }
+}
 
 export function getStoredAdminAuth() {
   if (typeof window === 'undefined') return { masterKey: '', staffToken: '', staff: null as Staff | null };
-  const staffJson = window.sessionStorage.getItem(STAFF_PROFILE_STORAGE) || '';
+  let staffJson = '';
+  let storedMasterKey = '';
+  let storedStaffToken = '';
+  try {
+    staffJson = window.sessionStorage.getItem(STAFF_PROFILE_STORAGE) || '';
+    storedMasterKey = window.sessionStorage.getItem(MASTER_KEY_STORAGE) || '';
+    storedStaffToken = window.sessionStorage.getItem(STAFF_TOKEN_STORAGE) || '';
+  } catch { /* Third-party frame storage may be restricted; use the full-page diary link. */ }
   let staff: Staff | null = null;
   try { staff = staffJson ? JSON.parse(staffJson) as Staff : null; } catch { staff = null; }
   return {
-    masterKey: window.sessionStorage.getItem(MASTER_KEY_STORAGE) || '',
-    staffToken: window.sessionStorage.getItem(STAFF_TOKEN_STORAGE) || '',
+    masterKey: storedMasterKey,
+    staffToken: storedStaffToken,
     staff
   };
 }
@@ -45,6 +66,7 @@ function AdminPasswordEyeIcon({ hidden }: { hidden: boolean }) {
 export function AdminAuthGate({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [business, setBusiness] = useState<{name:string;legacy:boolean} | null>(null);
+  const [embedded, setEmbedded] = useState(false);
   const [masterKey, setMasterKey] = useState('');
   const [staffEmail, setStaffEmail] = useState('');
   const [staffPassword, setStaffPassword] = useState('');
@@ -69,11 +91,13 @@ export function AdminAuthGate({ children }: { children: React.ReactNode }) {
     { href: '/admin/reception', label: 'Add booking', helper: 'Reception booking flow' },
     { href: '/admin/data', label: 'Clients', helper: 'Search and manage clients' },
     { href: '/admin/settings', label: 'Settings', helper: 'Practice setup and booking rules' },
+    { href: '/admin/integrations', label: 'Website integration', helper: 'HTML snippets, links and approved websites' },
     { href: '/admin/staff', label: 'Staff', helper: 'Admin users and roles' },
     { href: '/admin/audit', label: 'Audit trail', helper: 'Changes and transactions' }
   ], []);
 
   useEffect(() => {
+    try { setEmbedded(window.self !== window.top); } catch { setEmbedded(true); }
     const stored = getStoredAdminAuth();
     void (async () => {
       try {
@@ -108,21 +132,21 @@ export function AdminAuthGate({ children }: { children: React.ReactNode }) {
       setStaffCount(Number(payload.staffCount ?? 0));
       if (payload.staff) {
         setStaff(payload.staff as Staff);
-        window.sessionStorage.setItem(STAFF_PROFILE_STORAGE, JSON.stringify(payload.staff));
+        adminSessionSet(STAFF_PROFILE_STORAGE, JSON.stringify(payload.staff));
       } else {
         setStaff(null);
-        window.sessionStorage.removeItem(STAFF_PROFILE_STORAGE);
-        window.sessionStorage.removeItem(STAFF_TOKEN_STORAGE);
+        adminSessionRemove(STAFF_PROFILE_STORAGE);
+        adminSessionRemove(STAFF_TOKEN_STORAGE);
         const nextMessage = !legacy ? 'Sign in with your business staff email and password.' : Number(payload.staffCount ?? 0) > 0 ? 'Master key accepted. Now sign in as a staff member.' : 'Master key accepted. Create the first staff login below.';
         if (showMessage || nextMasterKey || !legacy) setMessage(nextMessage);
       }
-      window.sessionStorage.setItem(MASTER_KEY_STORAGE, nextMasterKey);
+      adminSessionSet(MASTER_KEY_STORAGE, nextMasterKey);
     } catch (statusError) {
       setStaff(null);
       setStaffCount(null);
-      window.sessionStorage.removeItem(MASTER_KEY_STORAGE);
-      window.sessionStorage.removeItem(STAFF_TOKEN_STORAGE);
-      window.sessionStorage.removeItem(STAFF_PROFILE_STORAGE);
+      adminSessionRemove(MASTER_KEY_STORAGE);
+      adminSessionRemove(STAFF_TOKEN_STORAGE);
+      adminSessionRemove(STAFF_PROFILE_STORAGE);
       setError(statusError instanceof Error ? statusError.message : 'Could not check admin login.');
     } finally {
       setChecking(false);
@@ -153,6 +177,11 @@ export function AdminAuthGate({ children }: { children: React.ReactNode }) {
     event.preventDefault();
     setLoading(true);
     setError('');
+    if (!canUseAdminSessionStorage()) {
+      setError('This browser blocks staff login storage inside this website. Open the secure diary in a new tab to sign in.');
+      setLoading(false);
+      return;
+    }
     try {
       const response = await fetch('/api/admin-auth/staff/login', {
         method: 'POST',
@@ -161,9 +190,9 @@ export function AdminAuthGate({ children }: { children: React.ReactNode }) {
       });
       const payload = await response.json();
       if (!response.ok) throw new Error(typeof payload?.error === 'string' ? payload.error : 'Staff login failed.');
-      window.sessionStorage.setItem(MASTER_KEY_STORAGE, masterKey.trim());
-      window.sessionStorage.setItem(STAFF_TOKEN_STORAGE, String(payload.sessionToken ?? ''));
-      window.sessionStorage.setItem(STAFF_PROFILE_STORAGE, JSON.stringify(payload.staff));
+      adminSessionSet(MASTER_KEY_STORAGE, masterKey.trim());
+      adminSessionSet(STAFF_TOKEN_STORAGE, String(payload.sessionToken ?? ''));
+      adminSessionSet(STAFF_PROFILE_STORAGE, JSON.stringify(payload.staff));
       setStaff(payload.staff as Staff);
       setMessage(`Signed in as ${payload.staff?.fullName ?? 'staff member'}.`);
       showAdminToast(`Signed in as ${payload.staff?.fullName ?? 'staff member'}.`);
@@ -200,8 +229,8 @@ export function AdminAuthGate({ children }: { children: React.ReactNode }) {
 
   function signOut() {
     void fetch('/api/admin-auth/staff/logout', {method:'POST',headers:makeAdminAuthHeaders()}).catch(()=>undefined);
-    window.sessionStorage.removeItem(STAFF_TOKEN_STORAGE);
-    window.sessionStorage.removeItem(STAFF_PROFILE_STORAGE);
+    adminSessionRemove(STAFF_TOKEN_STORAGE);
+    adminSessionRemove(STAFF_PROFILE_STORAGE);
     setStaff(null);
     setStaffPassword('');
     setMessage(business?.legacy ? 'Staff signed out. Master key is still stored for this browser session.' : 'Staff signed out.');
@@ -383,7 +412,7 @@ export function AdminAuthGate({ children }: { children: React.ReactNode }) {
                 <span>One clean menu for diary, reception, clients and practice tools.</span>
               </div>
               <div className="admin-mega-menu-grid">
-                {adminMenuItems.filter(item => business.legacy || staff.role === "Owner" || !["/admin/staff", "/admin/settings"].includes(item.href)).map((item) => {
+                {adminMenuItems.filter(item => (item.href !== '/admin/integrations' || !business.legacy) && (business.legacy || staff.role === "Owner" || !["/admin/staff", "/admin/settings", "/admin/integrations"].includes(item.href))).map((item) => {
                   const active = pathname === item.href || (item.href !== '/admin' && pathname?.startsWith(item.href));
                   return (
                     <a key={item.href} href={item.href} className={active ? 'active' : ''} role="menuitem" onClick={() => setMenuOpen(false)}>

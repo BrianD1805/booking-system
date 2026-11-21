@@ -3,6 +3,7 @@
 import { type FormEvent, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Header } from '@/components/Header';
+import Link from 'next/link';
 import { ZipSelect } from '@/components/ZipSelect';
 import { APP_VERSION } from '@/lib/mockData';
 import { makeAdminAuthHeaders } from '@/components/admin/AdminAuthGate';
@@ -212,6 +213,10 @@ export default function AdminSettingsPage() {
           <div className="settings-054-small-meta"><span>Same-day booking: {data.settings.allowSameDayBookings ? 'Allowed' : 'Not allowed'}</span></div>
         </section>
       </div>
+
+      {data.settings.tenantSlug && <section className="card clean-panel settings-054-section">
+        <div className="settings-054-section-heading"><div><span className="settings-054-eyebrow">Your website</span><h2>Website integration</h2><p>Copy your business booking link or add the secure diary to approved websites with HTML or React code.</p></div><Link className="button primary" href="/admin/integrations">Manage integration</Link></div>
+      </section>}
 
       <section className="card clean-panel settings-054-section">
         <div className="settings-054-section-heading"><div><span className="settings-054-eyebrow">Clinical team</span><h2>Practitioner diary settings</h2><p>Choose a practitioner to manage their schedule, lunch breaks and leave. These settings control actual booking availability.</p></div><button type="button" className="button primary" onClick={() => openPractitioner()} disabled={loading}>Add practitioner</button></div>
