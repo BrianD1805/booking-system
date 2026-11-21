@@ -1,5 +1,6 @@
 export type EmbedRow = { origin: string; public_embed_enabled: boolean; admin_embed_enabled: boolean };
 export function normaliseWebsiteOrigin(value: unknown): string;
+export function permittedIntegrationWriteOrigin(originHeader: unknown, requestHost: unknown, tenantHost: unknown, production?: boolean): boolean;
 export function frameAncestorsForDomains(rows: EmbedRow[] | unknown, kind: 'admin' | 'public'): string;
 export function safeRemoteFramePolicy(payload: unknown): string;
 export function validBusinessSlug(slug: unknown): boolean;

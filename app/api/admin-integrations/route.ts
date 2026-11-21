@@ -5,7 +5,7 @@ import { currentTenant } from '@/lib/tenantScope.mjs';
 import { getZipBookDatabase } from '@/lib/dbProvider';
 import { requireBusinessOwner } from '@/lib/adminStaffAuth';
 import { writeAdminAuditLog } from '@/lib/db';
-import { normaliseWebsiteOrigin } from '@/lib/embedPolicy.mjs';
+import { normaliseWebsiteOrigin, permittedIntegrationWriteOrigin } from '@/lib/embedPolicy.mjs';
 
 export const dynamic = 'force-dynamic';
 const noStore = {'Cache-Control': 'private, no-store, max-age=0'};
@@ -26,9 +26,13 @@ async function handle(request:NextRequest, method:'GET'|'POST') {
         return json({tenantSlug:tenant.tenantSlug,name:tenant.name,publicBookings:tenant.publicBookings!==false,websites});
       } catch {return json({error:'Website integrations could not be loaded. Check the Ver-0.058 Supabase migration.'},503);}
     }
-    const originHeader=request.headers.get('origin');
-    let permitted=false;
-    try {permitted = new URL(originHeader||'').origin===request.nextUrl.origin;} catch {/* reject */}
+    // The Next.js request URL may point at Netlify's internal handler, not the
+    // visitor-facing business subdomain. Validate Origin against the tenant's
+    // already-verified Host instead, preserving the same-origin CSRF boundary.
+    const permitted=permittedIntegrationWriteOrigin(
+      request.headers.get('origin'), request.headers.get('host'), tenant.host,
+      process.env.NODE_ENV === 'production'
+    );
     if(!permitted || !request.headers.get('content-type')?.toLowerCase().startsWith('application/json')) return json({error:'Request not permitted.'},403);
     const body=await request.json().catch(()=>null);
     if(!body || typeof body!=='object') return json({error:'Invalid request.'},400);

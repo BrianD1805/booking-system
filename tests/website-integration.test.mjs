@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {normaliseWebsiteOrigin, frameAncestorsForDomains, businessEmbedUrls, bookingHtmlSnippet, adminHtmlSnippet, reactEmbedSnippet, safeRemoteFramePolicy} from '../lib/embedPolicy.mjs';
+import {normaliseWebsiteOrigin, frameAncestorsForDomains, businessEmbedUrls, bookingHtmlSnippet, adminHtmlSnippet, reactEmbedSnippet, safeRemoteFramePolicy, permittedIntegrationWriteOrigin} from '../lib/embedPolicy.mjs';
 const read = name => readFileSync(new URL(`../${name}`,import.meta.url),'utf8');
 test('website owner may register exact HTTPS origins only',()=>{
   assert.equal(normaliseWebsiteOrigin(' HTTPS://WWW.Example.ORG/ '),'https://www.example.org');
@@ -9,6 +9,37 @@ test('website owner may register exact HTTPS origins only',()=>{
     assert.throws(()=>normaliseWebsiteOrigin(origin),origin);
   }
 });
+test('website owner POST Origin is checked against verified tenant Host, not the internal Netlify request URL',()=>{
+  const allow = (origin, host='demo-dental.zipbook.app', tenant='demo-dental.zipbook.app', prod=true) => permittedIntegrationWriteOrigin(origin,host,tenant,prod);
+  assert.equal(allow('https://demo-dental.zipbook.app'),true);
+  // In production the NextRequest URL may be internal; it is intentionally not
+  // accepted as authority for the CSRF comparison.
+  assert.equal(allow('https://bookings-system.netlify.app'),false);
+  assert.equal(allow('https://demo-dental.zipbook.app','different.zipbook.app'),false);
+  assert.equal(allow('https://other.zipbook.app'),false);
+  assert.equal(allow('http://demo-dental.zipbook.app'),false);
+  assert.equal(allow('https://demo-dental.zipbook.app:8443','demo-dental.zipbook.app:8443'),false);
+  assert.equal(allow('https://demo-dental.zipbook.app.evil.test'),false);
+  assert.equal(allow('https://demo-dental.zipbook.app/path'),false);
+  assert.equal(allow('https://demo-dental.zipbook.app/'),false);
+  assert.equal(allow('https://user@demo-dental.zipbook.app'),false);
+  assert.equal(allow('null'),false);
+  assert.equal(allow(null),false);
+  assert.equal(allow('https://demo-dental.zipbook.app','demo-dental.zipbook.app.evil.test'),false);
+  assert.equal(allow('http://demo-dental.localhost:8888','demo-dental.localhost:8888','demo-dental.localhost',false),true);
+  assert.equal(allow('http://demo-dental.localhost:9999','demo-dental.localhost:8888','demo-dental.localhost',false),false);
+});
+
+test('integration POST route uses tenant-bound Origin validation without bypassing owner authentication',()=>{
+  const route=read('app/api/admin-integrations/route.ts');
+  assert.match(route,/requireBusinessOwner\(request\)/);
+  assert.match(route,/permittedIntegrationWriteOrigin\(/);
+  assert.match(route,/tenant\.host/);
+  assert.match(route,/request\.headers\.get\('host'\)/);
+  assert.doesNotMatch(route,/request\.nextUrl\.origin/);
+  assert.match(route,/application\/json/);
+});
+
 test('default frame policy is deny and permissions stay separate',()=>{
   const domains=[{origin:'https://one.example.org',public_embed_enabled:true,admin_embed_enabled:false},{origin:'https://two.example.org',public_embed_enabled:false,admin_embed_enabled:true}];
   assert.equal(frameAncestorsForDomains([], 'public'),"frame-ancestors 'none'");
@@ -27,7 +58,7 @@ test('one business cannot substitute a different business in a generated code sn
 test('owner-only integration routes are tenant scoped, with a database RLS policy',()=>{
   const route=read('app/api/admin-integrations/route.ts'),migration=read('supabase/zipbook_website_integration_ver_0_058.sql');
   assert.match(route,/withTenantRequest/);assert.match(route,/requireBusinessOwner/);assert.match(route,/tenant\.practiceId/);
-  assert.match(route,/originHeader/);assert.match(route,/normaliseWebsiteOrigin/);assert.match(route,/action==='remove'/);
+  assert.match(route,/permittedIntegrationWriteOrigin/);assert.match(route,/normaliseWebsiteOrigin/);assert.match(route,/action==='remove'/);
   assert.match(migration,/ENABLE ROW LEVEL SECURITY/);assert.match(migration,/AS RESTRICTIVE/);
   assert.match(migration,/zipbook\.practice_id/);assert.match(migration,/zipbook_tenant_runtime/);
 });
