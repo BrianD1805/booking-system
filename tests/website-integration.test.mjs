@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {normaliseWebsiteOrigin, frameAncestorsForDomains, businessEmbedUrls, bookingHtmlSnippet, adminHtmlSnippet, reactEmbedSnippet} from '../lib/embedPolicy.mjs';
+import {normaliseWebsiteOrigin, frameAncestorsForDomains, businessEmbedUrls, bookingHtmlSnippet, adminHtmlSnippet, reactEmbedSnippet, safeRemoteFramePolicy} from '../lib/embedPolicy.mjs';
 const read = name => readFileSync(new URL(`../${name}`,import.meta.url),'utf8');
 test('website owner may register exact HTTPS origins only',()=>{
   assert.equal(normaliseWebsiteOrigin(' HTTPS://WWW.Example.ORG/ '),'https://www.example.org');
@@ -33,12 +33,37 @@ test('owner-only integration routes are tenant scoped, with a database RLS polic
 });
 test('frame CSP uses database-approved origins and rejects failures',()=>{
   const proxy=read('proxy.ts');assert.match(proxy,/await websiteFramePolicy/);
-  assert.match(proxy,/frameAncestorsForDomains\(rows,kind\)/);
-  assert.match(proxy,/p\.pilot_enabled=true/);
+  assert.match(proxy,/fetch\(policyUrl/);
+  assert.match(proxy,/safeRemoteFramePolicy\(policy\)/);
+  assert.doesNotMatch(proxy,/from ['"]\.\/lib\/dbProvider|platformTransaction|from ['"]pg['"]/);
+  const api=read('app/api/embed-frame-policy/route.ts');
+  assert.match(api,/return withTenantRequest\(request,/);
+  assert.match(api,/getZipBookDatabase\(\)/);
+  assert.match(api,/frameAncestorsForDomains\(domains,kind\)/);
+  assert.match(api,/practice_id = \$\{tenant\.practiceId\}/);
+  assert.match(api,/runtime = 'nodejs'/);
   assert.match(proxy,/"frame-ancestors 'none'"/);
   assert.match(proxy,/process\.env\.ZIPBOOK_ENABLE_BUSINESS_ACCOUNTS/);
   assert.match(proxy,/pathname === '\/admin'/);
   assert.match(proxy,/pathname === '\/book'/);
+});
+test('remote frame policy validation fails closed on unauthorised or malformed responses',()=>{
+  const deny = "frame-ancestors 'none'";
+  const accept = {policy:'frame-ancestors https://www.example.org https://shop.example.net'};
+  assert.equal(safeRemoteFramePolicy(accept),accept.policy);
+  for(const input of [null,{}, {policy:''},{policy: 'frame-ancestors *'}, {policy:'frame-ancestors https://evil.org; script-src *'}, {policy:'frame-ancestors http://evil.org'}, {policy:'frame-ancestors https://*.evil.org'}, {policy:'frame-ancestors https://zipbook.app'}, {policy:'frame-ancestors https://evil.org/'},{policy:'frame-ancestors https://evil.org  https://other.org'}, {policy:'frame-ancestors https://evil.org/path'}]){
+    assert.equal(safeRemoteFramePolicy(input),deny,JSON.stringify(input));
+  }
+});
+test('proxy-only helpers have TypeScript declarations matching their imported exports',()=>{
+  const hostTypes = read('lib/tenantHost.d.mts');
+  const hostCode = read('lib/tenantHost.mjs');
+  const policyTypes = read('lib/embedPolicy.d.mts');
+  const policyCode = read('lib/embedPolicy.mjs');
+  assert.match(hostCode,/export function classifyTenantHost\(/);
+  assert.match(hostTypes,/export function classifyTenantHost\(/);
+  assert.match(policyCode,/export function safeRemoteFramePolicy\(/);
+  assert.match(policyTypes,/export function safeRemoteFramePolicy\(/);
 });
 test('the admin menu exposes only owner access and unauthorised legacy practice stays excluded',()=>{
   const gate=read('components/admin/AdminAuthGate.tsx');

@@ -1,6 +1,7 @@
 export type EmbedRow = { origin: string; public_embed_enabled: boolean; admin_embed_enabled: boolean };
 export function normaliseWebsiteOrigin(value: unknown): string;
 export function frameAncestorsForDomains(rows: EmbedRow[] | unknown, kind: 'admin' | 'public'): string;
+export function safeRemoteFramePolicy(payload: unknown): string;
 export function validBusinessSlug(slug: unknown): boolean;
 export function businessEmbedUrls(slug: string): {booking: string; diary: string};
 export function bookingHtmlSnippet(slug: string): string;
