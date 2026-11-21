@@ -55,6 +55,21 @@ test('one business cannot substitute a different business in a generated code sn
   assert.match(reactEmbedSnippet('demo-dental','public'),/referrerPolicy=/);
   assert.doesNotMatch(adminHtmlSnippet('demo-dental'),/token=|password=|admin-key/);
 });
+test('public booking embed code eagerly loads on mobile while staff diary code is unchanged',()=>{
+  const html=bookingHtmlSnippet('demo-dental');
+  const react=reactEmbedSnippet('demo-dental','public');
+  const adminHtml=adminHtmlSnippet('demo-dental');
+  const adminReact=reactEmbedSnippet('demo-dental','admin');
+  assert.match(html,/loading="eager"/);
+  assert.match(react,/loading="eager"/);
+  assert.doesNotMatch(html,/loading="lazy"/);
+  assert.doesNotMatch(react,/loading="lazy"/);
+  assert.doesNotMatch(adminHtml,/loading=/);
+  assert.doesNotMatch(adminReact,/loading=/);
+  assert.match(html,/referrerpolicy="strict-origin-when-cross-origin"/);
+  assert.match(react,/referrerPolicy="strict-origin-when-cross-origin"/);
+});
+
 test('owner-only integration routes are tenant scoped, with a database RLS policy',()=>{
   const route=read('app/api/admin-integrations/route.ts'),migration=read('supabase/zipbook_website_integration_ver_0_058.sql');
   assert.match(route,/withTenantRequest/);assert.match(route,/requireBusinessOwner/);assert.match(route,/tenant\.practiceId/);
