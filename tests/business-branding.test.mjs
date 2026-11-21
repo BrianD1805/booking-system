@@ -43,16 +43,23 @@ test('branding endpoints require tenant scope, owner authorization and same-orig
   assert.match(sql,/zipbook\.practice_id/);assert.match(sql,/bytea/);
 });
 
-test('booking page and installed app use the same versioned tenant logo and default ZipBook fallback',()=>{
+test('booking page requests tenant-specific logo on first paint without showing the default first',()=>{
   const page=read('app/book/page.tsx');
   const layout=read('app/book/layout.tsx');
-  assert.match(page,/\/api\/branding/);
-  assert.match(page,/businessLogoVersion/);
-  assert.match(page,/bookingLogo/);assert.match(page,/headerLogo/);
+  const imageApi=read('app/api/branding/icon/route.ts');
+  assert.match(page,/const bookingLogo = '\/api\/branding\/icon\?size=192'/);
+  assert.match(page,/const headerLogo = '\/api\/branding\/icon\?size=72'/);
+  assert.match(page,/<img src=\{bookingLogo\}/);
+  assert.match(page,/<img src=\{headerLogo\}/);
+  assert.doesNotMatch(page,/businessLogoVersion|setBusinessLogoVersion/);
+  assert.doesNotMatch(page,/fetch\('\/api\/branding'/);
+  assert.match(imageApi,/\[72,180,192,512\]\.includes\(size\)/);
+  assert.match(imageApi,/getLogoData\(\)/);
+  assert.match(imageApi,/NextResponse\.redirect/);
+  assert.match(imageApi,/new Uint8Array\(output\)/);
   assert.match(layout,/manifest: '\/api\/branding\/manifest'/);
   assert.match(layout,/size=180/);
   assert.match(page,/ClientInstallPrompt businessName=/);
   assert.match(read('app/book/ClientInstallPrompt.tsx'),/Install \{installName\}/);
-  assert.match(read('app/api/branding/icon/route.ts'),/new Uint8Array\(output\)/);
   assert.doesNotMatch(read('proxy.ts'),/import.*businessBranding/);
 });

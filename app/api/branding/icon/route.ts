@@ -8,7 +8,7 @@ export const runtime = 'nodejs';
 export async function GET(request:NextRequest) {
   return withTenantRequest(request, async () => {
     const size=Number(request.nextUrl.searchParams.get('size') || '192');
-    if (![180,192,512].includes(size)) return NextResponse.json({error:'Invalid image size.'},{status:400});
+    if (![72,180,192,512].includes(size)) return NextResponse.json({error:'Invalid image size.'},{status:400});
     try {
       const logo=await getLogoData();
       if (!logo) return NextResponse.redirect(new URL(size===180?'/apple-touch-icon.png':`/icons/icon-${size}.png`, request.url),

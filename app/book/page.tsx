@@ -253,7 +253,6 @@ export default function BookPage() {
   const [clientPasswordResetOpen, setClientPasswordResetOpen] = useState(false);
   const modalHistoryRef = useRef(false);
   const [businessInfo, setBusinessInfo] = useState<{name:string;legacy:boolean;publicBookings?:boolean} | null>(null);
-  const [businessLogoVersion,setBusinessLogoVersion] = useState<string|null>(null);
   useEffect(() => {
     let cancelled = false;
     void fetch('/api/tenant-context',{cache:'no-store'}).then(async response => {
@@ -263,17 +262,11 @@ export default function BookPage() {
     }).catch(()=>undefined);
     return () => {cancelled=true;};
   }, []);
-  useEffect(() => {
-    let cancelled=false;
-    void fetch('/api/branding',{cache:'no-store'}).then(async response => {
-      if(!response.ok)return;
-      const data=await response.json();
-      if(!cancelled && typeof data.logoVersion==='string')setBusinessLogoVersion(data.logoVersion);
-    }).catch(()=>undefined);
-    return ()=>{cancelled=true;};
-  },[]);
-  const bookingLogo = businessLogoVersion ? `/api/branding/icon?size=192&v=${businessLogoVersion}` : '/icons/icon-192.png';
-  const headerLogo = businessLogoVersion ? `/api/branding/icon?size=192&v=${businessLogoVersion}` : '/icons/icon-72.png';
+  // Request the tenant-scoped image as the very first logo. The image endpoint
+  // returns the uploaded business logo or redirects to the correct ZipBook icon.
+  // Never paint the default logo first and swap it after a client-side fetch.
+  const bookingLogo = '/api/branding/icon?size=192';
+  const headerLogo = '/api/branding/icon?size=72';
   const [clientLoginStage, setClientLoginStage] = useState<LoginStage>('login');
   const [clientLoginCountryInput, setClientLoginCountryInput] = useState(phoneCountryLabel(DEFAULT_PHONE_COUNTRY));
   const [clientLoginPhone, setClientLoginPhone] = useState('');
