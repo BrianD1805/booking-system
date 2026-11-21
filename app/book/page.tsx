@@ -253,6 +253,7 @@ export default function BookPage() {
   const [clientPasswordResetOpen, setClientPasswordResetOpen] = useState(false);
   const modalHistoryRef = useRef(false);
   const [businessInfo, setBusinessInfo] = useState<{name:string;legacy:boolean;publicBookings?:boolean} | null>(null);
+  const [businessLogoVersion,setBusinessLogoVersion] = useState<string|null>(null);
   useEffect(() => {
     let cancelled = false;
     void fetch('/api/tenant-context',{cache:'no-store'}).then(async response => {
@@ -262,6 +263,17 @@ export default function BookPage() {
     }).catch(()=>undefined);
     return () => {cancelled=true;};
   }, []);
+  useEffect(() => {
+    let cancelled=false;
+    void fetch('/api/branding',{cache:'no-store'}).then(async response => {
+      if(!response.ok)return;
+      const data=await response.json();
+      if(!cancelled && typeof data.logoVersion==='string')setBusinessLogoVersion(data.logoVersion);
+    }).catch(()=>undefined);
+    return ()=>{cancelled=true;};
+  },[]);
+  const bookingLogo = businessLogoVersion ? `/api/branding/icon?size=192&v=${businessLogoVersion}` : '/icons/icon-192.png';
+  const headerLogo = businessLogoVersion ? `/api/branding/icon?size=192&v=${businessLogoVersion}` : '/icons/icon-72.png';
   const [clientLoginStage, setClientLoginStage] = useState<LoginStage>('login');
   const [clientLoginCountryInput, setClientLoginCountryInput] = useState(phoneCountryLabel(DEFAULT_PHONE_COUNTRY));
   const [clientLoginPhone, setClientLoginPhone] = useState('');
@@ -915,7 +927,7 @@ export default function BookPage() {
     <main className="shell fresh-shell">
       <header className="client-home-topbar" aria-label="Client app header">
         <a className="client-home-brand" href="/book" aria-label="ZipBook client home">
-          <img src="/icons/icon-72.png" alt="" width="44" height="44" />
+          <img src={headerLogo} alt="" width="44" height="44" />
           <span>ZipBook</span>
         </a>
         {businessInfo?.legacy === false ? null : <button
@@ -931,7 +943,7 @@ export default function BookPage() {
 
       <section className="client-home-welcome" aria-labelledby="client-home-title">
         <div className="client-home-icon-wrap" aria-hidden="true">
-          <img src="/icons/icon-192.png" alt="" width="96" height="96" />
+          <img src={bookingLogo} alt="" width="96" height="96" />
         </div>
         <p className="badge blue-badge">ZipBook · {APP_VERSION}</p>
         <h1 id="client-home-title" className="hero-title clean-title">{businessInfo?.legacy === false ? `Welcome to ${businessInfo.name}.` : "Welcome to ZipBook."}</h1>
@@ -1480,7 +1492,7 @@ export default function BookPage() {
         </section>
       )}
 
-      <ClientInstallPrompt />
+      <ClientInstallPrompt businessName={businessInfo?.legacy === false ? businessInfo.name : undefined} />
 
     </main>
   );

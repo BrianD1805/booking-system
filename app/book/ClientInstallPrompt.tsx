@@ -25,7 +25,7 @@ function isIosSafariLike() {
   return isIosDevice && isSafari;
 }
 
-export function ClientInstallPrompt() {
+export function ClientInstallPrompt({ businessName }: { businessName?: string }) {
   const [installEvent, setInstallEvent] = useState<BeforeInstallPromptEvent | null>(null);
   const [visible, setVisible] = useState(false);
   const [iosHelpVisible, setIosHelpVisible] = useState(false);
@@ -101,12 +101,13 @@ export function ClientInstallPrompt() {
   }
 
   if (!visible || isInstalled) return null;
+  const installName = businessName ? businessName.slice(0, 50) : 'ZipBook';
 
   return (
-    <aside className="install-prompt" role="dialog" aria-live="polite" aria-label="Install ZipBook app">
+    <aside className="install-prompt" role="dialog" aria-live="polite" aria-label={`Install ${installName} app`}>
       <div className="install-prompt-icon" aria-hidden="true">✓</div>
       <div className="install-prompt-copy">
-        <strong>Install ZipBook</strong>
+        <strong>Install {installName}</strong>
         {supportsNativePrompt ? (
           <span>Add this booking app to your phone for quicker appointment booking next time.</span>
         ) : iosHelpVisible ? (

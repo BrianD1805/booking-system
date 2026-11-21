@@ -8,6 +8,7 @@ import { ZipSelect } from '@/components/ZipSelect';
 import { APP_VERSION } from '@/lib/mockData';
 import { makeAdminAuthHeaders } from '@/components/admin/AdminAuthGate';
 import { showAdminToast } from '@/components/admin/AdminToast';
+import { BusinessBrandingCard } from '@/components/admin/BusinessBrandingCard';
 
 type PracticeSettingsForm = {
   practiceName: string; publicDisplayName: string; address: string; phone: string; email: string; logoUrl: string;
@@ -214,6 +215,8 @@ export default function AdminSettingsPage() {
         </section>
       </div>
 
+      <BusinessBrandingCard />
+
       {data.settings.tenantSlug && <section className="card clean-panel settings-054-section">
         <div className="settings-054-section-heading"><div><span className="settings-054-eyebrow">Your website</span><h2>Website integration</h2><p>Copy your business booking link or add the secure diary to approved websites with HTML or React code.</p></div><Link className="button primary" href="/admin/integrations">Manage integration</Link></div>
       </section>}
@@ -241,7 +244,7 @@ export default function AdminSettingsPage() {
         {modal === 'profile' && <div className="settings-054-form-grid">
           {settingField('practiceName', 'Practice name')}{settingField('publicDisplayName', 'Public display name')}{settingField('email', 'Practice email', 'email')}{settingField('phone', 'Practice phone', 'tel')}
           <label className="settings-054-field span-two"><span>Address</span><textarea value={settingsDraft.address} onChange={(event) => setSettingsDraft({ ...settingsDraft, address: event.target.value })} /></label>
-          {settingField('logoUrl','Logo URL (optional)')}{settingField('timezone','Timezone (e.g. Europe/London)')}{settingField('currencyCode','Currency (GBP, KES…)')}{settingField('countryCode','Country (GB, KE…)')}
+          {settingField('timezone','Timezone (e.g. Europe/London)')}{settingField('currencyCode','Currency (GBP, KES…)')}{settingField('countryCode','Country (GB, KE…)')}
           {field('Booking app URL', data.settings.clientAppUrl ?? '', () => undefined, { readOnly: true })}
         </div>}
         {modal === 'hours' && <div className="settings-054-modal-stack">

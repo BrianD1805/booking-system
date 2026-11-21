@@ -5781,3 +5781,11 @@ button.admin-password-eye .admin-password-eye-slash {
 .embed-058-toggle span{display:grid;gap:4px}
 .embed-058-toggle small{color:var(--muted);line-height:1.5}
 @media(max-width:640px){.embed-058-snippet-heading{align-items:stretch;flex-direction:column}.embed-058-snippet-heading .pill{align-self:flex-start}}
+
+/* Ver-0.060: Owner logo controls; retain approved Settings card/popup layout. */
+.branding-060-content{display:grid;grid-template-columns:minmax(120px,165px) minmax(0,1fr);align-items:start;gap:22px;margin-top:14px}
+.branding-060-preview{display:grid;justify-items:center;gap:10px;border:1px solid var(--line);border-radius:16px;background:#f8fbff;padding:18px 8px;text-align:center;color:#536e88;font-size:.84rem}
+.branding-060-preview img{width:96px;height:96px;object-fit:contain;border-radius:18px;background:#fff}
+.branding-060-controls{min-width:0;display:grid;gap:12px}.branding-060-controls .settings-054-field{max-width:440px}.branding-060-controls input[type=file]{max-width:100%;padding:10px;border:1px solid var(--line);border-radius:12px;background:white}
+.branding-060-controls .mini-copy{margin:0;color:#536e88;line-height:1.45}.branding-060-actions{display:flex;flex-wrap:wrap;gap:10px}
+@media(max-width:560px){.branding-060-content{grid-template-columns:1fr}.branding-060-preview{width:100%;max-width:210px}}
