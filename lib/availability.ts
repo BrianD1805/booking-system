@@ -161,15 +161,17 @@ function summariseUnavailableChecks(checks: PractitionerSlotCheck[]) {
   return reasons.length < checks.length ? `${reasons.join('; ')}…` : reasons.join('; ');
 }
 
-export function getAvailabilityForDate(
+/** Shared availability calculation. Booking eligibility is decided by the caller. */
+function getSlotsForEligiblePractitioners(
   bookings: Booking[],
   date: string,
-  procedureId: string,
   context: AvailabilityContext,
-  practitionerId: string = FIRST_AVAILABLE
+  eligiblePractitioners: Practitioner[],
+  duration: number,
+  slotInterval: number,
+  noPractitionerReason: string
 ): DiarySlot[] {
   const { practiceSettings, blockedDates, blockedTimes } = context;
-  const duration = procedureDuration(procedureId, context.procedures);
   const dayBlocked = blockedDates.find((item) => item.date === date);
 
   if (!isWorkingDay(date, practiceSettings)) {
@@ -180,16 +182,12 @@ export function getAvailabilityForDate(
     return [{ time: practiceSettings.workingStartTime, endTime: practiceSettings.workingEndTime, available: false, reason: dayBlocked.reason }];
   }
 
-  const eligiblePractitioners = practitionersForProcedure(procedureId, context)
-    .filter((practitioner) => practitionerId === FIRST_AVAILABLE || practitioner.id === practitionerId);
-
   if (!eligiblePractitioners.length) {
-    return [{ time: practiceSettings.workingStartTime, endTime: practiceSettings.workingEndTime, available: false, reason: 'No practitioner can perform this procedure' }];
+    return [{ time: practiceSettings.workingStartTime, endTime: practiceSettings.workingEndTime, available: false, reason: noPractitionerReason }];
   }
 
   const start = toMinutes(practiceSettings.workingStartTime);
   const end = toMinutes(practiceSettings.workingEndTime);
-  const slotInterval = practiceSettings.slotIntervalMinutes;
   const practiceBlocks = blockedTimes.filter((block) => block.date === date);
   const slots: DiarySlot[] = [];
 
@@ -241,4 +239,46 @@ export function getAvailabilityForDate(
   }
 
   return slots;
+}
+
+/**
+ * Procedure-specific availability for booking creation. This MUST continue to
+ * require an active practitioner assigned to the requested procedure.
+ */
+export function getAvailabilityForDate(
+  bookings: Booking[],
+  date: string,
+  procedureId: string,
+  context: AvailabilityContext,
+  practitionerId: string = FIRST_AVAILABLE
+): DiarySlot[] {
+  const eligiblePractitioners = practitionersForProcedure(procedureId, context)
+    .filter((practitioner) => practitionerId === FIRST_AVAILABLE || practitioner.id === practitionerId);
+  return getSlotsForEligiblePractitioners(
+    bookings, date, context, eligiblePractitioners,
+    procedureDuration(procedureId, context.procedures),
+    context.practiceSettings.slotIntervalMinutes,
+    'No practitioner can perform this procedure'
+  );
+}
+
+/**
+ * Procedure-independent, fixed 30-minute staff diary preview. It answers
+ * "who is free to work?" rather than "who can perform a particular service?".
+ * Working hours, leave, closures, lunch and booked appointments still apply.
+ * Booking creation continues to use getAvailabilityForDate above.
+ */
+export function getDiarySlotsForDate(
+  bookings: Booking[],
+  date: string,
+  context: AvailabilityContext,
+  practitionerId: string = FIRST_AVAILABLE
+): DiarySlot[] {
+  const activePractitioners = context.practitioners
+    .filter((practitioner) => practitioner.active && (practitionerId === FIRST_AVAILABLE || practitioner.id === practitionerId))
+    .sort((a, b) => a.displayOrder - b.displayOrder || a.name.localeCompare(b.name));
+  return getSlotsForEligiblePractitioners(
+    bookings, date, context, activePractitioners,
+    30, 30, 'No active practitioners in this diary'
+  );
 }

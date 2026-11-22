@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { Header } from '@/components/Header';
 import { APP_VERSION, practitionerName, procedureName, type Booking, type BookingStatus, type Customer } from '@/lib/mockData';
-import { FIRST_AVAILABLE, getAvailabilityForDate, getDateOffset, getDayLabel, practitionersForProcedure } from '@/lib/availability';
+import { FIRST_AVAILABLE, getAvailabilityForDate, getDiarySlotsForDate, getDateOffset, getDayLabel, practitionersForProcedure } from '@/lib/availability';
 import { bookingStartIsPast, getPracticeToday } from '@/lib/bookingTime.mjs';
 import { useBookingDatabase } from '@/lib/useBookingDatabase';
 import { makeAdminAuthHeaders } from '@/components/admin/AdminAuthGate';
@@ -182,16 +182,14 @@ export default function AdminPage() {
     () => getAvailabilityForDate(availabilityBookings, selectedDate, activeProcedureId, context, activePractitionerId),
     [availabilityBookings, selectedDate, activeProcedureId, context, activePractitionerId]
   );
-  const diarySlotPreviewProcedureId = procedures.find((procedure) => procedure.id === 'checkup')?.id ?? activeProcedureId;
   const diarySlots = useMemo(
-    () => getAvailabilityForDate(
+    () => getDiarySlotsForDate(
       bookings,
       selectedDate,
-      diarySlotPreviewProcedureId,
       context,
       diaryPractitionerFilter === 'all' ? FIRST_AVAILABLE : diaryPractitionerFilter
     ),
-    [bookings, selectedDate, diarySlotPreviewProcedureId, context, diaryPractitionerFilter]
+    [bookings, selectedDate, context, diaryPractitionerFilter]
   );
   const allDateBookings = bookings
     .filter((booking) => booking.date === selectedDate)
