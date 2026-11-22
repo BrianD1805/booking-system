@@ -3,6 +3,7 @@ import { assertFutureBookingStart, assertClientBookingRules } from '@/lib/bookin
 import { insideHours, crossesLunch, dayOfWeek } from '@/lib/schedulingPolicy.mjs';
 import { createHash, randomBytes, randomInt } from 'crypto';
 import { hashClientPassword, matchesClientPassword } from './clientPassword.mjs';
+import { normaliseSignupName } from './clientSignupName.mjs';
 import { getZipBookDatabase } from './dbProvider';
 import { deliverClientOtp, isOtpTestModeEnabled } from './otpDelivery';
 import { buildClientBookingConfirmationEmailHtml, sendZipBookEmail } from './emailDelivery';
@@ -1201,7 +1202,7 @@ async function findCustomerForClientLogin(input: { phone?: string; localPhone?: 
   return rows[0] ? mapCustomer(rows[0]) : null;
 }
 
-async function ensureClientLoginCustomer(input: { phone: string; localPhone?: string; countryDialCode?: string; email: string }): Promise<Customer> {
+async function ensureClientLoginCustomer(input: { phone: string; localPhone?: string; countryDialCode?: string; email: string; fullName: string }): Promise<Customer> {
   const database = db();
   const phone = normaliseClientLoginPhone(input);
   const email = normaliseEmail(input.email);
@@ -1225,18 +1226,18 @@ async function ensureClientLoginCustomer(input: { phone: string; localPhone?: st
   const safeEmail = email || `${id}@client-login.local`;
   const rows = await database.sql<CustomerRow>`
     INSERT INTO customers (id, practice_id, full_name, phone, email, notes, has_client_login, last_seen_at)
-    VALUES (${id}, ${currentTenant().practiceId}, ${'Client user'}, ${phone}, ${safeEmail}, ${'Created from client phone account identifier.'}, TRUE, NOW())
+    VALUES (${id}, ${currentTenant().practiceId}, ${input.fullName}, ${phone}, ${safeEmail}, ${'Created from client phone account identifier.'}, TRUE, NOW())
     RETURNING id, full_name, phone, email, notes, has_client_login, last_seen_at::text AS last_seen_at, created_at::text AS created_at, updated_at::text AS updated_at
   `;
   return mapCustomer(rows[0]);
 }
 
-async function createUnlinkedSaasClientCustomer(phone: string, email: string): Promise<Customer> {
+async function createUnlinkedSaasClientCustomer(phone: string, email: string, fullName: string): Promise<Customer> {
   const id = `cust-${Date.now()}-${randomBytes(8).toString('hex')}`;
   const database = db();
   const rows = await database.sql<CustomerRow>`
     INSERT INTO customers (id, practice_id, full_name, phone, email, notes, has_client_login, last_seen_at)
-    VALUES (${id}, ${currentTenant().practiceId}, ${'Client user'}, ${phone}, ${email}, ${'Customer account pending email verification.'}, FALSE, NOW())
+    VALUES (${id}, ${currentTenant().practiceId}, ${fullName}, ${phone}, ${email}, ${'Customer account pending email verification.'}, FALSE, NOW())
     RETURNING id, full_name, phone, email, notes, has_client_login, last_seen_at::text AS last_seen_at, created_at::text AS created_at, updated_at::text AS updated_at
   `;
   return mapCustomer(rows[0]);
@@ -1283,16 +1284,30 @@ async function findClientAccountByPhone(phone: string): Promise<ClientAccountRow
   return rows[0] ?? null;
 }
 
-export async function requestClientSignupOtp(input: { phone?: string; localPhone?: string; countryDialCode?: string; email?: string; password?: string }): Promise<{ otpId: string; channel: 'sms' | 'email'; destination: string; accountPhone: string; expiresAt: string; deliveryMessage: string; deliveryMode: string; deliveryProvider: string; deliveryReady: boolean; testOtpCode?: string }> {
+export async function requestClientSignupOtp(input: { phone?: string; localPhone?: string; countryDialCode?: string; email?: string; firstName?: string; surname?: string; password?: string }): Promise<{ otpId: string; channel: 'sms' | 'email'; destination: string; accountPhone: string; expiresAt: string; deliveryMessage: string; deliveryMode: string; deliveryProvider: string; deliveryReady: boolean; testOtpCode?: string }> {
   const phone = normaliseClientLoginPhone(input);
   const email = normaliseEmail(input.email);
   const password = validateClientPassword(input.password);
+  const fullName = normaliseSignupName(input.firstName, input.surname);
   if (!phone) throw new Error('Select a country and enter your mobile number.');
   if (!isValidInternationalPhone(phone)) throw new Error('Enter a valid mobile number. ZipBook stores it as a full international number, for example +254712345678.');
   if (!email) throw new Error('Enter your email address so we can send your sign-up code.');
   if (!isValidEmail(email)) throw new Error('Enter a valid email address for your sign-up code.');
 
   await recordClientAuthAttempt(`signup:${phone}`, 5, 'Sign-up code requests');
+  // Accounts have a unique email per business; guest records do not. Check
+  // accounts (not guest bookings) before creating the pending customer row.
+  const emailAccounts = await db().sql<{id:string;login_phone:string;verified_at:string|null}>`
+    SELECT id, login_phone, verified_at::text AS verified_at
+    FROM client_accounts
+    WHERE practice_id = ${currentTenant().practiceId} AND lower(login_email) = ${email}
+    LIMIT 1
+  `;
+  if (emailAccounts[0] && emailAccounts[0].login_phone !== phone) {
+    throw new Error(emailAccounts[0].verified_at
+      ? 'A customer account already uses this email address. Please sign in or reset your password.'
+      : 'This email address has a pending sign-up. Complete it with the original mobile number or contact the business.');
+  }
   const existingAccount = await findClientAccountByPhone(phone);
   if (existingAccount?.verified_at) {
     throw new Error('An account already exists for this mobile number. Please sign in instead.');
@@ -1307,9 +1322,16 @@ export async function requestClientSignupOtp(input: { phone?: string; localPhone
   const customer = !currentTenant().legacy
     ? (existingAccount
       ? await findCustomerById(existingAccount.customer_id)
-      : await createUnlinkedSaasClientCustomer(phone, email))
-    : await ensureClientLoginCustomer({ ...input, phone, email });
+      : await createUnlinkedSaasClientCustomer(phone, email, fullName))
+    : await ensureClientLoginCustomer({ ...input, phone, email, fullName });
   if (!customer) throw new Error('Pending account is not available. Please contact the business.');
+  // This is only a pending, unverified SaaS account already tied to this
+  // exact phone AND email. Never update previously booked guest identities.
+  if (!currentTenant().legacy && existingAccount) {
+    await db().sql`UPDATE customers SET full_name = ${fullName}, updated_at = NOW()
+      WHERE practice_id = ${currentTenant().practiceId} AND id = ${customer.id}
+        AND has_client_login = FALSE AND email = ${email}`;
+  }
   const accountId = await ensureClientAccount(customer, { ...input, phone, email });
   const passwordHash = hashClientPassword(accountId, password);
   const database = db();
@@ -1367,6 +1389,14 @@ export async function verifyClientSignupOtp(input: { otpId: string; code: string
   if (!otp || otp.consumed_at) throw new Error('This sign-up code is no longer valid. Please request a new one.');
   if (new Date(otp.expires_at).getTime() < Date.now()) throw new Error('This sign-up code has expired. Please request a new one.');
   if (otp.attempts >= 5) throw new Error('Too many incorrect attempts. Please request a new sign-up code.');
+
+  // An OTP issued by an older build must not create a nameless SaaS account.
+  if (!currentTenant().legacy) {
+    const pendingCustomer = await findCustomerById(otp.customer_id);
+    if (!pendingCustomer || !pendingCustomer.fullName.trim() || pendingCustomer.fullName === 'Client user') {
+      throw new Error('Please restart sign-up and enter your first name and surname.');
+    }
+  }
 
   if (hashSecret(`${otp.id}:${code}`) !== otp.otp_code_hash) {
     await database.sql`UPDATE client_login_otps SET attempts = attempts + 1 WHERE id = ${otp.id}`;
@@ -1543,7 +1573,9 @@ export async function requestClientLoginOtp(input: { phone?: string; localPhone?
   if (!email) throw new Error('Enter your email address so we can send your login code. SMS delivery will be connected next.');
   if (!isValidEmail(email)) throw new Error('Enter a valid email address for your login code.');
 
-  const customer = await ensureClientLoginCustomer({ ...input, phone, email });
+  // This older email-OTP account creation route is limited to the original legacy host.
+  // Independent businesses must use verified signup with required first name and surname.
+  const customer = await ensureClientLoginCustomer({ ...input, phone, email, fullName: 'Client user' });
   await ensureClientAccount(customer, { ...input, phone, email });
 
   const otpId = `otp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;

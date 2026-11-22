@@ -6,6 +6,7 @@ import { createPortal } from 'react-dom';
 export type ZipSelectOption = {
   value: string;
   label: string;
+  buttonLabel?: string;
   description?: string;
   disabled?: boolean;
 };
@@ -19,6 +20,7 @@ type ZipSelectProps = {
   placeholder?: string;
   disabled?: boolean;
   className?: string;
+  searchable?: boolean;
 };
 
 type MenuPlacement = 'below' | 'above';
@@ -28,15 +30,17 @@ const VIEWPORT_GUTTER = 12;
 const MIN_MENU_HEIGHT = 150;
 const MAX_MENU_HEIGHT = 320;
 
-export function ZipSelect({ id, value, options, onChange, ariaLabel, placeholder = 'Select', disabled = false, className = '' }: ZipSelectProps) {
+export function ZipSelect({ id, value, options, onChange, ariaLabel, placeholder = 'Select', disabled = false, className = '', searchable = false }: ZipSelectProps) {
   const rootRef = useRef<HTMLDivElement | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
   const [open, setOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [searchText, setSearchText] = useState('');
   const [menuStyle, setMenuStyle] = useState<CSSProperties>({});
   const [menuPlacement, setMenuPlacement] = useState<MenuPlacement>('below');
   const selectedOption = useMemo(() => options.find((option) => option.value === value), [options, value]);
   const enabledOptions = useMemo(() => options.filter((option) => !option.disabled), [options]);
+  const visibleOptions = useMemo(() => !searchable || !searchText.trim() ? options : options.filter(option => `${option.label} ${option.value}`.toLocaleLowerCase().includes(searchText.trim().toLocaleLowerCase())), [options, searchText, searchable]);
   const selectedIndex = selectedOption ? enabledOptions.findIndex((option) => option.value === selectedOption.value) : -1;
 
   const usesWideMenu = className.split(/\s+/).includes('phone-country-select');
@@ -94,6 +98,10 @@ export function ZipSelect({ id, value, options, onChange, ariaLabel, placeholder
   }, [disabled]);
 
   useEffect(() => {
+    if (!open) setSearchText('');
+  }, [open]);
+
+  useEffect(() => {
     if (!open) return;
     updateMenuPosition();
     const animationFrame = window.requestAnimationFrame(updateMenuPosition);
@@ -134,6 +142,7 @@ export function ZipSelect({ id, value, options, onChange, ariaLabel, placeholder
     if (!nextOption || nextOption.disabled) return;
     onChange(nextValue);
     setOpen(false);
+    setSearchText('');
   }
 
   function chooseByOffset(offset: number) {
@@ -162,8 +171,21 @@ export function ZipSelect({ id, value, options, onChange, ariaLabel, placeholder
   }
 
   const menu = (
-    <div ref={menuRef} className={menuClassName} role="listbox" aria-labelledby={id} style={menuStyle}>
-      {options.map((option) => {
+    <div ref={menuRef} className={menuClassName} role={searchable ? 'dialog' : 'listbox'} aria-label={ariaLabel ?? 'Select an option'} style={menuStyle}>
+      {searchable && (
+        <div className="zip-select-search-row" role="presentation">
+          <input aria-label="Search country or dialling code" type="search" placeholder="Search country or code" value={searchText} onChange={event => setSearchText(event.target.value)} onKeyDown={event => { if (event.key === 'Escape') { event.stopPropagation(); setOpen(false); } }} />
+        </div>
+      )}
+      {searchable ? <div role="listbox" aria-label="Countries">
+        {renderOptions()}
+      </div> : renderOptions()}
+    </div>
+  );
+
+  function renderOptions() {
+    return <>{visibleOptions.length === 0 && <p className="zip-select-empty">No matching country</p>}
+      {visibleOptions.map((option) => {
         const selected = option.value === value;
         return (
           <button
@@ -179,9 +201,8 @@ export function ZipSelect({ id, value, options, onChange, ariaLabel, placeholder
             {option.description && <small>{option.description}</small>}
           </button>
         );
-      })}
-    </div>
-  );
+      })}</>;
+  }
 
   return (
     <div ref={rootRef} className={`zip-select ${open ? 'is-open' : ''} ${disabled ? 'is-disabled' : ''} ${className}`.trim()}>
@@ -189,7 +210,7 @@ export function ZipSelect({ id, value, options, onChange, ariaLabel, placeholder
         id={id}
         type="button"
         className="zip-select-button"
-        aria-haspopup="listbox"
+        aria-haspopup={searchable ? 'dialog' : 'listbox'}
         aria-expanded={open}
         aria-label={ariaLabel}
         disabled={disabled}
@@ -197,7 +218,7 @@ export function ZipSelect({ id, value, options, onChange, ariaLabel, placeholder
         onKeyDown={handleKeyDown}
       >
         <span className={`zip-select-value ${selectedOption ? '' : 'is-placeholder'}`.trim()}>
-          {selectedOption?.label ?? placeholder}
+          {selectedOption?.buttonLabel ?? selectedOption?.label ?? placeholder}
         </span>
         <span className="zip-select-chevron" aria-hidden="true">
           <svg className="zip-select-chevron-icon" viewBox="0 0 24 24" focusable="false">

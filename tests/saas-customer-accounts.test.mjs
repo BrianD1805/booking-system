@@ -28,7 +28,7 @@ test('tenant hostname remains authoritative and SaaS customers use only verified
 
 test('SaaS signup never automatically joins a guest booking to an unverified phone', () => {
   const db = read('lib/db.ts');
-  assert.match(db, /createUnlinkedSaasClientCustomer\(phone, email\)/);
+  assert.match(db, /createUnlinkedSaasClientCustomer\(phone, email, fullName\)/);
   assert.match(db, /if \(existingAccount && normaliseEmail\(existingAccount.login_email\) !== email\)/);
   assert.match(db, /if \(existingAccount\?\.verified_at\)/);
   assert.match(db, /WHERE practice_id = \$\{currentTenant\(\)\.practiceId\} AND login_phone = \$\{phone\}/);

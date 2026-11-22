@@ -5818,3 +5818,82 @@ button.admin-password-eye .admin-password-eye-slash {
   max-height: none;
   overflow: visible;
 }
+
+/* Ver-0.063A: compact tenant welcome and My Passwords-style phone-country picker. */
+.client-home-welcome .hero-title {
+  font-size: clamp(2.05rem, 4.4vw, 3.35rem);
+  line-height: 1.08;
+  letter-spacing: -0.045em;
+  max-width: 690px;
+  overflow-wrap: anywhere;
+}
+.client-signup-name-field { min-width: 0; }
+.client-signup-name-field input { width: 100%; }
+/* Country flag/dialling code and phone input are separate rounded controls. */
+.phone-combo-control,
+.client-auth-card:not(.client-reset-card) .phone-combo-control {
+  display: grid;
+  grid-template-columns: minmax(116px, 135px) minmax(0, 1fr);
+  gap: 10px;
+  overflow: visible;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.phone-combo-control:focus-within { border: 0; box-shadow: none; }
+.phone-combo-control .zip-select-button,
+.phone-combo-control .zip-select-button:hover,
+.phone-combo-control .zip-select-button:focus-visible {
+  background: #fff;
+  border: 1px solid var(--line) !important;
+  border-radius: 16px;
+  box-shadow: none;
+  font-weight: 750;
+  min-height: 54px;
+  white-space: nowrap;
+}
+.phone-combo-control input,
+.client-auth-card:not(.client-reset-card) .phone-combo-control input,
+.client-reset-card .phone-combo-control input {
+  min-height: 54px;
+  padding: 12px 15px !important;
+  background: #fff;
+  border: 1px solid var(--line) !important;
+  border-radius: 16px !important;
+}
+.phone-combo-control input:focus-visible,
+.phone-combo-control .zip-select-button:focus-visible {
+  outline: none;
+  border-color: rgba(51,102,153,.5) !important;
+  box-shadow: 0 0 0 3px rgba(51,102,153,.1) !important;
+}
+.zip-select-search-row {
+  position: sticky;
+  top: -8px;
+  z-index: 1;
+  padding: 8px 4px 10px;
+  background: #fff;
+}
+.zip-select-search-row input {
+  display: block;
+  width: 100%;
+  min-height: 42px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  font: inherit;
+  font-size: 0.95rem;
+  color: var(--ink);
+  background: #f7fbff;
+}
+.zip-select-search-row input:focus-visible { outline: 2px solid rgba(51,102,153,.4); outline-offset: 1px; }
+.zip-select-empty { padding: 10px; margin: 0; color: var(--muted); }
+@media(max-width: 640px) {
+  .phone-combo-control,
+  .client-auth-card:not(.client-reset-card) .phone-combo-control {
+    grid-template-columns: minmax(108px, 126px) minmax(0, 1fr);
+    gap: 8px;
+  }
+  .client-home-welcome .hero-title { font-size: clamp(1.9rem, 8vw, 2.6rem); }
+}

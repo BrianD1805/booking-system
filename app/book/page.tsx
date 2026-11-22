@@ -112,6 +112,21 @@ const PHONE_COUNTRIES: PhoneCountry[] = [
 
 const DEFAULT_PHONE_COUNTRY = PHONE_COUNTRIES[0];
 
+function countryFlag(iso: string) {
+  return [...iso.toUpperCase()].map(letter => String.fromCodePoint(0x1f1e6 + letter.charCodeAt(0) - 65)).join('');
+}
+const COUNTRY_OPTIONS = PHONE_COUNTRIES.map(country => ({
+  value: phoneCountryLabel(country),
+  label: `${countryFlag(country.iso)}  ${country.name}  ${country.dialCode}`,
+  buttonLabel: `${countryFlag(country.iso)}  ${country.dialCode}`
+}));
+
+function clientBusinessDisplayName(name: string) {
+  // The seed/demo practice was registered with a ZipBook prefix. Never show
+  // that platform prefix as part of the customer's business welcome title.
+  return name.trim().replace(/^ZipBook\s+/i, '').trim() || name.trim();
+}
+
 function timeToMinutes(time: string) {
   const [hours, minutes] = time.split(':').map(Number);
   return (hours * 60) + minutes;
@@ -271,6 +286,8 @@ export default function BookPage() {
   const [clientLoginCountryInput, setClientLoginCountryInput] = useState(phoneCountryLabel(DEFAULT_PHONE_COUNTRY));
   const [clientLoginPhone, setClientLoginPhone] = useState('');
   const [clientLoginEmail, setClientLoginEmail] = useState('');
+  const [clientSignupFirstName, setClientSignupFirstName] = useState('');
+  const [clientSignupSurname, setClientSignupSurname] = useState('');
   const [clientPassword, setClientPassword] = useState('');
   const [clientResetPassword, setClientResetPassword] = useState('');
   const [clientOtpCode, setClientOtpCode] = useState('');
@@ -321,7 +338,7 @@ export default function BookPage() {
   const selectedLoginCountry = findPhoneCountry(clientLoginCountryInput);
   const clientLoginFullPhone = buildInternationalPhone(selectedLoginCountry, clientLoginPhone);
   const canSignInClient = Boolean(selectedLoginCountry && clientLoginFullPhone && clientPassword.trim());
-  const canStartClientSignup = Boolean(selectedLoginCountry && clientLoginFullPhone && clientLoginEmail.trim() && clientPassword.length >= 6);
+  const canStartClientSignup = Boolean(selectedLoginCountry && clientLoginFullPhone && clientSignupFirstName.trim() && clientSignupSurname.trim() && clientLoginEmail.trim() && clientPassword.length >= (businessInfo?.legacy === false ? 10 : 6));
   const canRequestPasswordReset = Boolean(selectedLoginCountry && clientLoginFullPhone && clientLoginEmail.trim());
   const canCompletePasswordReset = Boolean(clientOtpCode.trim().length >= 4 && clientResetPassword.length >= 6);
   const canGoToTreatment = patientName.trim() && patientPhone.trim() && patientEmail.trim();
@@ -666,6 +683,8 @@ export default function BookPage() {
           countryIso: selectedLoginCountry?.iso,
           countryDialCode: selectedLoginCountry?.dialCode,
           email: clientLoginEmail,
+          firstName: clientSignupFirstName,
+          surname: clientSignupSurname,
           password: clientPassword
         })
       });
@@ -943,7 +962,7 @@ export default function BookPage() {
           <img src={bookingLogo} alt="" width="96" height="96" />
         </div>
         <p className="badge blue-badge">ZipBook · {APP_VERSION}</p>
-        <h1 id="client-home-title" className="hero-title clean-title">{businessInfo?.legacy === false ? `Welcome to ${businessInfo.name}.` : "Welcome to ZipBook."}</h1>
+        <h1 id="client-home-title" className="hero-title clean-title">{businessInfo ? (businessInfo.legacy ? 'Welcome to ZipBook.' : `Welcome to ${clientBusinessDisplayName(businessInfo.name)}.`) : 'Welcome'}</h1>
         <p className="hero-copy tight-copy">
           {businessInfo?.legacy === false ? (businessInfo.publicBookings === false ? "Online appointments are not open yet. Please contact the business directly." : "Book as a guest or sign in to manage your appointments.") : "Book your appointment quickly and clearly, with your details ready when you sign in."}
         </p>
@@ -1001,6 +1020,18 @@ export default function BookPage() {
 
                 {(clientLoginStage === 'login' || clientLoginStage === 'signup') && (
                   <div className="grid two controls-grid client-account-fields">
+                    {clientLoginStage === 'signup' && (
+                      <>
+                        <div className="form-row client-signup-name-field">
+                          <label htmlFor="clientSignupFirstName">First name</label>
+                          <input id="clientSignupFirstName" value={clientSignupFirstName} onChange={(event) => setClientSignupFirstName(event.target.value)} autoComplete="given-name" maxLength={70} placeholder="First name" required />
+                        </div>
+                        <div className="form-row client-signup-name-field">
+                          <label htmlFor="clientSignupSurname">Surname</label>
+                          <input id="clientSignupSurname" value={clientSignupSurname} onChange={(event) => setClientSignupSurname(event.target.value)} autoComplete="family-name" maxLength={70} placeholder="Surname" required />
+                        </div>
+                      </>
+                    )}
                     <div className="form-row full-width-row phone-combo-row">
                       <label htmlFor="clientLoginPhone">Mobile number</label>
                       <div className="phone-combo-control">
@@ -1010,10 +1041,8 @@ export default function BookPage() {
                           value={clientLoginCountryInput}
                           onChange={setClientLoginCountryInput}
                           className="phone-country-select"
-                          options={PHONE_COUNTRIES.map((country) => ({
-                            value: phoneCountryLabel(country),
-                            label: `${country.name} ${country.dialCode}`
-                          }))}
+                          options={COUNTRY_OPTIONS}
+                          searchable
                         />
                         <input id="clientLoginPhone" value={clientLoginPhone} onChange={(event) => setClientLoginPhone(event.target.value)} inputMode="tel" autoComplete="tel-national" placeholder="0712345678" />
                       </div>
@@ -1028,7 +1057,7 @@ export default function BookPage() {
                     )}
                     <div className={clientLoginStage === 'signup' ? 'form-row signup-password-row' : 'form-row full-width-row'}>
                       <label htmlFor="clientPassword">Password</label>
-                      <input id="clientPassword" value={clientPassword} onChange={(event) => setClientPassword(event.target.value)} type="password" autoComplete={clientLoginStage === 'signup' ? 'new-password' : 'current-password'} placeholder="Password" />
+                      <input id="clientPassword" value={clientPassword} onChange={(event) => setClientPassword(event.target.value)} type="password" autoComplete={clientLoginStage === 'signup' ? 'new-password' : 'current-password'} placeholder={clientLoginStage === 'signup' ? (businessInfo?.legacy === false ? 'At least 10 characters' : 'At least 6 characters') : 'Password'} />
                       {clientLoginStage === 'login' && (
                         <button className="auth-text-link" type="button" onClick={openClientPasswordReset}>
                           Forgot password?
@@ -1168,10 +1197,8 @@ export default function BookPage() {
                       value={clientLoginCountryInput}
                       onChange={setClientLoginCountryInput}
                       className="phone-country-select"
-                      options={PHONE_COUNTRIES.map((country) => ({
-                        value: phoneCountryLabel(country),
-                        label: `${country.name} ${country.dialCode}`
-                      }))}
+                      options={COUNTRY_OPTIONS}
+                      searchable
                     />
                     <input id="clientResetPhone" value={clientLoginPhone} onChange={(event) => setClientLoginPhone(event.target.value)} inputMode="tel" autoComplete="tel-national" placeholder="0712345678" />
                   </div>

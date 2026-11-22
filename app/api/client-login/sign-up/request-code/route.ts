@@ -13,6 +13,8 @@ export async function POST(request: NextRequest) {
       localPhone: typeof body?.localPhone === 'string' ? body.localPhone : '',
       countryDialCode: typeof body?.countryDialCode === 'string' ? body.countryDialCode : '',
       email: typeof body?.email === 'string' ? body.email : '',
+      firstName: typeof body?.firstName === 'string' ? body.firstName : '',
+      surname: typeof body?.surname === 'string' ? body.surname : '',
       password: typeof body?.password === 'string' ? body.password : ''
     });
 
