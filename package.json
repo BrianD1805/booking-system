@@ -1,6 +1,6 @@
 {
   "name": "zippyweb-booking-system",
-  "version": "0.0.62",
+  "version": "0.0.63",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -18,7 +18,8 @@
     "test:readiness": "node --test tests/platform-readiness.test.mjs",
     "test:procedure-ux": "node --test tests/procedure-selection-ux.test.mjs",
     "test:diary-slots": "node --test tests/diary-preview.test.mjs",
-    "test:public-booking": "node --test tests/saas-public-booking.test.mjs"
+    "test:public-booking": "node --test tests/saas-public-booking.test.mjs",
+    "test:customer-accounts": "node --test tests/saas-customer-accounts.test.mjs"
   },
   "dependencies": {
     "@netlify/plugin-nextjs": "latest",

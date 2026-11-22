@@ -21,7 +21,7 @@ export async function withTenantRequest(request: NextRequest, work: () => Promis
   if (!tenant) return NextResponse.json({error:'Business not found or not active.'},{status:404,headers});
   if (host.kind === 'business') {
     const path = request.nextUrl.pathname;
-    if (path.startsWith('/api/client-login/') || path === '/api/admin-data/bookings/past' || /^\/api\/admin-data\/customers\/[^/]+\/password$/.test(path)) {
+    if (path === '/api/client-login/request-code' || path === '/api/client-login/verify' || path === '/api/admin-data/bookings/past' || /^\/api\/admin-data\/customers\/[^/]+\/password$/.test(path)) {
       return NextResponse.json({error:'This feature is not enabled for pilot businesses.'},{status:403,headers});
     }
   }

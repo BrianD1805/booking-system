@@ -789,6 +789,10 @@ export default function BookPage() {
   }
 
   function signOutClient() {
+    const token = clientSessionToken;
+    if (token) {
+      void fetch('/api/client-login/logout', { method: 'POST', headers: { Authorization: `Bearer ${token}` } }).catch(() => undefined);
+    }
     window.localStorage.removeItem('zipbook-client-session');
     setClientSessionToken('');
     setClientProfile(null);
@@ -923,7 +927,7 @@ export default function BookPage() {
           <img src={headerLogo} alt="" width="44" height="44" />
           <span>ZipBook</span>
         </a>
-        {businessInfo?.legacy === false ? null : <button
+        <button
           className="client-login-icon-button"
           type="button"
           aria-label={clientProfile ? 'Open my account' : 'Open login and sign up'}
@@ -931,7 +935,7 @@ export default function BookPage() {
         >
           <span aria-hidden="true">{clientProfile ? '✓' : '👤'}</span>
           <strong>{clientProfile ? 'My account' : 'Login'}</strong>
-        </button>}
+        </button>
       </header>
 
       <section className="client-home-welcome" aria-labelledby="client-home-title">
@@ -941,7 +945,7 @@ export default function BookPage() {
         <p className="badge blue-badge">ZipBook · {APP_VERSION}</p>
         <h1 id="client-home-title" className="hero-title clean-title">{businessInfo?.legacy === false ? `Welcome to ${businessInfo.name}.` : "Welcome to ZipBook."}</h1>
         <p className="hero-copy tight-copy">
-          {businessInfo?.legacy === false ? (businessInfo.publicBookings === false ? "Online appointments are not open yet. Please contact the business directly." : "Book your appointment using our secure guest booking service.") : "Book your appointment quickly and clearly, with your details ready when you sign in."}
+          {businessInfo?.legacy === false ? (businessInfo.publicBookings === false ? "Online appointments are not open yet. Please contact the business directly." : "Book as a guest or sign in to manage your appointments.") : "Book your appointment quickly and clearly, with your details ready when you sign in."}
         </p>
         <div className="client-home-actions">
           <button className="button green large-cta" type="button" disabled={loading || !!error || !procedures.length || businessInfo?.publicBookings === false} onClick={openBookingFlow}>
@@ -1190,7 +1194,7 @@ export default function BookPage() {
                 </div>
                 <div className="form-row">
                   <label htmlFor="clientResetNewPassword">New password</label>
-                  <input id="clientResetNewPassword" value={clientResetPassword} onChange={(event) => setClientResetPassword(event.target.value)} type="password" autoComplete="new-password" placeholder="At least 6 characters" />
+                  <input id="clientResetNewPassword" value={clientResetPassword} onChange={(event) => setClientResetPassword(event.target.value)} type="password" autoComplete="new-password" placeholder={businessInfo?.legacy === false ? "At least 10 characters" : "At least 6 characters"} />
                   <small>Your old password will stop working after this reset.</small>
                 </div>
                 {clientOtp?.testOtpCode && <p className="delivery-note-pill">Temporary test-mode code: <strong>{clientOtp.testOtpCode}</strong></p>}

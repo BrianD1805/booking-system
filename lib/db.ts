@@ -2,6 +2,7 @@ import { hashStaffPassword, verifyStaffPassword } from './staffPassword.mjs';
 import { assertFutureBookingStart, assertClientBookingRules } from '@/lib/bookingTime.mjs';
 import { insideHours, crossesLunch, dayOfWeek } from '@/lib/schedulingPolicy.mjs';
 import { createHash, randomBytes, randomInt } from 'crypto';
+import { hashClientPassword, matchesClientPassword } from './clientPassword.mjs';
 import { getZipBookDatabase } from './dbProvider';
 import { deliverClientOtp, isOtpTestModeEnabled } from './otpDelivery';
 import { buildClientBookingConfirmationEmailHtml, sendZipBookEmail } from './emailDelivery';
@@ -293,12 +294,31 @@ function makeToken(prefix: string) {
 
 function validateClientPassword(value?: string) {
   const password = value ?? '';
-  if (password.length < 6) throw new Error('Enter a password with at least 6 characters.');
+  const minimum = currentTenant().legacy ? 6 : 10;
+  if (password.length < minimum || password.length > 256) throw new Error(`Enter a password with ${minimum} to 256 characters.`);
   return password;
 }
 
-function hashClientPassword(accountId: string, password: string) {
-  return hashSecret(`zipbook-client-password:${accountId}:${password}`);
+async function recordClientAuthAttempt(key: string, max: number, label: string) {
+  // Database-backed limits work across Netlify instances and are practice-scoped.
+  const database = db();
+  const fingerprint = hashSecret(key);
+  const rows = await database.sql<{ attempts: number }>`
+    INSERT INTO zipbook_client_auth_limits (practice_id, fingerprint, window_start, attempts)
+    VALUES (${currentTenant().practiceId}, ${fingerprint}, NOW(), 1)
+    ON CONFLICT (practice_id, fingerprint) DO UPDATE SET
+      attempts = CASE WHEN zipbook_client_auth_limits.window_start < NOW() - INTERVAL '15 minutes'
+        THEN 1 ELSE LEAST(zipbook_client_auth_limits.attempts + 1, 100) END,
+      window_start = CASE WHEN zipbook_client_auth_limits.window_start < NOW() - INTERVAL '15 minutes'
+        THEN NOW() ELSE zipbook_client_auth_limits.window_start END
+    RETURNING attempts
+  `;
+  if (Number(rows[0]?.attempts ?? 100) > max) throw new Error(`${label} temporarily limited. Please try again in 15 minutes.`);
+}
+
+async function clearClientAuthAttempts(key: string) {
+  const database = db();
+  await database.sql`DELETE FROM zipbook_client_auth_limits WHERE practice_id = ${currentTenant().practiceId} AND fingerprint = ${hashSecret(key)}`;
 }
 
 async function createClientSession(customerId: string) {
@@ -994,6 +1014,10 @@ async function findOrCreateCustomer(input: { customerId?: string; patientName: s
   if (input.customerId) {
     const existing = await findCustomerById(input.customerId);
     if (existing) {
+      // An authenticated SaaS customer can book for another person. The
+      // appointment may use different contact details without changing the
+      // verified account owner or their login/recovery details.
+      if (!currentTenant().legacy && !input.actor) return input.customerId;
       await database.sql`
         UPDATE customers
         SET full_name = ${input.patientName}, phone = ${input.patientPhone}, email = ${input.patientEmail}, last_seen_at = NOW(), updated_at = NOW()
@@ -1207,6 +1231,17 @@ async function ensureClientLoginCustomer(input: { phone: string; localPhone?: st
   return mapCustomer(rows[0]);
 }
 
+async function createUnlinkedSaasClientCustomer(phone: string, email: string): Promise<Customer> {
+  const id = `cust-${Date.now()}-${randomBytes(8).toString('hex')}`;
+  const database = db();
+  const rows = await database.sql<CustomerRow>`
+    INSERT INTO customers (id, practice_id, full_name, phone, email, notes, has_client_login, last_seen_at)
+    VALUES (${id}, ${currentTenant().practiceId}, ${'Client user'}, ${phone}, ${email}, ${'Customer account pending email verification.'}, FALSE, NOW())
+    RETURNING id, full_name, phone, email, notes, has_client_login, last_seen_at::text AS last_seen_at, created_at::text AS created_at, updated_at::text AS updated_at
+  `;
+  return mapCustomer(rows[0]);
+}
+
 async function ensureClientAccount(customer: Customer, input: { phone: string; localPhone?: string; countryDialCode?: string; email: string }) {
   const database = db();
   const phone = normaliseClientLoginPhone(input);
@@ -1257,12 +1292,24 @@ export async function requestClientSignupOtp(input: { phone?: string; localPhone
   if (!email) throw new Error('Enter your email address so we can send your sign-up code.');
   if (!isValidEmail(email)) throw new Error('Enter a valid email address for your sign-up code.');
 
+  await recordClientAuthAttempt(`signup:${phone}`, 5, 'Sign-up code requests');
   const existingAccount = await findClientAccountByPhone(phone);
-  if (existingAccount?.verified_at && existingAccount.password_hash) {
+  if (existingAccount?.verified_at) {
     throw new Error('An account already exists for this mobile number. Please sign in instead.');
   }
+  if (existingAccount && normaliseEmail(existingAccount.login_email) !== email) {
+    throw new Error('A sign-up is already pending for this mobile number and another email address. Please contact the business for help.');
+  }
 
-  const customer = await ensureClientLoginCustomer({ ...input, phone, email });
+  // For an independent business, only an email-verified account can see its
+  // own bookings. Never claim previously-created guest records from a phone
+  // number alone: the same number may have been entered by another person.
+  const customer = !currentTenant().legacy
+    ? (existingAccount
+      ? await findCustomerById(existingAccount.customer_id)
+      : await createUnlinkedSaasClientCustomer(phone, email))
+    : await ensureClientLoginCustomer({ ...input, phone, email });
+  if (!customer) throw new Error('Pending account is not available. Please contact the business.');
   const accountId = await ensureClientAccount(customer, { ...input, phone, email });
   const passwordHash = hashClientPassword(accountId, password);
   const database = db();
@@ -1326,7 +1373,13 @@ export async function verifyClientSignupOtp(input: { otpId: string; code: string
     throw new Error('That code was not correct. Please check it and try again.');
   }
 
-  await database.sql`UPDATE client_login_otps SET consumed_at = NOW(), attempts = attempts + 1 WHERE id = ${otp.id}`;
+  const consumed = await database.sql<{id:string}>`
+    UPDATE client_login_otps SET consumed_at = NOW(), attempts = attempts + 1
+    WHERE practice_id = ${currentTenant().practiceId} AND id = ${otp.id}
+      AND consumed_at IS NULL AND attempts < 5 AND expires_at > NOW()
+    RETURNING id
+  `;
+  if (!consumed[0]) throw new Error('This sign-up code is no longer valid. Please request a new one.');
   await database.sql`
     UPDATE client_accounts
     SET verified_at = COALESCE(verified_at, NOW()), last_login_at = NOW(), updated_at = NOW()
@@ -1346,12 +1399,21 @@ export async function loginClientWithPassword(input: { phone?: string; localPhon
   if (!isValidInternationalPhone(phone)) throw new Error('Enter a valid mobile number.');
   if (!password) throw new Error('Enter your password.');
 
+  await recordClientAuthAttempt(`login:${phone}`, 8, 'Customer login');
   const account = await findClientAccountByPhone(phone);
-  if (!account || !account.password_hash) throw new Error('No account was found for this mobile number. Please sign up first.');
-  if (!account.verified_at) throw new Error('This mobile number has not been verified yet. Please complete sign-up first.');
-  if (hashClientPassword(account.id, password) !== account.password_hash) throw new Error('The mobile number or password was not recognised.');
+  if (!account || !account.password_hash || !account.verified_at || !matchesClientPassword(account.id, password, account.password_hash)) {
+    throw new Error('The mobile number or password was not recognised.');
+  }
+  await clearClientAuthAttempts(`login:${phone}`);
 
   const database = db();
+  // Transparently upgrade successful legacy logins to salted scrypt.
+  if (!account.password_hash.startsWith('scrypt$')) {
+    await database.sql`
+      UPDATE client_accounts SET password_hash = ${hashClientPassword(account.id, password)}, updated_at = NOW()
+      WHERE practice_id = ${currentTenant().practiceId} AND id = ${account.id} AND password_hash = ${account.password_hash}
+    `;
+  }
   await database.sql`
     UPDATE client_accounts
     SET last_login_at = NOW(), updated_at = NOW()
@@ -1373,6 +1435,7 @@ export async function requestClientPasswordResetOtp(input: { phone?: string; loc
   if (!email) throw new Error('Enter the email address saved on your account.');
   if (!isValidEmail(email)) throw new Error('Enter a valid email address.');
 
+  await recordClientAuthAttempt(`reset:${phone}`, 5, 'Password reset requests');
   const account = await findClientAccountByPhone(phone);
   if (!account || !account.password_hash) throw new Error('We could not find a verified account for those details. Please check the mobile number and email address.');
   if (!account.verified_at) throw new Error('This mobile number has not been verified yet. Please complete sign-up first.');
@@ -1444,7 +1507,13 @@ export async function confirmClientPasswordReset(input: { otpId: string; code: s
   const account = accountRows[0];
   if (!account) throw new Error('Client account not found for this reset code.');
 
-  await database.sql`UPDATE client_login_otps SET consumed_at = NOW(), attempts = attempts + 1 WHERE id = ${otp.id}`;
+  const consumed = await database.sql<{id:string}>`
+    UPDATE client_login_otps SET consumed_at = NOW(), attempts = attempts + 1
+    WHERE practice_id = ${currentTenant().practiceId} AND id = ${otp.id}
+      AND consumed_at IS NULL AND attempts < 5 AND expires_at > NOW()
+    RETURNING id
+  `;
+  if (!consumed[0]) throw new Error('This password reset code is no longer valid. Please request a new one.');
   await database.sql`
     UPDATE client_accounts
     SET password_hash = ${hashClientPassword(account.id, password)}, verified_at = COALESCE(verified_at, NOW()), last_login_at = NOW(), updated_at = NOW()
@@ -1592,6 +1661,17 @@ export async function getClientProfileBySession(sessionToken: string): Promise<C
   return getClientProfile(session.customer_id);
 }
 
+export async function revokeClientSession(sessionToken: string): Promise<void> {
+  const token = cleanLoginValue(sessionToken);
+  if (!token) return;
+  const database = db();
+  await database.sql`
+    UPDATE client_sessions SET revoked_at = NOW()
+    WHERE practice_id = ${currentTenant().practiceId}
+      AND session_token_hash = ${hashSecret(token)} AND revoked_at IS NULL
+  `;
+}
+
 async function getClientSessionForToken(sessionToken: string): Promise<ClientSessionRow> {
   const token = cleanLoginValue(sessionToken);
   if (!token) throw new Error('Client session token missing.');
@@ -1608,7 +1688,7 @@ async function getClientSessionForToken(sessionToken: string): Promise<ClientSes
   const session = rows[0];
   if (!session || new Date(session.expires_at).getTime() < Date.now()) throw new Error('Client session expired. Please sign in again.');
 
-  await database.sql`UPDATE client_sessions SET last_seen_at = NOW() WHERE id = ${session.id}`;
+  await database.sql`UPDATE client_sessions SET last_seen_at = NOW() WHERE practice_id = ${currentTenant().practiceId} AND id = ${session.id}`;
   return session;
 }
 

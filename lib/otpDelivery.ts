@@ -21,7 +21,8 @@ function maskDestination(destination: string) {
 }
 
 export function isOtpTestModeEnabled() {
-  return process.env.ZIPBOOK_OTP_TEST_MODE === 'true' || process.env.ZIPBOOK_OTP_TEST_MODE === '1';
+  // Never expose verification codes in a live production environment.
+  return process.env.NODE_ENV !== 'production' && (process.env.ZIPBOOK_OTP_TEST_MODE === 'true' || process.env.ZIPBOOK_OTP_TEST_MODE === '1');
 }
 
 function getOtpPurposeMessage(purpose: OtpDeliveryPurpose) {
