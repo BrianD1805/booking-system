@@ -295,7 +295,7 @@ function makeToken(prefix: string) {
 
 function validateClientPassword(value?: string) {
   const password = value ?? '';
-  const minimum = currentTenant().legacy ? 6 : 10;
+  const minimum = 8;
   if (password.length < minimum || password.length > 256) throw new Error(`Enter a password with ${minimum} to 256 characters.`);
   return password;
 }
@@ -1351,7 +1351,7 @@ export async function requestClientSignupOtp(input: { phone?: string; localPhone
     VALUES (${otpId}, ${currentTenant().practiceId}, ${customer.id}, ${destination}, ${channel}, ${hashSecret(`${otpId}:${code}`)}, NOW() + INTERVAL '10 minutes')
   `;
 
-  const delivery = await deliverClientOtp({ channel, destination, code, otpId, purpose: 'signup' });
+  const delivery = await deliverClientOtp({ channel, destination, code, otpId, purpose: 'signup', businessName: currentTenant().name });
 
   await database.sql`
     INSERT INTO audit_logs (id, practice_id, action, entity_type, entity_id, source, details)
@@ -1482,7 +1482,7 @@ export async function requestClientPasswordResetOtp(input: { phone?: string; loc
     VALUES (${otpId}, ${currentTenant().practiceId}, ${account.customer_id}, ${destination}, ${channel}, ${hashSecret(`${otpId}:${code}`)}, NOW() + INTERVAL '10 minutes')
   `;
 
-  const delivery = await deliverClientOtp({ channel, destination, code, otpId, purpose: 'password-reset' });
+  const delivery = await deliverClientOtp({ channel, destination, code, otpId, purpose: 'password-reset', businessName: currentTenant().name });
 
   await database.sql`
     INSERT INTO audit_logs (id, practice_id, action, entity_type, entity_id, source, details)
@@ -1589,7 +1589,7 @@ export async function requestClientLoginOtp(input: { phone?: string; localPhone?
     VALUES (${otpId}, ${currentTenant().practiceId}, ${customer.id}, ${destination}, ${channel}, ${hashSecret(`${otpId}:${code}`)}, NOW() + INTERVAL '10 minutes')
   `;
 
-  const delivery = await deliverClientOtp({ channel, destination, code, otpId, purpose: 'login' });
+  const delivery = await deliverClientOtp({ channel, destination, code, otpId, purpose: 'login', businessName: currentTenant().name });
 
   await database.sql`
     INSERT INTO audit_logs (id, practice_id, action, entity_type, entity_id, source, details)

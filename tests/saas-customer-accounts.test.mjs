@@ -41,7 +41,7 @@ test('strong password storage, legacy login migration, and rate limiting', () =>
   const db = read('lib/db.ts');
   assert.match(read('lib/clientPassword.mjs'), /scryptSync\(/);
   assert.match(read('lib/clientPassword.mjs'), /timingSafeEqual\(/);
-  assert.match(db, /const minimum = currentTenant\(\)\.legacy \? 6 : 10/);
+  assert.match(db, /const minimum = 8/);
   assert.match(db, /matchesClientPassword\(account.id, password, account.password_hash\)/);
   assert.match(db, /if \(!account.password_hash.startsWith\('scrypt\$'\)\)/);
   assert.match(db, /recordClientAuthAttempt\(`login:\$\{phone\}`, 8/);

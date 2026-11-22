@@ -91,31 +91,33 @@ export async function sendZipBookEmail(input: {
   };
 }
 
-function zipBookShell(title: string, bodyHtml: string) {
+function zipBookShell(title: string, bodyHtml: string, brandName = 'ZipBook') {
   return `
     <div style="margin:0;padding:24px;background:#f5f8fc;font-family:Ubuntu,Arial,Helvetica,sans-serif;color:#14304a;">
       <div style="max-width:560px;margin:0 auto;background:#ffffff;border-radius:18px;padding:28px;border:1px solid #dbe8f5;box-shadow:0 12px 28px rgba(24,62,99,0.08);">
-        <p style="margin:0 0 8px 0;color:#336699;font-size:13px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;">ZipBook</p>
+        <p style="margin:0 0 8px 0;color:#336699;font-size:13px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;">${escapeHtml(brandName)}</p>
         <h1 style="margin:0 0 14px 0;font-size:24px;line-height:1.25;color:#14304a;">${escapeHtml(title)}</h1>
         ${bodyHtml}
-        <p style="margin:24px 0 0 0;font-size:12px;line-height:1.5;color:#6b7f92;">This is an automatic ZipBook email.</p>
+        <p style="margin:24px 0 0 0;font-size:12px;line-height:1.5;color:#6b7f92;">This is an automatic email from ${escapeHtml(brandName)}.</p>
       </div>
     </div>
   `;
 }
 
-export function buildOtpEmailHtml(input: { code: string; purpose: 'signup' | 'password-reset' | 'login' }) {
+export function buildOtpEmailHtml(input: { code: string; purpose: 'signup' | 'password-reset' | 'login'; businessName?: string }) {
+  const brandName = input.businessName?.trim() || 'Your practice';
   const purposeText = input.purpose === 'password-reset'
-    ? 'reset your ZipBook password'
+    ? `reset your ${brandName} password`
     : input.purpose === 'signup'
-      ? 'verify your ZipBook account'
-      : 'continue signing in to ZipBook';
+      ? `verify your ${brandName} account`
+      : `continue signing in to ${brandName}`;
 
-  return zipBookShell('Your ZipBook verification code', `
+  return zipBookShell(`${brandName} verification code`, `
     <p style="margin:0 0 18px 0;font-size:15px;line-height:1.6;color:#4d6378;">Use this code to ${purposeText}. It will expire in 10 minutes.</p>
     <div style="margin:22px 0;padding:18px 20px;background:#eef6ff;border:1px solid #cfe2f5;border-radius:16px;text-align:center;font-size:30px;letter-spacing:0.22em;font-weight:800;color:#255f99;">${escapeHtml(input.code)}</div>
+    <p style="margin:0 0 12px 0;font-size:13px;line-height:1.5;color:#6b7f92;">Tap and hold the code above to copy it in most email apps.</p>
     <p style="margin:0;font-size:13px;line-height:1.5;color:#6b7f92;">If you did not request this code, you can safely ignore this email.</p>
-  `);
+  `, brandName);
 }
 
 export function buildClientBookingConfirmationEmailHtml(input: {

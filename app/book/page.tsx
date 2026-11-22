@@ -34,6 +34,8 @@ type PhoneCountry = {
   dialCode: string;
 };
 
+const MIN_CLIENT_PASSWORD_LENGTH = 8;
+
 const PHONE_COUNTRIES: PhoneCountry[] = [
   { name: 'Kenya', iso: 'KE', dialCode: '+254' },
   { name: 'United Kingdom', iso: 'GB', dialCode: '+44' },
@@ -111,15 +113,27 @@ const PHONE_COUNTRIES: PhoneCountry[] = [
 ];
 
 const DEFAULT_PHONE_COUNTRY = PHONE_COUNTRIES[0];
+const PRIORITY_PHONE_COUNTRY_ISOS = ['GB', 'ZA', 'KE'];
+const SECONDARY_PHONE_COUNTRY_ISOS = ['AU', 'NZ'];
+const EU_PHONE_COUNTRY_ISOS = ['AT','BE','BG','HR','CY','CZ','DK','FI','FR','DE','GR','IE','IT','NL','PL','PT','RO','ES','SE'];
 
 function countryFlag(iso: string) {
   return [...iso.toUpperCase()].map(letter => String.fromCodePoint(0x1f1e6 + letter.charCodeAt(0) - 65)).join('');
 }
-const COUNTRY_OPTIONS = PHONE_COUNTRIES.map(country => ({
-  value: phoneCountryLabel(country),
-  label: `${countryFlag(country.iso)}  ${country.name}  ${country.dialCode}`,
-  buttonLabel: `${countryFlag(country.iso)}  ${country.dialCode}`
-}));
+
+function buildCountryOptions(countries: PhoneCountry[]) {
+  const priority = countries.filter((country) => PRIORITY_PHONE_COUNTRY_ISOS.includes(country.iso));
+  const secondary = countries.filter((country) => SECONDARY_PHONE_COUNTRY_ISOS.includes(country.iso));
+  const eu = countries.filter((country) => EU_PHONE_COUNTRY_ISOS.includes(country.iso) && !priority.some((item) => item.iso === country.iso) && !secondary.some((item) => item.iso === country.iso)).sort((a, b) => a.name.localeCompare(b.name));
+  const rest = countries.filter((country) => !priority.some((item) => item.iso === country.iso) && !secondary.some((item) => item.iso === country.iso) && !eu.some((item) => item.iso === country.iso)).sort((a, b) => a.name.localeCompare(b.name));
+  return [...priority, ...secondary, ...eu, ...rest].map((country, index, ordered) => ({
+    value: phoneCountryLabel(country),
+    label: `${countryFlag(country.iso)}  ${country.name}  ${country.dialCode}`,
+    buttonLabel: `${countryFlag(country.iso)}  ${country.dialCode}`,
+    separatorAbove: index > 0 && ((PRIORITY_PHONE_COUNTRY_ISOS.includes(ordered[index - 1].iso) && SECONDARY_PHONE_COUNTRY_ISOS.includes(country.iso)) || (SECONDARY_PHONE_COUNTRY_ISOS.includes(ordered[index - 1].iso) && EU_PHONE_COUNTRY_ISOS.includes(country.iso)) || (EU_PHONE_COUNTRY_ISOS.includes(ordered[index - 1].iso) && !EU_PHONE_COUNTRY_ISOS.includes(country.iso) && !SECONDARY_PHONE_COUNTRY_ISOS.includes(country.iso) && !PRIORITY_PHONE_COUNTRY_ISOS.includes(country.iso)))
+  }));
+}
+const COUNTRY_OPTIONS = buildCountryOptions(PHONE_COUNTRIES);
 
 function clientBusinessDisplayName(name: string) {
   // The seed/demo practice was registered with a ZipBook prefix. Never show
@@ -259,6 +273,7 @@ export default function BookPage() {
   const [confirmedBookingId, setConfirmedBookingId] = useState<string | null>(null);
   const [successBooking, setSuccessBooking] = useState<BookingSuccess | null>(null);
   const [copyStatus, setCopyStatus] = useState('');
+  const [otpCopyStatus, setOtpCopyStatus] = useState('');
   const [bookingOpen, setBookingOpen] = useState(false);
   const [timePickerOpen, setTimePickerOpen] = useState(false);
   const [editingClientBookingId, setEditingClientBookingId] = useState<string | null>(null);
@@ -284,12 +299,15 @@ export default function BookPage() {
   const headerLogo = '/api/branding/icon?size=72';
   const [clientLoginStage, setClientLoginStage] = useState<LoginStage>('login');
   const [clientLoginCountryInput, setClientLoginCountryInput] = useState(phoneCountryLabel(DEFAULT_PHONE_COUNTRY));
+  const [clientCountryManuallyChanged, setClientCountryManuallyChanged] = useState(false);
   const [clientLoginPhone, setClientLoginPhone] = useState('');
   const [clientLoginEmail, setClientLoginEmail] = useState('');
   const [clientSignupFirstName, setClientSignupFirstName] = useState('');
   const [clientSignupSurname, setClientSignupSurname] = useState('');
   const [clientPassword, setClientPassword] = useState('');
+  const [clientPasswordVisible, setClientPasswordVisible] = useState(false);
   const [clientResetPassword, setClientResetPassword] = useState('');
+  const [clientResetPasswordVisible, setClientResetPasswordVisible] = useState(false);
   const [clientOtpCode, setClientOtpCode] = useState('');
   const [clientOtp, setClientOtp] = useState<ClientCodeResponse | null>(null);
   const [clientSessionToken, setClientSessionToken] = useState('');
@@ -337,10 +355,12 @@ export default function BookPage() {
   const selectedPractitioner = practitioners.find((item) => item.id === selectedPractitionerId);
   const selectedLoginCountry = findPhoneCountry(clientLoginCountryInput);
   const clientLoginFullPhone = buildInternationalPhone(selectedLoginCountry, clientLoginPhone);
+  const signupPasswordLongEnough = clientPassword.length >= MIN_CLIENT_PASSWORD_LENGTH;
+  const resetPasswordLongEnough = clientResetPassword.length >= MIN_CLIENT_PASSWORD_LENGTH;
   const canSignInClient = Boolean(selectedLoginCountry && clientLoginFullPhone && clientPassword.trim());
-  const canStartClientSignup = Boolean(selectedLoginCountry && clientLoginFullPhone && clientSignupFirstName.trim() && clientSignupSurname.trim() && clientLoginEmail.trim() && clientPassword.length >= (businessInfo?.legacy === false ? 10 : 6));
+  const canStartClientSignup = Boolean(selectedLoginCountry && clientLoginFullPhone && clientSignupFirstName.trim() && clientSignupSurname.trim() && clientLoginEmail.trim() && signupPasswordLongEnough);
   const canRequestPasswordReset = Boolean(selectedLoginCountry && clientLoginFullPhone && clientLoginEmail.trim());
-  const canCompletePasswordReset = Boolean(clientOtpCode.trim().length >= 4 && clientResetPassword.length >= 6);
+  const canCompletePasswordReset = Boolean(clientOtpCode.trim().length >= 4 && resetPasswordLongEnough);
   const canGoToTreatment = patientName.trim() && patientPhone.trim() && patientEmail.trim();
   const canGoToDiary = Boolean(selectedProcedure && eligiblePractitioners.length && practitionerChoice);
   const selectedSlotHasPassed = selectedTime ? bookingStartIsPast(selectedDate, selectedTime, practiceSettings.timezone, now) : false;
@@ -350,8 +370,14 @@ export default function BookPage() {
     const timer = window.setInterval(() => setNow(new Date()), 30000);
     return () => window.clearInterval(timer);
   }, []);
+
+  useEffect(() => {
+    if (clientCountryManuallyChanged) return;
+    const nextCountry = PHONE_COUNTRIES.find((country) => country.iso === (practiceSettings.countryCode ?? '').toUpperCase());
+    if (nextCountry) setClientLoginCountryInput(phoneCountryLabel(nextCountry));
+  }, [practiceSettings.countryCode, clientCountryManuallyChanged]);
   const successCopyText = successBooking ? [
-    'ZipBook appointment confirmed',
+    `${clientBusinessDisplayName(practiceSettings.practiceName || businessInfo?.name || 'Practice')} appointment confirmed`,
     `Booking ID: ${successBooking.id}`,
     `Patient: ${successBooking.patientName}`,
     `Phone: ${successBooking.patientPhone}`,
@@ -864,6 +890,22 @@ export default function BookPage() {
     }
   }
 
+  async function copyOtpCode(code: string) {
+    try {
+      await navigator.clipboard.writeText(code);
+      setOtpCopyStatus('Copied');
+      window.setTimeout(() => setOtpCopyStatus(''), 1800);
+    } catch {
+      setOtpCopyStatus('Copy failed');
+      window.setTimeout(() => setOtpCopyStatus(''), 2400);
+    }
+  }
+
+  function handleClientCountryChange(value: string) {
+    setClientCountryManuallyChanged(true);
+    setClientLoginCountryInput(value);
+  }
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!selectedTime || !selectedPractitionerId) return;
@@ -905,13 +947,6 @@ export default function BookPage() {
         });
         bookingId = newBooking.id;
 
-        if (clientSessionToken) {
-          try {
-            await refreshClientProfileFromSession(clientSessionToken);
-          } catch {
-            // Keep the confirmed booking flow moving even if the profile refresh is delayed.
-          }
-        }
       }
 
       setConfirmedBookingId(bookingId);
@@ -928,6 +963,7 @@ export default function BookPage() {
         practitioner: selectedPractitioner?.name ?? 'Selected practitioner',
         notes
       });
+      if (clientSessionToken) void refreshClientProfileFromSession(clientSessionToken).catch(() => undefined);
       setBookingOpen(false);
       setTimePickerOpen(false);
       setEditingClientBookingId(null);
@@ -1039,7 +1075,7 @@ export default function BookPage() {
                           id="clientLoginCountry"
                           ariaLabel="Country code"
                           value={clientLoginCountryInput}
-                          onChange={setClientLoginCountryInput}
+                          onChange={handleClientCountryChange}
                           className="phone-country-select"
                           options={COUNTRY_OPTIONS}
                           searchable
@@ -1057,7 +1093,13 @@ export default function BookPage() {
                     )}
                     <div className={clientLoginStage === 'signup' ? 'form-row signup-password-row' : 'form-row full-width-row'}>
                       <label htmlFor="clientPassword">Password</label>
-                      <input id="clientPassword" value={clientPassword} onChange={(event) => setClientPassword(event.target.value)} type="password" autoComplete={clientLoginStage === 'signup' ? 'new-password' : 'current-password'} placeholder={clientLoginStage === 'signup' ? (businessInfo?.legacy === false ? 'At least 10 characters' : 'At least 6 characters') : 'Password'} />
+                      <div className="password-input-shell">
+                        <input id="clientPassword" value={clientPassword} onChange={(event) => setClientPassword(event.target.value)} type={clientPasswordVisible ? 'text' : 'password'} autoComplete={clientLoginStage === 'signup' ? 'new-password' : 'current-password'} placeholder={clientLoginStage === 'signup' ? 'At least 8 characters' : 'Password'} />
+                        <button className="password-visibility-button" type="button" aria-label={clientPasswordVisible ? 'Hide password' : 'Show password'} onClick={() => setClientPasswordVisible((current) => !current)}>
+                          {clientPasswordVisible ? '🙈' : '👁'}
+                        </button>
+                      </div>
+                      {clientLoginStage === 'signup' && <small className={signupPasswordLongEnough ? 'password-rule ok' : 'password-rule'}><span aria-hidden="true">{signupPasswordLongEnough ? '✓' : '○'}</span> Minimum 8 characters</small>}
                       {clientLoginStage === 'login' && (
                         <button className="auth-text-link" type="button" onClick={openClientPasswordReset}>
                           Forgot password?
@@ -1068,13 +1110,13 @@ export default function BookPage() {
                 )}
 
                 {clientLoginStage === 'verify-signup' && (
-                  <div className="client-otp-box">
+                  <div className="client-otp-box client-otp-compact-box">
                     <p className="mini-copy">Enter the code sent to {clientOtp?.destination}. This verifies the email address for the new account.</p>
-                    <div className="form-row">
+                    <div className="form-row otp-input-row">
                       <label htmlFor="clientOtpCode">Sign-up code</label>
-                      <input id="clientOtpCode" value={clientOtpCode} onChange={(event) => setClientOtpCode(event.target.value)} inputMode="numeric" maxLength={6} placeholder="6-digit code" />
+                      <input id="clientOtpCode" value={clientOtpCode} onChange={(event) => setClientOtpCode(event.target.value.replace(/\D/g, '').slice(0, 6))} type="text" inputMode="numeric" autoComplete="off" autoCorrect="off" spellCheck={false} maxLength={6} placeholder="6-digit code" />
                     </div>
-                    {clientOtp?.testOtpCode && <p className="delivery-note-pill">Temporary test-mode code: <strong>{clientOtp.testOtpCode}</strong></p>}
+                    {clientOtp?.testOtpCode && <div className="delivery-note-pill delivery-note-pill-copy"><span>Temporary test-mode code: <strong>{clientOtp.testOtpCode}</strong></span><button type="button" className="copy-inline-button" onClick={() => void copyOtpCode(clientOtp.testOtpCode ?? '')}>⧉ {otpCopyStatus || 'Copy'}</button></div>}
                     {clientOtp?.deliveryMode === 'server-console-preview' && <p className="delivery-note-pill">Local testing without email settings: check the Netlify dev terminal for the sign-up code.</p>}
                   </div>
                 )}
@@ -1195,7 +1237,7 @@ export default function BookPage() {
                       id="clientResetCountry"
                       ariaLabel="Country code"
                       value={clientLoginCountryInput}
-                      onChange={setClientLoginCountryInput}
+                      onChange={handleClientCountryChange}
                       className="phone-country-select"
                       options={COUNTRY_OPTIONS}
                       searchable
@@ -1217,14 +1259,19 @@ export default function BookPage() {
                 <p className="mini-copy">Enter the code sent to {clientOtp?.destination}, then choose a new password.</p>
                 <div className="form-row">
                   <label htmlFor="clientResetOtpCode">Reset code</label>
-                  <input id="clientResetOtpCode" value={clientOtpCode} onChange={(event) => setClientOtpCode(event.target.value)} inputMode="numeric" maxLength={6} placeholder="6-digit code" />
+                  <input id="clientResetOtpCode" value={clientOtpCode} onChange={(event) => setClientOtpCode(event.target.value.replace(/\D/g, '').slice(0, 6))} type="text" inputMode="numeric" autoComplete="off" autoCorrect="off" spellCheck={false} maxLength={6} placeholder="6-digit code" />
                 </div>
                 <div className="form-row">
                   <label htmlFor="clientResetNewPassword">New password</label>
-                  <input id="clientResetNewPassword" value={clientResetPassword} onChange={(event) => setClientResetPassword(event.target.value)} type="password" autoComplete="new-password" placeholder={businessInfo?.legacy === false ? "At least 10 characters" : "At least 6 characters"} />
-                  <small>Your old password will stop working after this reset.</small>
+                  <div className="password-input-shell">
+                    <input id="clientResetNewPassword" value={clientResetPassword} onChange={(event) => setClientResetPassword(event.target.value)} type={clientResetPasswordVisible ? 'text' : 'password'} autoComplete="new-password" placeholder="At least 8 characters" />
+                    <button className="password-visibility-button" type="button" aria-label={clientResetPasswordVisible ? 'Hide password' : 'Show password'} onClick={() => setClientResetPasswordVisible((current) => !current)}>
+                      {clientResetPasswordVisible ? '🙈' : '👁'}
+                    </button>
+                  </div>
+                  <small className={resetPasswordLongEnough ? 'password-rule ok' : 'password-rule'}><span aria-hidden="true">{resetPasswordLongEnough ? '✓' : '○'}</span> Minimum 8 characters</small>
                 </div>
-                {clientOtp?.testOtpCode && <p className="delivery-note-pill">Temporary test-mode code: <strong>{clientOtp.testOtpCode}</strong></p>}
+                {clientOtp?.testOtpCode && <div className="delivery-note-pill delivery-note-pill-copy"><span>Temporary test-mode code: <strong>{clientOtp.testOtpCode}</strong></span><button type="button" className="copy-inline-button" onClick={() => void copyOtpCode(clientOtp.testOtpCode ?? '')}>⧉ {otpCopyStatus || 'Copy'}</button></div>}
                 {clientOtp?.deliveryMode === 'server-console-preview' && <p className="delivery-note-pill">Local testing without email settings: check the Netlify dev terminal for the reset code.</p>}
               </div>
             )}

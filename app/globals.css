@@ -5897,3 +5897,205 @@ button.admin-password-eye .admin-password-eye-slash {
   }
   .client-home-welcome .hero-title { font-size: clamp(1.9rem, 8vw, 2.6rem); }
 }
+
+/* Ver-0.063C: client auth and phone country selector refinements. */
+.auth-tabs {
+  display: inline-flex;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 999px;
+  background: #e7eff8;
+  border: 1px solid rgba(51, 102, 153, 0.18);
+}
+
+.auth-tab {
+  min-width: 110px;
+  padding: 10px 18px;
+  background: transparent;
+  border-radius: 999px;
+  transition: background 0.16s ease, box-shadow 0.16s ease, color 0.16s ease;
+}
+
+.auth-tab.active {
+  background: #ffffff;
+  box-shadow: 0 10px 22px rgba(51, 102, 153, 0.12);
+}
+
+.client-auth-card > .auth-tabs {
+  position: static !important;
+  top: auto !important;
+}
+
+.client-auth-card > .grid,
+.client-auth-card > .client-otp-box,
+.client-profile-panel,
+.client-auth-card > .notice {
+  padding-right: 5px;
+}
+
+.client-auth-card:not(.client-reset-card) input,
+.client-auth-card:not(.client-reset-card) select,
+.client-reset-card input,
+.client-reset-card select {
+  min-height: 48px !important;
+  padding-top: 10px !important;
+  padding-bottom: 10px !important;
+  font-size: 0.98rem;
+}
+
+.client-auth-card:not(.client-reset-card) label,
+.client-reset-card label {
+  margin-bottom: 6px;
+}
+
+.password-input-shell {
+  position: relative;
+}
+
+.password-input-shell input {
+  width: 100%;
+  padding-right: 54px !important;
+}
+
+.password-visibility-button {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 36px;
+  height: 36px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--zw-blue-deep);
+  cursor: pointer;
+  font-size: 18px;
+}
+
+.password-rule {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  color: var(--muted);
+}
+
+.password-rule.ok {
+  color: #1d7f4d;
+  font-weight: 700;
+}
+
+.client-otp-compact-box {
+  width: min(100%, 420px);
+  margin-left: auto !important;
+  margin-right: auto !important;
+}
+
+.otp-input-row input,
+#clientResetOtpCode {
+  max-width: 220px;
+}
+
+.delivery-note-pill-copy {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.copy-inline-button {
+  border: 1px solid rgba(51, 102, 153, 0.18);
+  border-radius: 999px;
+  background: #fff;
+  color: var(--zw-blue-deep);
+  font: inherit;
+  font-weight: 700;
+  padding: 7px 12px;
+  cursor: pointer;
+}
+
+.zip-select-divider {
+  height: 1px;
+  margin: 8px 6px;
+  background: rgba(51, 102, 153, 0.14);
+}
+
+.zip-select-mobile-dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 3400;
+  background: rgba(9, 20, 34, 0.42);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 18px;
+}
+
+.zip-select-mobile-dialog.phone-country-select-menu {
+  width: min(520px, calc(100vw - 24px));
+  max-height: min(80vh, 680px);
+  overflow: auto;
+  border-radius: 28px;
+  background: #fff;
+  border: 1px solid rgba(51, 102, 153, 0.14);
+  box-shadow: 0 28px 80px rgba(7, 23, 45, 0.28);
+  padding: 14px;
+}
+
+.zip-select-mobile-dialog-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 4px 4px 10px;
+}
+
+.zip-select-mobile-dialog-head strong {
+  display: block;
+  font-size: 1.1rem;
+  color: var(--text);
+}
+
+.zip-select-mobile-dialog-head p {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.zip-select-mobile-dialog-close {
+  border: 1px solid rgba(51, 102, 153, 0.16);
+  background: #fff;
+  border-radius: 999px;
+  width: 40px;
+  height: 40px;
+  font-size: 26px;
+  line-height: 1;
+  color: var(--zw-blue-deep);
+  cursor: pointer;
+}
+
+@media (min-width: 861px) {
+  .client-auth-card:not(.client-reset-card) {
+    width: min(780px, calc(100dvw - 64px)) !important;
+  }
+
+  .phone-combo-control .zip-select-button,
+  .phone-combo-control input,
+  .client-auth-card:not(.client-reset-card) .phone-combo-control input,
+  .client-reset-card .phone-combo-control input {
+    min-height: 48px;
+  }
+}
+
+@media (max-width: 640px) {
+  .zip-select-mobile-dialog.phone-country-select-menu {
+    width: min(520px, calc(100vw - 20px));
+    max-height: min(78vh, 680px);
+    border-radius: 24px;
+  }
+
+  .delivery-note-pill-copy {
+    align-items: flex-start;
+  }
+}

@@ -31,11 +31,11 @@ function getOtpPurposeMessage(purpose: OtpDeliveryPurpose) {
   return 'We have emailed your verification code. Please check your inbox.';
 }
 
-async function sendEmailOtp(input: { destination: string; code: string; purpose: OtpDeliveryPurpose }): Promise<OtpDeliveryResult> {
+async function sendEmailOtp(input: { destination: string; code: string; purpose: OtpDeliveryPurpose; businessName?: string }): Promise<OtpDeliveryResult> {
   const result = await sendZipBookEmail({
     to: input.destination,
-    subject: input.purpose === 'password-reset' ? 'Reset your ZipBook password' : 'Your ZipBook verification code',
-    html: buildOtpEmailHtml({ code: input.code, purpose: input.purpose })
+    subject: input.purpose === 'password-reset' ? `Reset your ${input.businessName?.trim() || 'practice'} password` : `${input.businessName?.trim() || 'Your practice'} verification code`,
+    html: buildOtpEmailHtml({ code: input.code, purpose: input.purpose, businessName: input.businessName })
   });
 
   if (!result.delivered) {
@@ -65,6 +65,7 @@ export async function deliverClientOtp(input: {
   code: string;
   otpId: string;
   purpose?: OtpDeliveryPurpose;
+  businessName?: string;
 }): Promise<OtpDeliveryResult> {
   const maskedDestination = maskDestination(input.destination);
 
@@ -80,7 +81,7 @@ export async function deliverClientOtp(input: {
   }
 
   if (input.channel === 'email') {
-    const emailResult = await sendEmailOtp({ destination: input.destination, code: input.code, purpose: input.purpose ?? 'login' });
+    const emailResult = await sendEmailOtp({ destination: input.destination, code: input.code, purpose: input.purpose ?? 'login', businessName: input.businessName });
     if (emailResult.delivered || process.env.NODE_ENV === 'production') return emailResult;
 
     console.info(`[ZipBook OTP] EMAIL code for ${maskedDestination}: ${input.code} (OTP ${input.otpId})`);

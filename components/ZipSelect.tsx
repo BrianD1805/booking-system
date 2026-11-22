@@ -9,6 +9,7 @@ export type ZipSelectOption = {
   buttonLabel?: string;
   description?: string;
   disabled?: boolean;
+  separatorAbove?: boolean;
 };
 
 type ZipSelectProps = {
@@ -38,17 +39,20 @@ export function ZipSelect({ id, value, options, onChange, ariaLabel, placeholder
   const [searchText, setSearchText] = useState('');
   const [menuStyle, setMenuStyle] = useState<CSSProperties>({});
   const [menuPlacement, setMenuPlacement] = useState<MenuPlacement>('below');
+  const [mobileViewport, setMobileViewport] = useState(false);
   const selectedOption = useMemo(() => options.find((option) => option.value === value), [options, value]);
   const enabledOptions = useMemo(() => options.filter((option) => !option.disabled), [options]);
   const visibleOptions = useMemo(() => !searchable || !searchText.trim() ? options : options.filter(option => `${option.label} ${option.value}`.toLocaleLowerCase().includes(searchText.trim().toLocaleLowerCase())), [options, searchText, searchable]);
   const selectedIndex = selectedOption ? enabledOptions.findIndex((option) => option.value === selectedOption.value) : -1;
 
   const usesWideMenu = className.split(/\s+/).includes('phone-country-select');
+  const useMobileDialog = usesWideMenu && mobileViewport;
   const menuClassName = [
     'zip-select-menu',
-    'zip-select-floating-menu',
-    menuPlacement === 'above' ? 'opens-above' : 'opens-below',
+    useMobileDialog ? 'zip-select-mobile-dialog' : 'zip-select-floating-menu',
+    !useMobileDialog && (menuPlacement === 'above' ? 'opens-above' : 'opens-below'),
     usesWideMenu ? 'phone-country-select-menu' : '',
+    useMobileDialog ? 'phone-country-select-mobile-dialog' : '',
     className.split(/\s+/).includes('zip-calendar-month-select') ? 'zip-calendar-month-select-menu' : ''
   ].filter(Boolean).join(' ');
 
@@ -94,6 +98,18 @@ export function ZipSelect({ id, value, options, onChange, ariaLabel, placeholder
   }, []);
 
   useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const updateViewport = () => setMobileViewport(window.innerWidth <= 640);
+    updateViewport();
+    window.addEventListener('resize', updateViewport);
+    window.visualViewport?.addEventListener('resize', updateViewport);
+    return () => {
+      window.removeEventListener('resize', updateViewport);
+      window.visualViewport?.removeEventListener('resize', updateViewport);
+    };
+  }, []);
+
+  useEffect(() => {
     if (disabled) setOpen(false);
   }, [disabled]);
 
@@ -102,7 +118,7 @@ export function ZipSelect({ id, value, options, onChange, ariaLabel, placeholder
   }, [open]);
 
   useEffect(() => {
-    if (!open) return;
+    if (!open || useMobileDialog) return;
     updateMenuPosition();
     const animationFrame = window.requestAnimationFrame(updateMenuPosition);
     window.addEventListener('resize', updateMenuPosition);
@@ -116,7 +132,7 @@ export function ZipSelect({ id, value, options, onChange, ariaLabel, placeholder
       window.visualViewport?.removeEventListener('resize', updateMenuPosition);
       window.visualViewport?.removeEventListener('scroll', updateMenuPosition);
     };
-  }, [open, options.length, updateMenuPosition, value]);
+  }, [open, options.length, updateMenuPosition, value, useMobileDialog]);
 
   useEffect(() => {
     if (!open) return;
@@ -170,11 +186,20 @@ export function ZipSelect({ id, value, options, onChange, ariaLabel, placeholder
     }
   }
 
-  const menu = (
-    <div ref={menuRef} className={menuClassName} role={searchable ? 'dialog' : 'listbox'} aria-label={ariaLabel ?? 'Select an option'} style={menuStyle}>
+  const menuBody = (
+    <div ref={menuRef} className={menuClassName} role={searchable ? 'dialog' : 'listbox'} aria-label={ariaLabel ?? 'Select an option'} style={useMobileDialog ? undefined : menuStyle}>
+      {useMobileDialog && (
+        <div className="zip-select-mobile-dialog-head">
+          <div>
+            <strong>{ariaLabel ?? 'Choose a country'}</strong>
+            <p>Select a country code or search the full list.</p>
+          </div>
+          <button type="button" className="zip-select-mobile-dialog-close" aria-label="Close country selector" onClick={() => setOpen(false)}>×</button>
+        </div>
+      )}
       {searchable && (
         <div className="zip-select-search-row" role="presentation">
-          <input aria-label="Search country or dialling code" type="search" placeholder="Search country or code" value={searchText} onChange={event => setSearchText(event.target.value)} onKeyDown={event => { if (event.key === 'Escape') { event.stopPropagation(); setOpen(false); } }} />
+          <input aria-label="Search country or dialling code" type="search" placeholder="Search country or code" value={searchText} autoComplete="off" onChange={event => setSearchText(event.target.value)} onKeyDown={event => { if (event.key === 'Escape') { event.stopPropagation(); setOpen(false); } }} />
         </div>
       )}
       {searchable ? <div role="listbox" aria-label="Countries">
@@ -183,11 +208,21 @@ export function ZipSelect({ id, value, options, onChange, ariaLabel, placeholder
     </div>
   );
 
+  const menu = useMobileDialog
+    ? (
+      <div className="zip-select-mobile-dialog-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setOpen(false); }}>
+        {menuBody}
+      </div>
+    )
+    : menuBody;
+
   function renderOptions() {
     return <>{visibleOptions.length === 0 && <p className="zip-select-empty">No matching country</p>}
       {visibleOptions.map((option) => {
         const selected = option.value === value;
         return (
+          <div key={option.value}>
+            {option.separatorAbove && <div className="zip-select-divider" aria-hidden="true" />}
           <button
             key={option.value}
             type="button"
@@ -200,6 +235,7 @@ export function ZipSelect({ id, value, options, onChange, ariaLabel, placeholder
             <span>{option.label}</span>
             {option.description && <small>{option.description}</small>}
           </button>
+          </div>
         );
       })}</>;
   }

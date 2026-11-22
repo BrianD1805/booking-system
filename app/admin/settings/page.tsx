@@ -244,7 +244,7 @@ export default function AdminSettingsPage() {
         {modal === 'profile' && <div className="settings-054-form-grid">
           {settingField('practiceName', 'Practice name')}{settingField('publicDisplayName', 'Public display name')}{settingField('email', 'Practice email', 'email')}{settingField('phone', 'Practice phone', 'tel')}
           <label className="settings-054-field span-two"><span>Address</span><textarea value={settingsDraft.address} onChange={(event) => setSettingsDraft({ ...settingsDraft, address: event.target.value })} /></label>
-          {settingField('timezone','Timezone (e.g. Europe/London)')}{settingField('currencyCode','Currency (GBP, KES…)')}{settingField('countryCode','Country (GB, KE…)')}
+          {settingField('timezone','Timezone (e.g. Europe/London)')}{settingField('currencyCode','Currency (GBP, KES…)')}{settingField('countryCode','Default client phone country (GB, KE…)')}
           {field('Booking app URL', data.settings.clientAppUrl ?? '', () => undefined, { readOnly: true })}
         </div>}
         {modal === 'hours' && <div className="settings-054-modal-stack">
