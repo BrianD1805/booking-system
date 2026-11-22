@@ -271,7 +271,28 @@ export default function AdminSettingsPage() {
           {field('Role', practitionerDraft.role, (value) => setPractitionerDraft({ ...practitionerDraft, role: value }))}
           {field('Display order', String(practitionerDraft.displayOrder), (value) => setPractitionerDraft({ ...practitionerDraft, displayOrder: Number(value) }), { type: 'number' })}
         </div><label className="settings-054-checkbox"><input type="checkbox" checked={practitionerDraft.active} onChange={(event) => setPractitionerDraft({ ...practitionerDraft, active: event.target.checked })} /><span><strong>Practitioner active</strong></span></label>
-          <div className="settings-054-field"><span>Procedures this practitioner can perform</span><div className="settings-054-procedure-tags">{data.procedures.map((procedure) => <button type="button" key={procedure.id} className={practitionerDraft.procedureIds.includes(procedure.id) ? 'selected' : ''} onClick={() => setPractitionerDraft((current) => ({ ...current, procedureIds: current.procedureIds.includes(procedure.id) ? current.procedureIds.filter((id) => id !== procedure.id) : [...current.procedureIds, procedure.id] }))}>{procedure.name}</button>)}</div></div>
+          <div className="settings-054-field">
+            <span>Procedures this practitioner can perform</span>
+            <p className="settings-061a-procedure-help" id="practitioner-procedure-help">Click a procedure to assign it. A blue button with a tick means it is assigned. Click again to remove it, then save the practitioner.</p>
+            <div className="settings-061a-procedure-count" role="status" aria-live="polite">
+              <strong>{practitionerDraft.procedureIds.length} {practitionerDraft.procedureIds.length === 1 ? 'procedure' : 'procedures'} assigned</strong>
+              <span>{practitionerDraft.procedureIds.filter((id) => data.procedures.some((procedure) => procedure.id === id && procedure.active)).length} active</span>
+            </div>
+            {data.procedures.length ? <div className="settings-054-procedure-tags" role="group" aria-label="Assign procedures" aria-describedby="practitioner-procedure-help">
+              {data.procedures.map((procedure) => {
+                const assigned = practitionerDraft.procedureIds.includes(procedure.id);
+                return <button
+                  type="button" key={procedure.id}
+                  className={assigned ? 'selected' : ''}
+                  aria-pressed={assigned}
+                  aria-label={`${assigned ? 'Remove' : 'Assign'} ${procedure.name}${procedure.active ? '' : ' (inactive procedure)'}`}
+                  onClick={() => setPractitionerDraft((current) => ({ ...current, procedureIds: current.procedureIds.includes(procedure.id) ? current.procedureIds.filter((id) => id !== procedure.id) : [...current.procedureIds, procedure.id] }))}
+                ><span className="settings-061a-procedure-indicator" aria-hidden="true">{assigned ? '✓' : '+'}</span><span>{procedure.name}{!procedure.active && <small className="settings-061a-procedure-inactive">Inactive</small>}</span></button>;
+              })}
+            </div> : <p className="settings-061a-procedure-warning" role="status">No procedures available. Add and activate a procedure in Services before assigning it here.</p>}
+            {data.procedures.length > 0 && !practitionerDraft.procedureIds.some((id) => data.procedures.some((procedure) => procedure.id === id && procedure.active)) &&
+              <p className="settings-061a-procedure-warning" role="status">No active procedures assigned. Choose at least one active procedure above and click Save practitioner to meet booking readiness requirements.</p>}
+          </div>
         </div>}
         {modal === 'schedule' && <div className="settings-054-modal-stack"><p className="settings-054-help">Set different hours and lunch times for each day. Uncheck a day to mark the clinician as not working. The practice’s overall opening hours still apply.</p>
           {weekdays.map(({ n, name }) => { const day = scheduleDraft.find((item) => item.dayOfWeek === n); if (!day) return null; return <div className={`settings-054-day-editor ${day.active ? '' : 'is-off'}`} key={n}>

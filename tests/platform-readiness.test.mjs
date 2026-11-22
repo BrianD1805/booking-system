@@ -46,3 +46,30 @@ test('live isolation audit is role-scoped, read-only, cross-practice and policy-
   assert.match(source,/auditIsolation\(id\)/);
   assert.doesNotMatch(source,/UPDATE public\.|DELETE FROM public\.|INSERT INTO public\./);
 });
+
+test('readiness spells out a missing procedure assignment when practitioners and hours exist',()=>{
+  const withoutAssignment={...good,active_practitioners:1,active_services:1,scheduled_practitioners:1,assigned_practitioners:0,configured_practitioners:0};
+  const result=assessBusinessReadiness(withoutAssignment,{status:'pass',checkedTables:9});
+  const check=result.checks.find(c=>c.key==='practitioners');
+  assert.equal(check.status,'action');
+  assert.match(check.detail,/no active practitioner has an assigned active procedure/i);
+  assert.match(check.detail,/Save practitioner/);
+  assert.equal(result.readyForManualReview,false);
+});
+
+test('readiness distinguishes no practitioner, no active service and no working hours',()=>{
+  const cases=[
+    [{active_practitioners:0,active_services:0,scheduled_practitioners:0,assigned_practitioners:0},/No active practitioners/],
+    [{active_practitioners:1,active_services:0,scheduled_practitioners:1,assigned_practitioners:0},/No active procedures\/services/],
+    [{active_practitioners:1,active_services:1,scheduled_practitioners:0,assigned_practitioners:1},/working hours/]
+  ];
+  for(const [details,expected] of cases){
+    const result=assessBusinessReadiness({...good,configured_practitioners:0,...details},{status:'pass',checkedTables:9});
+    assert.match(result.checks.find(c=>c.key==='practitioners').detail,expected);
+  }
+});
+
+test('readiness warns when hours and assigned procedures are on different practitioners',()=>{
+  const result=assessBusinessReadiness({...good,configured_practitioners:0,active_practitioners:2,active_services:1,scheduled_practitioners:1,assigned_practitioners:1},{status:'pass',checkedTables:9});
+  assert.match(result.checks.find(c=>c.key==='practitioners').detail,/No single active practitioner/);
+});

@@ -13,7 +13,9 @@ const scopedTables = [
 type ReadinessRow = {
   id:string; name:string; tenant_slug:string; verified_at:string|null;
   pilot_enabled:boolean; onboarding_completed:boolean; active_owners:number;
-  configured_practitioners:number; public_embed_sites:number;
+  configured_practitioners:number; active_practitioners:number;
+  active_services:number; scheduled_practitioners:number; assigned_practitioners:number;
+  public_embed_sites:number;
   admin_embed_sites:number; has_logo:boolean;
 };
 type IsolationResult = {status:'pass'|'failed'|'unavailable';checkedTables:number;referenceType:'pilot'|'legacy'|'none'};
@@ -68,6 +70,15 @@ export async function getBusinessReadiness(id:string) {
         p.pilot_enabled,p.onboarding_completed,
         (SELECT count(*)::int FROM public.admin_staff_members s WHERE s.practice_id=p.id
           AND s.role='Owner' AND s.active AND s.password_hash<>'invitation-not-accepted') AS active_owners,
+        (SELECT count(*)::int FROM public.practitioners d WHERE d.practice_id=p.id AND d.active) AS active_practitioners,
+        (SELECT count(*)::int FROM public.procedures s WHERE s.practice_id=p.id AND s.active) AS active_services,
+        (SELECT count(*)::int FROM public.practitioners d WHERE d.practice_id=p.id AND d.active
+          AND EXISTS (SELECT 1 FROM public.practitioner_working_hours h WHERE h.practitioner_id=d.id AND h.active)
+        ) AS scheduled_practitioners,
+        (SELECT count(*)::int FROM public.practitioners d WHERE d.practice_id=p.id AND d.active
+          AND EXISTS (SELECT 1 FROM public.practitioner_procedures x JOIN public.procedures s
+            ON s.id=x.procedure_id AND s.practice_id=p.id AND s.active WHERE x.practitioner_id=d.id)
+        ) AS assigned_practitioners,
         (SELECT count(*)::int FROM public.practitioners d WHERE d.practice_id=p.id AND d.active
           AND EXISTS (SELECT 1 FROM public.practitioner_working_hours h WHERE h.practitioner_id=d.id AND h.active)
           AND EXISTS (SELECT 1 FROM public.practitioner_procedures x JOIN public.procedures s

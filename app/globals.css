@@ -5744,6 +5744,20 @@ button.admin-password-eye .admin-password-eye-slash {
 @media (max-width:730px) { .settings-054-overview,.settings-054-two-columns { grid-template-columns:1fr; } .settings-054-section-heading { flex-direction:column; } .settings-054-week-row { grid-template-columns:45px minmax(0,1fr); } .settings-054-week-row small { grid-column:2; } .settings-054-card,.settings-054-section { padding:18px !important; } }
 @media (max-width:530px) { .settings-054-overlay { padding:10px; } .settings-054-modal { max-height:calc(100dvh - 20px); border-radius:21px; } .settings-054-modal-head { padding:17px 16px 14px; } .settings-054-modal-scroll { padding:17px 16px 25px; } .settings-054-modal-footer { padding:13px 16px; } .settings-054-modal-footer button { flex:1 1 0; min-width:0; } .settings-054-form-grid { grid-template-columns:1fr; gap:12px; } .settings-054-clinician-banner { padding:14px; } .settings-054-quick-actions .button,.settings-054-quick-actions .pill { flex:1 1 auto; } .settings-054-list-item { flex-direction:column; align-items:flex-start; } .settings-054-day-selector button { padding:9px 11px; } }
 
+/* Ver-0.061A: make practitioner procedure assignment immediately understandable. */
+.settings-061a-procedure-help { margin:0 0 2px; color:#526b85; font-size:.88rem; font-weight:500; line-height:1.5; }
+.settings-061a-procedure-count { display:flex; flex-wrap:wrap; align-items:center; gap:9px; color:#284c70; font-size:.86rem; }
+.settings-061a-procedure-count strong { font-weight:800; }
+.settings-061a-procedure-count span { padding:3px 9px; background:#edf5fc; border-radius:999px; color:#3c648e; font-weight:700; }
+.settings-054-procedure-tags button { display:inline-flex; align-items:center; gap:9px; text-align:left; min-height:42px; transition:background-color .15s ease,border-color .15s ease; }
+.settings-054-procedure-tags button:not(.selected):hover { background:#e9f4ff; border-color:#7ea5cb; }
+.settings-054-procedure-tags button:focus-visible { outline:3px solid #81acd2; outline-offset:2px; }
+.settings-054-procedure-tags button.selected { color:#fff; background:#336699; border-color:#336699; }
+.settings-061a-procedure-indicator { display:inline-grid; place-items:center; width:19px; height:19px; flex:0 0 19px; font-size:15px; font-weight:900; border-radius:50%; border:1.5px solid currentColor; line-height:1; }
+.settings-054-procedure-tags button.selected .settings-061a-procedure-indicator { background:#fff; color:#336699; border-color:#fff; }
+.settings-061a-procedure-inactive { display:block; font-weight:600; font-size:.72rem; opacity:.85; }
+.settings-061a-procedure-warning { margin:1px 0 0; border-left:3px solid #b46c24; background:#fff8f0; color:#784b20; font-weight:600; font-size:.84rem; line-height:1.5; padding:9px 12px; border-radius:0 8px 8px 0; }
+
 /* Ver-0.057 platform administration, independent from client and practice layouts. */
 .platform-shell { max-width:1160px; }
 .platform-signin { max-width:530px; margin:40px auto; padding:clamp(20px,4vw,36px); }
