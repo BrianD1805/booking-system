@@ -263,10 +263,11 @@ export function getAvailabilityForDate(
 }
 
 /**
- * Procedure-independent, fixed 30-minute staff diary preview. It answers
- * "who is free to work?" rather than "who can perform a particular service?".
- * Working hours, leave, closures, lunch and booked appointments still apply.
- * Booking creation continues to use getAvailabilityForDate above.
+ * Procedure-independent staff diary preview, using the business's configured
+ * slot interval. It answers "who is free to work?" rather than "who can
+ * perform a particular service?". Working hours, leave, closures, lunch
+ * and booked appointments still apply. Booking creation continues to use
+ * getAvailabilityForDate above, with procedure-specific duration and eligibility.
  */
 export function getDiarySlotsForDate(
   bookings: Booking[],
@@ -277,8 +278,9 @@ export function getDiarySlotsForDate(
   const activePractitioners = context.practitioners
     .filter((practitioner) => practitioner.active && (practitionerId === FIRST_AVAILABLE || practitioner.id === practitionerId))
     .sort((a, b) => a.displayOrder - b.displayOrder || a.name.localeCompare(b.name));
+  const slotInterval = context.practiceSettings.slotIntervalMinutes;
   return getSlotsForEligiblePractitioners(
     bookings, date, context, activePractitioners,
-    30, 30, 'No active practitioners in this diary'
+    slotInterval, slotInterval, 'No active practitioners in this diary'
   );
 }

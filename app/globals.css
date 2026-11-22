@@ -5807,3 +5807,14 @@ button.admin-password-eye .admin-password-eye-slash {
 .branding-060-controls{min-width:0;display:grid;gap:12px}.branding-060-controls .settings-054-field{max-width:440px}.branding-060-controls input[type=file]{max-width:100%;padding:10px;border:1px solid var(--line);border-radius:12px;background:white}
 .branding-060-controls .mini-copy{margin:0;color:#536e88;line-height:1.45}.branding-060-actions{display:flex;flex-wrap:wrap;gap:10px}
 @media(max-width:560px){.branding-060-content{grid-template-columns:1fr}.branding-060-preview{width:100%;max-width:210px}}
+
+/* Ver-0.061C: keep every configured-interval Practice Diary preview slot
+   visible in the page flow. The full diary expands naturally; no nested
+   scrollbar or fixed-height clipping. Booking popups retain their own
+   approved viewport-safe scrolling and sticky action controls. */
+.live-diary-panel .diary-slots-panel,
+.live-diary-panel .diary-slots-panel .admin-slot-grid {
+  height: auto;
+  max-height: none;
+  overflow: visible;
+}

@@ -1,6 +1,6 @@
 {
   "name": "zippyweb-booking-system",
-  "version": "0.0.61-b",
+  "version": "0.0.61-c",
   "private": true,
   "scripts": {
     "dev": "next dev",

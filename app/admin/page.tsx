@@ -597,7 +597,7 @@ export default function AdminPage() {
                 <h3 className="mini-section-title">Slots view</h3>
                 <span>{getDayLabel(selectedDate)} · {currentClockLabel}</span>
               </div>
-              <p className="mini-copy">Visual 30-minute diary preview for the selected date and practitioner filter.</p>
+              <p className="mini-copy">Visual {practiceSettings.slotIntervalMinutes}-minute diary preview for the selected date and practitioner filter.</p>
             </div>
             <div className="admin-refresh-cluster"><span className="admin-clock-pill" aria-label="Current time">{currentClockLabel}</span><span className="admin-last-refreshed">Last refreshed {lastRefreshedLabel}</span><button type="button" onClick={() => void handleDiaryRefresh()} disabled={saving || loading} className={`pill admin-action-button ${loading ? 'is-loading' : ''}`}><span className="refresh-icon" aria-hidden="true">↻</span>{loading ? 'Refreshing…' : 'Refresh'}</button></div>
           </div>

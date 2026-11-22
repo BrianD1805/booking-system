@@ -5,6 +5,7 @@ import ts from 'typescript';
 
 const sourcePath = new URL('../lib/availability.ts', import.meta.url);
 const adminPage = readFileSync(new URL('../app/admin/page.tsx', import.meta.url), 'utf8');
+const css = readFileSync(new URL('../app/globals.css', import.meta.url), 'utf8');
 
 // Import the real availability implementation, transpiled in memory. Its only
 // runtime dependency is the existing pure schedulingPolicy.mjs module.
@@ -38,7 +39,7 @@ function context() {
   };
 }
 
-test('diary preview ignores a missing checkup while retaining 30-minute working slots', () => {
+test('diary preview ignores a missing checkup while retaining configured 30-minute working slots', () => {
   const slots = getDiarySlotsForDate([], mon, context());
   assert.equal(slots.length, 17); // 08:30 to 17:00
   assert.equal(slots[0].available, false); // starts before clinician hours
@@ -91,4 +92,57 @@ test('administrative slot preview uses procedure-independent routine; booking fl
   assert.match(adminPage, /getDiarySlotsForDate\(/);
   assert.match(adminPage, /getAvailabilityForDate\(availabilityBookings, selectedDate, activeProcedureId/);
   assert.doesNotMatch(adminPage, /diarySlotPreviewProcedureId/);
+});
+
+test('diary preview follows a changed 15-minute business interval, including slot counts', () => {
+  const ctx = context();
+  ctx.practiceSettings.slotIntervalMinutes = 15;
+  const slots = getDiarySlotsForDate([], mon, ctx);
+  assert.equal(slots.length, 34); // 08:30–17:00 at 15-minute intervals
+  assert.deepEqual(slots.slice(0, 4).map((s) => [s.time, s.endTime]), [
+    ['08:30', '08:45'], ['08:45', '09:00'],
+    ['09:00', '09:15'], ['09:15', '09:30']
+  ]);
+  assert.equal(slots.filter((slot) => slot.available).length, 32); // 09:00–17:00
+  assert.equal(slots.at(-1).time, '16:45');
+  assert.equal(slots.at(-1).endTime, '17:00');
+});
+
+test('diary preview automatically supports other valid settings, not only 15 or 30 minutes', () => {
+  const ctx = context();
+  ctx.practiceSettings.slotIntervalMinutes = 20;
+  const twenty = getDiarySlotsForDate([], mon, ctx);
+  assert.equal(twenty[0].time, '08:30');
+  assert.equal(twenty[0].endTime, '08:50');
+  assert.equal(twenty[1].time, '08:50');
+  assert.equal(twenty[1].endTime, '09:10');
+  ctx.practiceSettings.slotIntervalMinutes = 60;
+  const sixty = getDiarySlotsForDate([], mon, ctx);
+  assert.equal(sixty.length, 9);
+  assert.equal(sixty[0].endTime, '09:30');
+  assert.equal(sixty[1].time, '09:30');
+  assert.equal(sixty[1].endTime, '10:30');
+  assert.equal(sixty.at(-1).available, false);
+  assert.match(sixty.at(-1).reason, /Not enough time/);
+});
+
+test('15-minute preview marks all slots overlapping longer appointments as unavailable', () => {
+  const ctx = context();
+  ctx.practiceSettings.slotIntervalMinutes = 15;
+  const bookings = [{ date: mon, practitionerId: 'plonker', time: '09:15', endTime: '10:00', status: 'confirmed', patientName: 'Test' }];
+  const slots = getDiarySlotsForDate(bookings, mon, ctx);
+  for (const time of ['09:15', '09:30', '09:45']) {
+    const slot = slots.find((s) => s.time === time);
+    assert.equal(slot.available, false, `Slot ${time} overlaps the appointment`);
+    assert.match(slot.reason, /Already booked/);
+  }
+  assert.equal(slots.find((s) => s.time === '10:00').available, true);
+  assert.equal(slots.filter((s) => s.available).length, 29);
+});
+
+test('UI description reflects live interval and full diary grid expands without an inner scrollbar', () => {
+  assert.match(adminPage, /Visual \{practiceSettings\.slotIntervalMinutes\}-minute diary preview/);
+  assert.doesNotMatch(adminPage, /Visual 30-minute diary preview/);
+  assert.match(css, /\.live-diary-panel \.diary-slots-panel \.admin-slot-grid\s*\{[^}]*max-height:\s*none;[^}]*overflow:\s*visible;/);
+  assert.match(adminPage, /className="slot-grid admin-slot-grid"/);
 });
