@@ -5765,6 +5765,10 @@ button.admin-password-eye .admin-password-eye-slash {
 .platform-dialog { position:fixed; inset:0; margin:auto; padding:0; width:min(760px,calc(100% - 24px)); }
 .platform-dialog:not([open]) { display:none; }
 .platform-dialog::backdrop { background:rgba(12,30,55,.48); backdrop-filter:blur(7px); }
+.platform-readiness-list { display:grid; gap:10px; }
+.platform-readiness-row { padding:12px 14px; border:1px solid #dce8f4; border-radius:12px; }
+.platform-readiness-head { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; }
+.platform-readiness-row p { margin:7px 0 0; color:#536e88; line-height:1.4; }
 @media(max-width:700px){.platform-metrics{grid-template-columns:repeat(2,minmax(0,1fr));}.platform-heading,.platform-business-main{flex-direction:column;align-items:flex-start;}.platform-metrics .card{padding:15px;}}
 
 /* Ver-0.058: authorised website integrations. Keep existing ZipBook popup rules. */
