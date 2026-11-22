@@ -119,6 +119,7 @@ export function buildOtpEmailHtml(input: { code: string; purpose: 'signup' | 'pa
 }
 
 export function buildClientBookingConfirmationEmailHtml(input: {
+  businessName?: string;
   patientName: string;
   date: string;
   time: string;
@@ -129,20 +130,22 @@ export function buildClientBookingConfirmationEmailHtml(input: {
   notes?: string;
 }) {
   const bookedByAdmin = input.source === 'admin' || input.source === 'reception';
+  const business = input.businessName?.trim() || '';
   const intro = bookedByAdmin
-    ? 'Your booking has been added by the practice team. Please keep this email for your records.'
+    ? (business ? `Your booking has been added by ${business}. Please keep this email for your records.` : 'Your booking has been added by the practice team. Please keep this email for your records.')
     : 'Thank you. Your booking has been received and added to the diary.';
 
   const rows = [
+    ...(business ? [['Business', business]] : []),
     ['Name', input.patientName],
     ['Date', input.date],
     ['Time', `${input.time} - ${input.endTime}`],
-    ['Procedure', input.procedureName],
-    ['Practitioner', input.practitionerName],
+    [business ? 'Service' : 'Procedure', input.procedureName],
+    [business ? 'With' : 'Practitioner', input.practitionerName],
     ['Notes', input.notes || 'None']
   ];
 
-  return zipBookShell('Your ZipBook booking confirmation', `
+  return zipBookShell(business ? `Booking confirmation: ${business}` : 'Your ZipBook booking confirmation', `
     <p style="margin:0 0 18px 0;font-size:15px;line-height:1.6;color:#4d6378;">${escapeHtml(intro)}</p>
     <table style="width:100%;border-collapse:collapse;font-size:14px;color:#14304a;">
       ${rows.map(([label, value]) => `
@@ -152,6 +155,6 @@ export function buildClientBookingConfirmationEmailHtml(input: {
         </tr>
       `).join('')}
     </table>
-    <p style="margin:18px 0 0 0;font-size:13px;line-height:1.5;color:#6b7f92;">If anything looks wrong, please contact the practice directly.</p>
+    <p style="margin:18px 0 0 0;font-size:13px;line-height:1.5;color:#6b7f92;">${business ? `If anything looks wrong, please contact ${escapeHtml(business)} directly.` : 'If anything looks wrong, please contact the practice directly.'}</p>
   `);
 }

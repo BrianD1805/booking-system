@@ -1037,6 +1037,7 @@ async function sendClientBookingConfirmation(input: {
   booking: Booking;
   procedureName: string;
   practitionerName: string;
+  businessName: string;
 }): Promise<{ attempted: boolean; delivered: boolean; provider: string; recipient: string }> {
   const recipient = input.booking.patientEmail.trim();
   if (!recipient) {
@@ -1045,8 +1046,11 @@ async function sendClientBookingConfirmation(input: {
 
   const result = await sendZipBookEmail({
     to: recipient,
-    subject: `Your ZipBook booking confirmation: ${input.booking.date} at ${input.booking.time}`,
+    subject: currentTenant().legacy
+      ? `Your ZipBook booking confirmation: ${input.booking.date} at ${input.booking.time}`
+      : `Booking with ${input.businessName.replace(/[\r\n]/g, ' ').slice(0, 120)}: ${input.booking.date} at ${input.booking.time}`,
     html: buildClientBookingConfirmationEmailHtml({
+      businessName: currentTenant().legacy ? undefined : input.businessName,
       patientName: input.booking.patientName,
       date: input.booking.date,
       time: input.booking.time,
@@ -1090,6 +1094,7 @@ async function ensurePractitionerCanTakeBooking(input: { practitionerId: string;
     SELECT p.id
     FROM practitioners p
     INNER JOIN practitioner_procedures pp ON pp.practitioner_id = p.id AND pp.procedure_id = ${input.procedureId}
+    INNER JOIN procedures svc ON svc.id = pp.procedure_id AND svc.practice_id = p.practice_id AND svc.active = TRUE
     WHERE p.id = ${input.practitionerId} AND p.practice_id = ${currentTenant().practiceId} AND p.active = TRUE
     LIMIT 1
   `;
@@ -1890,7 +1895,11 @@ export async function createBookingInDatabase(input: {
   // booking, or sending notifications. This protects every booking entry point.
   assertFutureBookingStart(input.date, input.time, bootstrap.practiceSettings.timezone);
   if (input.source === 'client' ) assertClientBookingRules(input.date, input.time, bootstrap.practiceSettings);
-  const duration = procedureDuration(input.procedureId, bootstrap.procedures);
+  // Only currently active services from the resolved business may be booked.
+  // Never fall back to a default duration for an unknown/foreign procedure ID.
+  const activeService = bootstrap.procedures.find((item) => item.id === input.procedureId);
+  if (!activeService) throw new Error('The selected service is no longer available. Please choose an active service.');
+  const duration = activeService.durationMinutes;
   const endTime = addMinutes(input.time, duration);
   const id = `bk-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   const database = db();
@@ -1937,7 +1946,8 @@ export async function createBookingInDatabase(input: {
   const clientNotification = await sendClientBookingConfirmation({
     booking,
     procedureName: procedure?.name ?? input.procedureId,
-    practitionerName: practitioner?.name ?? input.practitionerId
+    practitionerName: practitioner?.name ?? input.practitionerId,
+    businessName: bootstrap.practiceSettings.practiceName
   });
 
   await database.sql`

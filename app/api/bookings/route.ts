@@ -3,6 +3,7 @@ import { withTenantRequest } from '@/lib/tenantRequest';
 import { NextRequest, NextResponse } from 'next/server';
 import { createBookingInDatabase, getBookings, getClientBookingCustomerId } from '@/lib/db';
 import { requireAdminStaff } from '@/lib/adminStaffAuth';
+import { bookingCreateError } from '@/lib/publicBookingCreatePolicy.mjs';
 
 export const dynamic = 'force-dynamic';
 const noStore = { 'Cache-Control': 'private, no-store, max-age=0' };
@@ -26,7 +27,10 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   return withTenantRequest(request, async () => {
   try {
-    const body = await request.json();
+    const body = await request.json().catch(() => null);
+    if (!body || typeof body !== 'object' || Array.isArray(body)) {
+      return NextResponse.json({ error: 'Enter valid booking details.' }, { status: 400, headers: noStore });
+    }
     const required = ['patientName', 'patientPhone', 'patientEmail', 'procedureId', 'practitionerId', 'date', 'time', 'source'];
     for (const field of required) {
       if (!body[field]) {
@@ -68,8 +72,9 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ booking }, { status: 201, headers: noStore });
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Could not create booking.';
-    return NextResponse.json({ error: message }, { status: message.includes('Staff login') || message.includes('Master admin') ? 401 : 500, headers: noStore });
+    const failure = bookingCreateError(error);
+    if (failure.status === 500) console.error('ZipBook booking creation failed.');
+    return NextResponse.json({ error: failure.message }, { status: failure.status, headers: noStore });
   }
   });
 }
