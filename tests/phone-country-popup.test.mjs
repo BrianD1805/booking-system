@@ -28,8 +28,8 @@ test('country selection is rendered as a modal portal outside popup stacking con
   assert.match(select, /zip-select-country-overlay/);
   assert.match(select, /createPortal\(menu, document\.body\)/);
   assert.match(css, /\.zip-select-country-overlay\s*\{[^}]*z-index: 2147483000 !important/s);
-  assert.match(select, /idealLeft = rect\.right \+ 22/);
-  assert.match(select, /dialogTop = Math\.max/);
+  assert.doesNotMatch(select, /idealLeft = rect\.right \+ 22|setCountryStyle/);
+  assert.match(css, /\.zip-select-country-overlay \.zip-select-country-dialog[\s\S]*?left: auto !important/);
   assert.match(css, /@media \(max-width: 700px\)[\s\S]*?\.zip-select-country-dialog[\s\S]*?left: auto !important/);
   assert.match(select, /aria-modal="true"/);
   assert.match(select, /Close country selector/);

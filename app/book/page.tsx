@@ -964,7 +964,7 @@ export default function BookPage() {
 
       {clientLoginOpen && (
         <section className="client-auth-popup" aria-label="Client login and sign up" role="dialog" aria-modal="true">
-          <div className="client-auth-card">
+          <div className={`client-auth-card ${clientLoginStage === 'login' ? 'client-auth-login-mode' : 'client-auth-signup-mode'}`}>
             <div className="client-auth-head">
               <div className="client-auth-title-copy">
                 <p className="badge blue-badge">Client account</p>
@@ -987,7 +987,7 @@ export default function BookPage() {
             {clientLoginStage !== 'signed-in' && (
               <>
                 {(clientLoginStage === 'login' || clientLoginStage === 'signup') && (
-                  <div className="grid two controls-grid client-account-fields">
+                  <div className={`grid two controls-grid client-account-fields ${clientLoginStage === 'login' ? 'client-login-fields' : 'client-signup-fields'}`}>
                     {clientLoginStage === 'signup' && (
                       <>
                         <div className="form-row client-signup-name-field">
@@ -1025,11 +1025,12 @@ export default function BookPage() {
                     )}
                     <div className={clientLoginStage === 'signup' ? 'form-row signup-password-row' : 'form-row full-width-row'}>
                       <label htmlFor="clientPassword">Password</label>
-                      <div className="password-input-shell">
-                        <input id="clientPassword" value={clientPassword} onChange={(event) => setClientPassword(event.target.value)} type={clientPasswordVisible ? 'text' : 'password'} autoComplete={clientLoginStage === 'signup' ? 'new-password' : 'current-password'} placeholder={clientLoginStage === 'signup' ? 'At least 8 characters' : 'Password'} />
-                        <button className="password-visibility-button" type="button" aria-label={clientPasswordVisible ? 'Hide password' : 'Show password'} aria-pressed={clientPasswordVisible} onClick={() => setClientPasswordVisible((current) => !current)}>
-                          {clientPasswordVisible ? <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M3 3l18 18"/><path d="M10.6 10.6a2 2 0 002.8 2.8"/><path d="M9.8 5.3A10.4 10.4 0 0112 5c4.5 0 8 3 10 7a17 17 0 01-3.1 4.1"/><path d="M6 6.3C4.3 7.6 3 9.5 2 12c2 4 5.5 7 10 7 1.5 0 2.9-.3 4.2-.9"/></svg> : <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>}
-                        </button>
+                      <div className={clientLoginStage === 'login' ? 'client-login-password-layout' : 'client-signup-password-layout'}>
+                        <div className="password-input-shell">
+                          <input id="clientPassword" value={clientPassword} onChange={(event) => setClientPassword(event.target.value)} type={clientPasswordVisible ? 'text' : 'password'} autoComplete={clientLoginStage === 'signup' ? 'new-password' : 'current-password'} placeholder={clientLoginStage === 'signup' ? 'At least 8 characters' : 'Password'} />
+                          <button className="password-visibility-button" type="button" aria-label={clientPasswordVisible ? 'Hide password' : 'Show password'} aria-pressed={clientPasswordVisible} onClick={() => setClientPasswordVisible((current) => !current)}>
+                            {clientPasswordVisible ? <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M3 3l18 18"/><path d="M10.6 10.6a2 2 0 002.8 2.8"/><path d="M9.8 5.3A10.4 10.4 0 0112 5c4.5 0 8 3 10 7a17 17 0 01-3.1 4.1"/><path d="M6 6.3C4.3 7.6 3 9.5 2 12c2 4 5.5 7 10 7 1.5 0 2.9-.3 4.2-.9"/></svg> : <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>}
+                          </button>
                       </div>
                       {clientLoginStage === 'signup' && <small className={signupPasswordLongEnough ? 'password-rule ok' : 'password-rule'}><span aria-hidden="true">{signupPasswordLongEnough ? '✓' : '○'}</span> Minimum 8 characters</small>}
                       {clientLoginStage === 'login' && (
@@ -1037,6 +1038,7 @@ export default function BookPage() {
                           Forgot password?
                         </button>
                       )}
+                      </div>
                     </div>
                   </div>
                 )}

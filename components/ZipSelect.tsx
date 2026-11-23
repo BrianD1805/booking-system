@@ -39,7 +39,6 @@ export function ZipSelect({ id, value, options, onChange, ariaLabel, placeholder
   const [mounted, setMounted] = useState(false);
   const [searchText, setSearchText] = useState('');
   const [menuStyle, setMenuStyle] = useState<CSSProperties>({});
-  const [countryStyle, setCountryStyle] = useState<CSSProperties>({});
   const [opensAbove, setOpensAbove] = useState(false);
   const isCountrySelector = className.split(/\s+/).includes('phone-country-select');
   const selectedOption = useMemo(() => options.find(option => option.value === value), [options, value]);
@@ -72,30 +71,6 @@ export function ZipSelect({ id, value, options, onChange, ariaLabel, placeholder
     setMenuStyle({ position: 'fixed', left: Math.round(menuLeft), top: Math.round(menuTop), width: Math.round(menuWidth), maxHeight: Math.round(maxHeight) });
   }, [isCountrySelector]);
 
-  const updateCountryPosition = useCallback(() => {
-    if (typeof window === 'undefined' || !isCountrySelector) return;
-    const button = rootRef.current?.querySelector<HTMLButtonElement>('.zip-select-button');
-    if (!button) return;
-    const rect = button.getBoundingClientRect();
-    const viewport = window.visualViewport;
-    const left = viewport?.offsetLeft ?? 0;
-    const top = viewport?.offsetTop ?? 0;
-    const width = viewport?.width ?? window.innerWidth;
-    const height = viewport?.height ?? window.innerHeight;
-    if (width <= 700) { setCountryStyle({}); return; }
-
-    // Desktop: a full-height-independent popup to the right of the phone
-    // selector and slightly ABOVE the field. If there is insufficient room
-    // on that side, keep the entire popup within the viewport.
-    const dialogWidth = Math.min(420, width - VIEWPORT_GUTTER * 2);
-    const idealLeft = rect.right + 22;
-    const dialogLeft = idealLeft + dialogWidth + VIEWPORT_GUTTER <= left + width
-      ? idealLeft
-      : Math.min(Math.max(left + VIEWPORT_GUTTER, rect.left - dialogWidth - 22), left + width - dialogWidth - VIEWPORT_GUTTER);
-    const dialogHeight = Math.min(535, height - VIEWPORT_GUTTER * 2);
-    const dialogTop = Math.max(top + VIEWPORT_GUTTER, Math.min(rect.top - 125, top + height - dialogHeight - VIEWPORT_GUTTER));
-    setCountryStyle({ position: 'fixed', left: Math.round(dialogLeft), top: Math.round(dialogTop), width: Math.round(dialogWidth), maxHeight: Math.round(dialogHeight) });
-  }, [isCountrySelector]);
 
   useEffect(() => setMounted(true), []);
   useEffect(() => { if (disabled) setOpen(false); }, [disabled]);
@@ -103,7 +78,7 @@ export function ZipSelect({ id, value, options, onChange, ariaLabel, placeholder
 
   useEffect(() => {
     if (!open) return;
-    const update = () => { updateMenuPosition(); updateCountryPosition(); };
+    const update = () => { updateMenuPosition(); };
     update();
     const frame = window.requestAnimationFrame(update);
     window.addEventListener('resize', update);
@@ -117,7 +92,7 @@ export function ZipSelect({ id, value, options, onChange, ariaLabel, placeholder
       window.visualViewport?.removeEventListener('resize', update);
       window.visualViewport?.removeEventListener('scroll', update);
     };
-  }, [open, updateMenuPosition, updateCountryPosition]);
+  }, [open, updateMenuPosition]);
 
   useEffect(() => {
     if (!open) return;
@@ -207,7 +182,7 @@ export function ZipSelect({ id, value, options, onChange, ariaLabel, placeholder
 
   const menu = isCountrySelector ? (
     <div className="zip-select-country-overlay" onMouseDown={event => { if (event.target === event.currentTarget) setOpen(false); }}>
-      <div ref={menuRef} className="zip-select-country-dialog" role="dialog" aria-modal="true" aria-label={ariaLabel ?? 'Select country code'} style={countryStyle}>
+      <div ref={menuRef} className="zip-select-country-dialog" role="dialog" aria-modal="true" aria-label={ariaLabel ?? 'Select country code'}>
         <div className="zip-select-country-heading">
           <div>
             <strong>Choose country code</strong>

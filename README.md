@@ -1,19 +1,19 @@
-# ZipBook — Ver-0.063.1
+# ZipBook — Ver-0.063.2
 
 A ZippyWeb product. Multi-tenant SaaS appointment scheduling, booking and client account system, deployed using GitHub, Netlify and Supabase. Commercial plans, payments and subscriptions will be managed by ZippyWeb, not duplicated in ZipBook.
 
 ## Latest full release
 
-**Ver-0.063.1 — Client Account UX and Country Selector**, 23 November 2026.
+**Ver-0.063.2 — Customer Account Popup UX Fixes**, 23 November 2026.
 
-- A high-layer, independent country popup on mobile and desktop with searchable worldwide country/territory dialling codes.
+- Country popup is centred on both desktop and mobile, with searchable worldwide country/territory dialling codes.
 - Common choices are presented first: United Kingdom, South Africa, Kenya, Australia, New Zealand, EU, and major world countries.
 - Business Admin **Edit practice profile** has a separate **Default customer phone country** setting.
 - Customer Login/Sign up uses a ZippyWeb-style toggle in the popup header and a stable-height layout.
 - Password visibility uses fixed eye/eye-off icons.
 - The customer signup popup no longer repeats explanatory header text.
 
-See `FULL_PROGRAM_RELEASE_VER_0_063_1.md` for more details and `supabase/zipbook_default_customer_phone_country_ver_0_063_1.sql` for the required new-column migration and tenant update permission.
+See `FULL_PROGRAM_RELEASE_VER_0_063_2.md` for the latest patch and `supabase/zipbook_default_customer_phone_country_ver_0_063_1.sql` for the previously required migration. No new SQL migration is needed for Ver-0.063.2.
 
 ## Source and release policy
 
@@ -27,13 +27,13 @@ See `FULL_PROGRAM_RELEASE_VER_0_063_1.md` for more details and `supabase/zipbook
 ## Local test command (Windows CMD; no Netlify Dev)
 
 ```cmd
-npm ci && npm run test:version && npm run test:heartbeat && npm run test:booking-time && npm run test:scheduling && npm run test:saas && npm run test:tenants && npm run test:onboarding && npm run test:integration && npm run test:branding && npm run test:readiness && npm run test:procedure-ux && npm run test:diary-slots && npm run test:public-booking && npm run test:customer-accounts && npm run test:account-ux && npm run test:client-login-typecheck && npm run test:country-ux && npm audit --omit=dev && npm run typecheck && npm run build
+npm ci && npm run test:version && npm run test:heartbeat && npm run test:booking-time && npm run test:scheduling && npm run test:saas && npm run test:tenants && npm run test:onboarding && npm run test:integration && npm run test:branding && npm run test:readiness && npm run test:procedure-ux && npm run test:diary-slots && npm run test:public-booking && npm run test:customer-accounts && npm run test:account-ux && npm run test:client-login-typecheck && npm run test:country-ux && npm run test:account-ux-patch && npm audit --omit=dev && npm run typecheck && npm run build
 ```
 
 Run the Supabase migration before deploying the new programme, then after tests and build pass:
 
 ```cmd
-git status && git add -A && git commit -m "ZipBook Ver-0.063.1 Country Popup and Account UX" && git push origin main
+git status && git add -A && git commit -m "ZipBook Ver-0.063.2 Customer Account UX Fixes" && git push origin main
 ```
 
 ## Customer-facing entry points
