@@ -1,87 +1,44 @@
-# ZipBook — Ver-0.008B
+# ZipBook — Ver-0.063.1
 
-From Brian Hallam at ZippyWeb.
+A ZippyWeb product. Multi-tenant SaaS appointment scheduling, booking and client account system, deployed using GitHub, Netlify and Supabase. Commercial plans, payments and subscriptions will be managed by ZippyWeb, not duplicated in ZipBook.
 
-## Current build
+## Latest full release
 
-**Ver-0.008B — Booking Duration Lockdown**
+**Ver-0.063.1 — Client Account UX and Country Selector**, 23 November 2026.
 
-This build keeps the existing Ver-0.008 client PWA install prompt and Ver-0.008A icon refresh, then tightens the diary display so longer bookings occupy every overlapping 30-minute diary block, not just the booking start time.
+- A high-layer, independent country popup on mobile and desktop with searchable worldwide country/territory dialling codes.
+- Common choices are presented first: United Kingdom, South Africa, Kenya, Australia, New Zealand, EU, and major world countries.
+- Business Admin **Edit practice profile** has a separate **Default customer phone country** setting.
+- Customer Login/Sign up uses a ZippyWeb-style toggle in the popup header and a stable-height layout.
+- Password visibility uses fixed eye/eye-off icons.
+- The customer signup popup no longer repeats explanatory header text.
 
-## What this build changes
+See `FULL_PROGRAM_RELEASE_VER_0_063_1.md` for more details and `supabase/zipbook_default_customer_phone_country_ver_0_063_1.sql` for the required new-column migration and tenant update permission.
 
-- Updates the admin diary slots view to detect booking overlaps by time range.
-- A 60-minute appointment now marks both half-hour diary blocks as booked/occupied.
-- Longer appointments show as continuing until their real end time in the admin visual diary.
-- Keeps the existing server-side conflict protection, which already checks full booking ranges before saving.
-- Keeps the client PWA install prompt in place.
-- Keeps the ZipBook wordmark favicon, PWA icons and Open Graph image in place.
-- Updates the service worker cache name to `zipbook-v0.008b`.
-- Updates the visible app version to `Ver-0.008B`.
-- No database migration changes in this build.
+## Source and release policy
 
-## Domain plan
+- `lib/domains.ts` defines **the authoritative APP_VERSION** displayed by public booking pages and the Admin interface.
+- Keep `package.json`, root package-lock version metadata, `public/sw.js` cache key, README and release notes synchronised with each release.
+- `npm run test:version` verifies the shared version and package consistency.
+- For small patch builds, use Ver-0.063.1 / Ver-0.063.2 numeric suffixes (not A/B/C).
+- Preserve the approved public booking page, Admin layout and modal styling except where changes are specifically requested.
+- Never enable public bookings for every tenant automatically; retain platform approval and secure tenant isolation.
 
-- `https://zipbook.app` — landing page.
-- `https://zipbook.app/book` — client-facing booking app.
-- `https://admin.zipbook.app` — owner/admin diary app.
-- `https://bookings-system.netlify.app` — temporary Netlify URL / fallback during setup.
-- Future SaaS route idea: `https://practice-name.zipbook.app` for tenant booking pages.
+## Local test command (Windows CMD; no Netlify Dev)
 
-## App areas
-
-- `/book` — client-facing booking app.
-- `/admin` — owner/admin diary app.
-- `/widget` — website iframe/embed starter.
-
-## Important booking rule
-
-This is a live booking system, not an appointment request system.
-
-- A client can create a confirmed booking directly.
-- Dentist/admin/staff can create a confirmed booking directly.
-- Both apps use Netlify Database through API routes.
-- Client-created bookings and staff-created bookings sync between both apps.
-- Bookings are linked to a specific practitioner/resource.
-
-## Local Program Files workflow
-
-Place/update files in your local Program Files folder, for example:
-
-```text
-C:\01 My Work 2026\Booking System\Booking System Program Files
+```cmd
+npm ci && npm run test:version && npm run test:heartbeat && npm run test:booking-time && npm run test:scheduling && npm run test:saas && npm run test:tenants && npm run test:onboarding && npm run test:integration && npm run test:branding && npm run test:readiness && npm run test:procedure-ux && npm run test:diary-slots && npm run test:public-booking && npm run test:customer-accounts && npm run test:account-ux && npm run test:client-login-typecheck && npm run test:country-ux && npm audit --omit=dev && npm run typecheck && npm run build
 ```
 
-Open the terminal directly from that folder.
+Run the Supabase migration before deploying the new programme, then after tests and build pass:
 
-## Local testing
-
-Use Netlify Dev for database/API testing:
-
-```bash
-netlify dev
+```cmd
+git status && git add -A && git commit -m "ZipBook Ver-0.063.1 Country Popup and Account UX" && git push origin main
 ```
 
-Open:
+## Customer-facing entry points
 
-```text
-http://localhost:8888/book
-http://localhost:8888/admin
-http://localhost:8888/widget
-```
+- `https://demo-dental.zipbook.app/book` — public demo tenant booking page.
+- `https://demo-dental.zipbook.app/api/tenant-context` — check reported live version.
 
-## Build check
-
-```bash
-npm run build
-```
-
-## Deploy
-
-```bash
-git status && git add . && git commit -m "Booking System Ver-0.008B booking duration lockdown" && git push origin main
-```
-
-## Migration safety note
-
-Do not edit existing applied Netlify Database migrations. New database changes must always be added as a new migration file.
+Do not infer the deployed release from a ZIP filename. Netlify must publish the updated commit and the live version endpoint must agree with the release.

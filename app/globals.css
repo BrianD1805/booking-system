@@ -6099,3 +6099,262 @@ button.admin-password-eye .admin-password-eye-slash {
     align-items: flex-start;
   }
 }
+
+/* Ver-0.063.1 — dedicated country dialogs above ALL customer/account popups. */
+.zip-select-country-overlay {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 2147483000 !important;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 18px;
+  background: rgba(10, 24, 42, 0.38);
+  backdrop-filter: blur(3px);
+  isolation: isolate;
+}
+
+.zip-select-country-dialog {
+  display: flex;
+  flex-direction: column;
+  width: min(420px, calc(100dvw - 24px));
+  height: min(535px, calc(100dvh - 36px));
+  max-height: calc(100dvh - 36px);
+  min-width: 0;
+  overflow: hidden;
+  padding: 0;
+  border: 1px solid rgba(51, 102, 153, 0.16);
+  border-radius: 24px;
+  background: #fff;
+  box-shadow: 0 32px 95px rgba(10, 24, 42, 0.32);
+  color: #182f48;
+  overscroll-behavior: contain;
+}
+
+.zip-select-country-heading {
+  flex: 0 0 auto;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 19px 20px 10px;
+}
+.zip-select-country-heading strong { display: block; font-size: 1.1rem; font-weight: 800; }
+.zip-select-country-heading p { margin: 5px 0 0; color: #58708b; font-size: 0.86rem; }
+.zip-select-country-close {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  padding: 0;
+  border: 1px solid #d6e3f2;
+  border-radius: 50%;
+  background: #f6faff;
+  font-size: 25px;
+  line-height: 1;
+  color: #336699;
+  cursor: pointer;
+}
+.zip-select-country-close:hover { background: #eaf3ff; }
+.zip-select-country-search { flex: 0 0 auto; padding: 5px 20px 15px; border-bottom: 1px solid #e3ecf7; }
+.zip-select-country-search input {
+  display: block;
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 13px;
+  border: 1px solid #d6e3f2;
+  border-radius: 12px;
+  color: #1a344f;
+  background: #f7faff;
+  font: inherit;
+  font-size: 0.93rem;
+}
+.zip-select-country-search input:focus-visible { outline: 2px solid rgba(51, 102, 153, 0.45); outline-offset: 1px; }
+.zip-select-country-dialog .zip-select-options-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding: 9px 12px 16px;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+}
+.zip-select-country-dialog .zip-select-option { min-height: 43px; }
+.zip-select-country-dialog .zip-select-divider { margin: 10px 10px; }
+@media (max-width: 700px) {
+  .zip-select-country-dialog {
+    position: relative !important;
+    left: auto !important;
+    top: auto !important;
+    width: min(440px, calc(100dvw - 26px)) !important;
+    height: min(590px, calc(100dvh - 42px)) !important;
+    max-height: calc(100dvh - 42px) !important;
+    border-radius: 25px;
+  }
+}
+
+/* Stable, fully contained client account popup in both modes. */
+.client-auth-popup .client-auth-card:not(.client-reset-card) {
+  height: min(625px, calc(100dvh - 40px)) !important;
+  min-height: 0;
+  flex-direction: column;
+}
+.client-auth-card:not(.client-reset-card) > .grid,
+.client-auth-card:not(.client-reset-card) > .client-otp-box,
+.client-auth-card:not(.client-reset-card) > .client-profile-panel {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  overflow-y: auto !important;
+  overscroll-behavior: contain;
+}
+.client-auth-card:not(.client-reset-card) .client-auth-head {
+  display: flex !important;
+  justify-content: space-between !important;
+  align-items: center !important;
+  gap: 12px !important;
+  min-height: 98px;
+  margin-bottom: 0 !important;
+}
+.client-auth-card:not(.client-reset-card) .client-auth-title-copy { flex: 1 1 auto; min-width: 0; }
+.client-auth-card:not(.client-reset-card) .client-auth-head-actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 11px;
+  white-space: nowrap;
+}
+/* A native-feeling blue switch with a circular white knob, as used on ZippyWeb plan pages. */
+.auth-header-toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 0 0 auto;
+  min-width: 0;
+  white-space: nowrap;
+}
+.auth-header-toggle .auth-toggle-label {
+  appearance: none;
+  padding: 4px 0;
+  border: 0;
+  background: transparent;
+  color: #667e99;
+  font-size: 0.88rem;
+  line-height: 1.2;
+  font-weight: 750;
+  cursor: pointer;
+}
+.auth-header-toggle .auth-toggle-label.active { color: #2d6094; }
+.auth-header-toggle .auth-toggle-switch {
+  position: relative;
+  display: block;
+  flex: 0 0 auto;
+  width: 76px;
+  height: 39px;
+  padding: 0;
+  border: 2px solid #6d9ac5;
+  border-radius: 999px;
+  background: #336699;
+  box-shadow: inset 0 1px 3px rgba(12, 40, 66, 0.17);
+  cursor: pointer;
+}
+.auth-header-toggle .auth-toggle-knob {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  display: block;
+  width: 29px;
+  height: 29px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 2px 5px rgba(5, 29, 51, 0.22);
+  transform: translateX(0);
+  transition: transform 165ms ease;
+  pointer-events: none;
+}
+.auth-header-toggle.signup-mode .auth-toggle-knob { transform: translateX(37px); }
+.auth-header-toggle button:focus-visible { outline: 2px solid #336699; outline-offset: 4px; }
+@media (prefers-reduced-motion: reduce) { .auth-header-toggle .auth-toggle-knob { transition: none; } }
+
+/* Password visibility: one stationary icon with fixed dimensions. */
+.client-auth-card .password-visibility-button {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  min-width: 38px;
+  height: 38px;
+  min-height: 38px;
+  padding: 0;
+  right: 8px;
+  top: 50%;
+  border-radius: 9px;
+  transform: translateY(-50%) !important;
+  transition: background 160ms ease !important;
+}
+.client-auth-card .password-visibility-button:hover,
+.client-auth-card .password-visibility-button:active {
+  background: #eaf3ff;
+  transform: translateY(-50%) !important;
+}
+.client-auth-card .password-visibility-button svg { display: block; width: 19px; height: 19px; }
+
+@media (max-width: 700px) {
+  .client-auth-popup .client-auth-card:not(.client-reset-card) { height: min(720px, calc(100dvh - 24px)) !important; }
+  .client-auth-card:not(.client-reset-card) .client-auth-head {
+    flex-wrap: wrap;
+    align-content: center;
+    min-height: 108px;
+    padding: 14px 16px !important;
+  }
+  .client-auth-card:not(.client-reset-card) .client-auth-title-copy { flex: 1 1 100%; }
+  .client-auth-card:not(.client-reset-card) .client-auth-title-copy h2 { font-size: 1.42rem; margin-top: 2px; }
+  .client-auth-card:not(.client-reset-card) .client-auth-head-actions { width: 100%; justify-content: flex-end; gap: 9px; }
+  .client-auth-card:not(.client-reset-card) .auth-header-toggle { gap: 8px; }
+  .client-auth-card:not(.client-reset-card) .auth-header-toggle .auth-toggle-label { font-size: 0.84rem; }
+  .client-auth-card:not(.client-reset-card) .auth-header-toggle .auth-toggle-switch { width: 69px; height: 36px; }
+  .client-auth-card:not(.client-reset-card) .auth-header-toggle .auth-toggle-knob { width: 26px; height: 26px; top: 3px; left: 3px; }
+  .client-auth-card:not(.client-reset-card) .auth-header-toggle.signup-mode .auth-toggle-knob { transform: translateX(33px); }
+}
+
+/* Ver-0.063.1 — country picker cards match the supplied My Passwords reference. */
+.zip-select-country-search { position: relative; }
+.zip-select-country-search-icon {
+  position: absolute;
+  top: 16px;
+  left: 34px;
+  width: 20px;
+  height: 20px;
+  color: #667d96;
+  pointer-events: none;
+}
+.zip-select-country-search-icon svg { width: 100%; height: 100%; display: block; }
+.zip-select-country-search input { padding-left: 43px; }
+.zip-select-country-dialog .zip-select-options-scroll { padding: 14px 20px 18px; }
+.zip-select-country-dialog .zip-select-option {
+  display: block;
+  min-height: 54px;
+  padding: 9px 14px;
+  margin: 0 0 7px;
+  border: 1px solid #dae6f3;
+  border-radius: 18px;
+  background: #fff;
+  color: #203b58;
+  box-shadow: none;
+}
+.zip-select-country-dialog .zip-select-option:hover,
+.zip-select-country-dialog .zip-select-option:focus-visible { border-color: #b0cee8; background: #f3f8fd; }
+.zip-select-country-dialog .zip-select-option.is-selected {
+  background: #f2faf6;
+  color: #203b58;
+  border-color: #b9dfc8;
+  box-shadow: inset 0 0 0 1px rgba(82,155,109,.05);
+}
+.zip-country-option-content { display: flex; align-items: center; width: 100%; gap: 10px; }
+.zip-country-option-flag { font-size: 24px; line-height: 1; width: 32px; flex: 0 0 32px; }
+.zip-country-option-name { flex: 1; min-width: 0; font-size: .95rem; color: #203b58; white-space: normal !important; }
+.zip-country-option-dial { flex: 0 0 auto; color: #687f97; font-size: .9rem; font-weight: 750; }
+@media (max-width: 700px) {
+  .zip-select-country-dialog .zip-select-options-scroll { padding: 12px 12px 15px; }
+  .zip-select-country-dialog .zip-select-option { min-height: 52px; }
+}

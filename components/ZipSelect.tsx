@@ -10,6 +10,10 @@ export type ZipSelectOption = {
   description?: string;
   disabled?: boolean;
   separatorAbove?: boolean;
+  searchOnly?: boolean;
+  flag?: string;
+  countryName?: string;
+  dialCode?: string;
 };
 
 type ZipSelectProps = {
@@ -24,221 +28,206 @@ type ZipSelectProps = {
   searchable?: boolean;
 };
 
-type MenuPlacement = 'below' | 'above';
-
 const MENU_GAP = 8;
-const VIEWPORT_GUTTER = 12;
-const MIN_MENU_HEIGHT = 150;
-const MAX_MENU_HEIGHT = 320;
+const VIEWPORT_GUTTER = 14;
 
 export function ZipSelect({ id, value, options, onChange, ariaLabel, placeholder = 'Select', disabled = false, className = '', searchable = false }: ZipSelectProps) {
   const rootRef = useRef<HTMLDivElement | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
+  const searchRef = useRef<HTMLInputElement | null>(null);
   const [open, setOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [searchText, setSearchText] = useState('');
   const [menuStyle, setMenuStyle] = useState<CSSProperties>({});
-  const [menuPlacement, setMenuPlacement] = useState<MenuPlacement>('below');
-  const [mobileViewport, setMobileViewport] = useState(false);
-  const selectedOption = useMemo(() => options.find((option) => option.value === value), [options, value]);
-  const enabledOptions = useMemo(() => options.filter((option) => !option.disabled), [options]);
-  const visibleOptions = useMemo(() => !searchable || !searchText.trim() ? options : options.filter(option => `${option.label} ${option.value}`.toLocaleLowerCase().includes(searchText.trim().toLocaleLowerCase())), [options, searchText, searchable]);
-  const selectedIndex = selectedOption ? enabledOptions.findIndex((option) => option.value === selectedOption.value) : -1;
-
-  const usesWideMenu = className.split(/\s+/).includes('phone-country-select');
-  const useMobileDialog = usesWideMenu && mobileViewport;
-  const menuClassName = [
-    'zip-select-menu',
-    useMobileDialog ? 'zip-select-mobile-dialog' : 'zip-select-floating-menu',
-    !useMobileDialog && (menuPlacement === 'above' ? 'opens-above' : 'opens-below'),
-    usesWideMenu ? 'phone-country-select-menu' : '',
-    useMobileDialog ? 'phone-country-select-mobile-dialog' : '',
-    className.split(/\s+/).includes('zip-calendar-month-select') ? 'zip-calendar-month-select-menu' : ''
-  ].filter(Boolean).join(' ');
+  const [countryStyle, setCountryStyle] = useState<CSSProperties>({});
+  const [opensAbove, setOpensAbove] = useState(false);
+  const isCountrySelector = className.split(/\s+/).includes('phone-country-select');
+  const selectedOption = useMemo(() => options.find(option => option.value === value), [options, value]);
+  const enabledOptions = useMemo(() => options.filter(option => !option.disabled), [options]);
+  const visibleOptions = useMemo(() => {
+    const needle = searchText.trim().toLocaleLowerCase();
+    if (!searchable) return options;
+    if (!needle) return options.filter(option => !option.searchOnly || option.value === value);
+    return options.filter(option => `${option.label} ${option.value}`.toLocaleLowerCase().includes(needle));
+  }, [options, searchText, searchable, value]);
 
   const updateMenuPosition = useCallback(() => {
-    if (typeof window === 'undefined') return;
-    const root = rootRef.current;
-    const button = root?.querySelector<HTMLButtonElement>('.zip-select-button');
+    if (typeof window === 'undefined' || isCountrySelector) return;
+    const button = rootRef.current?.querySelector<HTMLButtonElement>('.zip-select-button');
     if (!button) return;
-
     const rect = button.getBoundingClientRect();
-    const visualViewport = window.visualViewport;
-    const viewportLeft = visualViewport?.offsetLeft ?? 0;
-    const viewportTop = visualViewport?.offsetTop ?? 0;
-    const viewportWidth = visualViewport?.width ?? window.innerWidth;
-    const viewportHeight = visualViewport?.height ?? window.innerHeight;
-    const availableBelow = Math.max(0, viewportTop + viewportHeight - rect.bottom - MENU_GAP - VIEWPORT_GUTTER);
-    const availableAbove = Math.max(0, rect.top - viewportTop - MENU_GAP - VIEWPORT_GUTTER);
-    const shouldOpenAbove = availableBelow < MIN_MENU_HEIGHT && availableAbove > availableBelow;
-    const availableSpace = shouldOpenAbove ? availableAbove : availableBelow;
-    const maxHeight = Math.max(MIN_MENU_HEIGHT, Math.min(MAX_MENU_HEIGHT, availableSpace || MAX_MENU_HEIGHT));
-    const viewportSafeWidth = Math.max(180, viewportWidth - (VIEWPORT_GUTTER * 2));
-    const preferredWidth = usesWideMenu ? Math.min(320, viewportSafeWidth) : Math.max(rect.width, 180);
-    const menuWidth = Math.min(Math.max(rect.width, preferredWidth), viewportSafeWidth);
-    const left = Math.min(
-      Math.max(rect.left, viewportLeft + VIEWPORT_GUTTER),
-      viewportLeft + viewportWidth - menuWidth - VIEWPORT_GUTTER
-    );
+    const viewport = window.visualViewport;
+    const left = viewport?.offsetLeft ?? 0;
+    const top = viewport?.offsetTop ?? 0;
+    const width = viewport?.width ?? window.innerWidth;
+    const height = viewport?.height ?? window.innerHeight;
+    const below = Math.max(0, top + height - rect.bottom - MENU_GAP - VIEWPORT_GUTTER);
+    const above = Math.max(0, rect.top - top - MENU_GAP - VIEWPORT_GUTTER);
+    const putAbove = below < 150 && above > below;
+    const maxHeight = Math.min(320, Math.max(120, putAbove ? above : below));
+    const menuWidth = Math.min(Math.max(rect.width, 180), width - VIEWPORT_GUTTER * 2);
+    const menuLeft = Math.min(Math.max(rect.left, left + VIEWPORT_GUTTER), left + width - menuWidth - VIEWPORT_GUTTER);
+    const menuTop = putAbove ? rect.top - maxHeight - MENU_GAP : rect.bottom + MENU_GAP;
+    setOpensAbove(putAbove);
+    setMenuStyle({ position: 'fixed', left: Math.round(menuLeft), top: Math.round(menuTop), width: Math.round(menuWidth), maxHeight: Math.round(maxHeight) });
+  }, [isCountrySelector]);
 
-    setMenuPlacement(shouldOpenAbove ? 'above' : 'below');
-    setMenuStyle({
-      position: 'fixed',
-      left: `${Math.round(left)}px`,
-      width: `${Math.round(menuWidth)}px`,
-      maxHeight: `${Math.round(maxHeight)}px`,
-      ...(shouldOpenAbove
-        ? { top: 'auto', bottom: `${Math.round(Math.max(VIEWPORT_GUTTER, viewportTop + viewportHeight - rect.top + MENU_GAP))}px` }
-        : { top: `${Math.round(Math.min(rect.bottom + MENU_GAP, viewportTop + viewportHeight - VIEWPORT_GUTTER - maxHeight))}px`, bottom: 'auto' })
-    });
-  }, [usesWideMenu]);
+  const updateCountryPosition = useCallback(() => {
+    if (typeof window === 'undefined' || !isCountrySelector) return;
+    const button = rootRef.current?.querySelector<HTMLButtonElement>('.zip-select-button');
+    if (!button) return;
+    const rect = button.getBoundingClientRect();
+    const viewport = window.visualViewport;
+    const left = viewport?.offsetLeft ?? 0;
+    const top = viewport?.offsetTop ?? 0;
+    const width = viewport?.width ?? window.innerWidth;
+    const height = viewport?.height ?? window.innerHeight;
+    if (width <= 700) { setCountryStyle({}); return; }
 
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+    // Desktop: a full-height-independent popup to the right of the phone
+    // selector and slightly ABOVE the field. If there is insufficient room
+    // on that side, keep the entire popup within the viewport.
+    const dialogWidth = Math.min(420, width - VIEWPORT_GUTTER * 2);
+    const idealLeft = rect.right + 22;
+    const dialogLeft = idealLeft + dialogWidth + VIEWPORT_GUTTER <= left + width
+      ? idealLeft
+      : Math.min(Math.max(left + VIEWPORT_GUTTER, rect.left - dialogWidth - 22), left + width - dialogWidth - VIEWPORT_GUTTER);
+    const dialogHeight = Math.min(535, height - VIEWPORT_GUTTER * 2);
+    const dialogTop = Math.max(top + VIEWPORT_GUTTER, Math.min(rect.top - 125, top + height - dialogHeight - VIEWPORT_GUTTER));
+    setCountryStyle({ position: 'fixed', left: Math.round(dialogLeft), top: Math.round(dialogTop), width: Math.round(dialogWidth), maxHeight: Math.round(dialogHeight) });
+  }, [isCountrySelector]);
 
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const updateViewport = () => setMobileViewport(window.innerWidth <= 640);
-    updateViewport();
-    window.addEventListener('resize', updateViewport);
-    window.visualViewport?.addEventListener('resize', updateViewport);
-    return () => {
-      window.removeEventListener('resize', updateViewport);
-      window.visualViewport?.removeEventListener('resize', updateViewport);
-    };
-  }, []);
-
-  useEffect(() => {
-    if (disabled) setOpen(false);
-  }, [disabled]);
-
-  useEffect(() => {
-    if (!open) setSearchText('');
-  }, [open]);
-
-  useEffect(() => {
-    if (!open || useMobileDialog) return;
-    updateMenuPosition();
-    const animationFrame = window.requestAnimationFrame(updateMenuPosition);
-    window.addEventListener('resize', updateMenuPosition);
-    window.addEventListener('scroll', updateMenuPosition, true);
-    window.visualViewport?.addEventListener('resize', updateMenuPosition);
-    window.visualViewport?.addEventListener('scroll', updateMenuPosition);
-    return () => {
-      window.cancelAnimationFrame(animationFrame);
-      window.removeEventListener('resize', updateMenuPosition);
-      window.removeEventListener('scroll', updateMenuPosition, true);
-      window.visualViewport?.removeEventListener('resize', updateMenuPosition);
-      window.visualViewport?.removeEventListener('scroll', updateMenuPosition);
-    };
-  }, [open, options.length, updateMenuPosition, value, useMobileDialog]);
+  useEffect(() => setMounted(true), []);
+  useEffect(() => { if (disabled) setOpen(false); }, [disabled]);
+  useEffect(() => { if (!open) setSearchText(''); }, [open]);
 
   useEffect(() => {
     if (!open) return;
-    function handlePointerDown(event: MouseEvent | TouchEvent) {
-      const target = event.target as Node;
-      if (!rootRef.current?.contains(target) && !menuRef.current?.contains(target)) setOpen(false);
-    }
-    function handleEscape(event: globalThis.KeyboardEvent) {
-      if (event.key === 'Escape') setOpen(false);
-    }
-    document.addEventListener('mousedown', handlePointerDown);
-    document.addEventListener('touchstart', handlePointerDown);
-    document.addEventListener('keydown', handleEscape);
+    const update = () => { updateMenuPosition(); updateCountryPosition(); };
+    update();
+    const frame = window.requestAnimationFrame(update);
+    window.addEventListener('resize', update);
+    window.addEventListener('scroll', update, true);
+    window.visualViewport?.addEventListener('resize', update);
+    window.visualViewport?.addEventListener('scroll', update);
     return () => {
-      document.removeEventListener('mousedown', handlePointerDown);
-      document.removeEventListener('touchstart', handlePointerDown);
-      document.removeEventListener('keydown', handleEscape);
+      window.cancelAnimationFrame(frame);
+      window.removeEventListener('resize', update);
+      window.removeEventListener('scroll', update, true);
+      window.visualViewport?.removeEventListener('resize', update);
+      window.visualViewport?.removeEventListener('scroll', update);
     };
-  }, [open]);
+  }, [open, updateMenuPosition, updateCountryPosition]);
+
+  useEffect(() => {
+    if (!open) return;
+    const previousOverflow = document.body.style.overflow;
+    if (isCountrySelector) {
+      document.body.style.overflow = 'hidden';
+      window.requestAnimationFrame(() => searchRef.current?.focus());
+    }
+    const closeOutside = (event: MouseEvent | TouchEvent) => {
+      const node = event.target as Node;
+      if (!rootRef.current?.contains(node) && !menuRef.current?.contains(node)) setOpen(false);
+    };
+    const keyDown = (event: globalThis.KeyboardEvent) => {
+      if (event.key === 'Escape') { event.preventDefault(); setOpen(false); return; }
+      if (!isCountrySelector || event.key !== 'Tab' || !menuRef.current) return;
+      const controls = [...menuRef.current.querySelectorAll<HTMLElement>('input:not([disabled]), button:not([disabled])')].filter(node => node.offsetParent !== null);
+      if (!controls.length) return;
+      if (event.shiftKey && document.activeElement === controls[0]) { event.preventDefault(); controls[controls.length - 1].focus(); }
+      else if (!event.shiftKey && document.activeElement === controls[controls.length - 1]) { event.preventDefault(); controls[0].focus(); }
+    };
+    document.addEventListener('mousedown', closeOutside);
+    document.addEventListener('touchstart', closeOutside);
+    document.addEventListener('keydown', keyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener('mousedown', closeOutside);
+      document.removeEventListener('touchstart', closeOutside);
+      document.removeEventListener('keydown', keyDown);
+      if (isCountrySelector) rootRef.current?.querySelector<HTMLButtonElement>('.zip-select-button')?.focus();
+    };
+  }, [open, isCountrySelector]);
 
   function choose(nextValue: string) {
-    const nextOption = options.find((option) => option.value === nextValue);
-    if (!nextOption || nextOption.disabled) return;
-    onChange(nextValue);
+    const choice = options.find(option => option.value === nextValue);
+    if (!choice || choice.disabled) return;
+    onChange(choice.value);
     setOpen(false);
     setSearchText('');
   }
 
   function chooseByOffset(offset: number) {
     if (!enabledOptions.length) return;
-    const currentIndex = selectedIndex >= 0 ? selectedIndex : 0;
-    const nextIndex = (currentIndex + offset + enabledOptions.length) % enabledOptions.length;
-    choose(enabledOptions[nextIndex].value);
+    const at = enabledOptions.findIndex(item => item.value === value);
+    const next = (Math.max(at, 0) + offset + enabledOptions.length) % enabledOptions.length;
+    choose(enabledOptions[next].value);
   }
 
   function handleKeyDown(event: KeyboardEvent<HTMLButtonElement>) {
     if (disabled) return;
-    if (event.key === 'ArrowDown') {
+    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
       event.preventDefault();
       if (!open) setOpen(true);
-      else chooseByOffset(1);
-    }
-    if (event.key === 'ArrowUp') {
+      else if (!isCountrySelector) chooseByOffset(event.key === 'ArrowDown' ? 1 : -1);
+    } else if (event.key === 'Enter' || event.key === ' ') {
       event.preventDefault();
-      if (!open) setOpen(true);
-      else chooseByOffset(-1);
-    }
-    if (event.key === 'Enter' || event.key === ' ') {
-      event.preventDefault();
-      setOpen((current) => !current);
+      setOpen(previous => !previous);
     }
   }
 
-  const menuBody = (
-    <div ref={menuRef} className={menuClassName} role={searchable ? 'dialog' : 'listbox'} aria-label={ariaLabel ?? 'Select an option'} style={useMobileDialog ? undefined : menuStyle}>
-      {useMobileDialog && (
-        <div className="zip-select-mobile-dialog-head">
-          <div>
-            <strong>{ariaLabel ?? 'Choose a country'}</strong>
-            <p>Select a country code or search the full list.</p>
-          </div>
-          <button type="button" className="zip-select-mobile-dialog-close" aria-label="Close country selector" onClick={() => setOpen(false)}>×</button>
+  const optionsList = (
+    <div className="zip-select-options-scroll" role="listbox" aria-label={isCountrySelector ? 'Countries and dialling codes' : ariaLabel ?? 'Options'}>
+      {visibleOptions.length === 0 && <p className="zip-select-empty">No matching country</p>}
+      {visibleOptions.map(option => (
+        <div key={option.value}>
+          {option.separatorAbove && !searchText.trim() && <div className="zip-select-divider" aria-hidden="true" />}
+          <button
+            type="button"
+            role="option"
+            aria-selected={option.value === value}
+            disabled={option.disabled}
+            className={`zip-select-option ${option.value === value ? 'is-selected' : ''}`}
+            onClick={() => choose(option.value)}
+          >
+            {isCountrySelector && option.countryName ? (
+              <span className="zip-country-option-content">
+                <span className="zip-country-option-flag" aria-hidden="true">{option.flag}</span>
+                <span className="zip-country-option-name">{option.countryName}</span>
+                <span className="zip-country-option-dial">{option.dialCode}</span>
+              </span>
+            ) : <span>{option.label}</span>}
+            {option.description && <small>{option.description}</small>}
+          </button>
         </div>
-      )}
-      {searchable && (
-        <div className="zip-select-search-row" role="presentation">
-          <input aria-label="Search country or dialling code" type="search" placeholder="Search country or code" value={searchText} autoComplete="off" onChange={event => setSearchText(event.target.value)} onKeyDown={event => { if (event.key === 'Escape') { event.stopPropagation(); setOpen(false); } }} />
-        </div>
-      )}
-      {searchable ? <div role="listbox" aria-label="Countries">
-        {renderOptions()}
-      </div> : renderOptions()}
+      ))}
     </div>
   );
 
-  const menu = useMobileDialog
-    ? (
-      <div className="zip-select-mobile-dialog-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setOpen(false); }}>
-        {menuBody}
-      </div>
-    )
-    : menuBody;
-
-  function renderOptions() {
-    return <>{visibleOptions.length === 0 && <p className="zip-select-empty">No matching country</p>}
-      {visibleOptions.map((option) => {
-        const selected = option.value === value;
-        return (
-          <div key={option.value}>
-            {option.separatorAbove && <div className="zip-select-divider" aria-hidden="true" />}
-          <button
-            key={option.value}
-            type="button"
-            role="option"
-            aria-selected={selected}
-            disabled={option.disabled}
-            className={`zip-select-option ${selected ? 'is-selected' : ''}`.trim()}
-            onClick={() => choose(option.value)}
-          >
-            <span>{option.label}</span>
-            {option.description && <small>{option.description}</small>}
-          </button>
+  const menu = isCountrySelector ? (
+    <div className="zip-select-country-overlay" onMouseDown={event => { if (event.target === event.currentTarget) setOpen(false); }}>
+      <div ref={menuRef} className="zip-select-country-dialog" role="dialog" aria-modal="true" aria-label={ariaLabel ?? 'Select country code'} style={countryStyle}>
+        <div className="zip-select-country-heading">
+          <div>
+            <strong>Choose country code</strong>
+            <p>Popular countries. Search for more.</p>
           </div>
-        );
-      })}</>;
-  }
+          <button type="button" className="zip-select-country-close" onClick={() => setOpen(false)} aria-label="Close country selector">×</button>
+        </div>
+        <div className="zip-select-country-search">
+          <span className="zip-select-country-search-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="11" cy="11" r="7"/><path d="m16 16 5 5"/></svg></span>
+          <input ref={searchRef} type="search" autoComplete="off" aria-label="Search country or dialling code" placeholder="Search country or code…" value={searchText} onChange={event => setSearchText(event.target.value)} />
+        </div>
+        {optionsList}
+      </div>
+    </div>
+  ) : (
+    <div ref={menuRef} className={`zip-select-menu zip-select-floating-menu ${opensAbove ? 'opens-above' : 'opens-below'}`} role={searchable ? 'dialog' : 'listbox'} aria-label={ariaLabel ?? 'Select an option'} style={menuStyle}>
+      {searchable && <div className="zip-select-search-row"><input type="search" aria-label="Search options" placeholder="Search…" value={searchText} onChange={event => setSearchText(event.target.value)} /></div>}
+      {optionsList}
+    </div>
+  );
 
   return (
     <div ref={rootRef} className={`zip-select ${open ? 'is-open' : ''} ${disabled ? 'is-disabled' : ''} ${className}`.trim()}>
@@ -246,21 +235,15 @@ export function ZipSelect({ id, value, options, onChange, ariaLabel, placeholder
         id={id}
         type="button"
         className="zip-select-button"
-        aria-haspopup={searchable ? 'dialog' : 'listbox'}
+        aria-haspopup={isCountrySelector || searchable ? 'dialog' : 'listbox'}
         aria-expanded={open}
         aria-label={ariaLabel}
         disabled={disabled}
-        onClick={() => setOpen((current) => !current)}
+        onClick={() => setOpen(previous => !previous)}
         onKeyDown={handleKeyDown}
       >
-        <span className={`zip-select-value ${selectedOption ? '' : 'is-placeholder'}`.trim()}>
-          {selectedOption?.buttonLabel ?? selectedOption?.label ?? placeholder}
-        </span>
-        <span className="zip-select-chevron" aria-hidden="true">
-          <svg className="zip-select-chevron-icon" viewBox="0 0 24 24" focusable="false">
-            <path d="M6.4 8.8 12 14.4l5.6-5.6" />
-          </svg>
-        </span>
+        <span className={`zip-select-value ${selectedOption ? '' : 'is-placeholder'}`.trim()}>{selectedOption?.buttonLabel ?? selectedOption?.label ?? placeholder}</span>
+        <span className="zip-select-chevron" aria-hidden="true"><svg className="zip-select-chevron-icon" viewBox="0 0 24 24" focusable="false"><path d="M6.4 8.8 12 14.4l5.6-5.6" /></svg></span>
       </button>
       {open && mounted ? createPortal(menu, document.body) : null}
     </div>

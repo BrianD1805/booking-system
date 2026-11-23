@@ -11,7 +11,7 @@ test('business /book displays existing account popup without changing locked hom
   assert.match(page, /className="client-login-icon-button"/);
   assert.doesNotMatch(page, /businessInfo\?\.legacy === false \? null : <button/);
   assert.match(page, /client-auth-popup/);
-  assert.match(page, /className="auth-tab/);
+  assert.match(page, /className=\{`auth-header-toggle/);
   assert.match(page, /Book as a guest or sign in to manage your appointments/);
 });
 

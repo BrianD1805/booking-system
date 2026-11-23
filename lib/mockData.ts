@@ -134,6 +134,7 @@ export type PracticeSettings = {
   locale?: string;
   currencyCode?: string;
   countryCode?: string;
+  clientPhoneCountryCode?: string;
   onboardingCompleted?: boolean;
 };
 
@@ -234,6 +235,7 @@ export const fallbackPracticeSettings: PracticeSettings = {
   locale: 'en-GB',
   currencyCode: 'KES',
   countryCode: 'KE',
+  clientPhoneCountryCode: 'GB',
   onboardingCompleted: true
 };
 

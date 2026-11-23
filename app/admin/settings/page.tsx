@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom';
 import { Header } from '@/components/Header';
 import Link from 'next/link';
 import { ZipSelect } from '@/components/ZipSelect';
+import { PHONE_COUNTRIES } from '@/lib/phoneCountries';
 import { APP_VERSION } from '@/lib/mockData';
 import { makeAdminAuthHeaders } from '@/components/admin/AdminAuthGate';
 import { showAdminToast } from '@/components/admin/AdminToast';
@@ -12,7 +13,7 @@ import { BusinessBrandingCard } from '@/components/admin/BusinessBrandingCard';
 
 type PracticeSettingsForm = {
   practiceName: string; publicDisplayName: string; address: string; phone: string; email: string; logoUrl: string;
-  timezone: string; currencyCode: string; countryCode: string; workingDays: number[]; workingStartTime: string;
+  timezone: string; currencyCode: string; countryCode: string; clientPhoneCountryCode: string; workingDays: number[]; workingStartTime: string;
   workingEndTime: string; lunchBreakEnabled: boolean; lunchBreakStart: string; lunchBreakEnd: string;
   slotIntervalMinutes: number; minimumNoticeHours: number; maxBookingAheadDays: number; allowSameDayBookings: boolean;
   cancellationPolicyNote: string; clientAppUrl?: string; adminAppUrl?: string; tenantSlug?: string;
@@ -27,7 +28,7 @@ type DeleteTarget = { type: 'procedure' | 'practitioner' | 'leave'; id: string; 
 const weekdays = [{ n: 1, name: 'Monday', short: 'Mon' }, { n: 2, name: 'Tuesday', short: 'Tue' }, { n: 3, name: 'Wednesday', short: 'Wed' }, { n: 4, name: 'Thursday', short: 'Thu' }, { n: 5, name: 'Friday', short: 'Fri' }, { n: 6, name: 'Saturday', short: 'Sat' }, { n: 0, name: 'Sunday', short: 'Sun' }];
 const defaultSettings: PracticeSettingsForm = {
   practiceName: '', publicDisplayName: '', address: '', phone: '', email: '', logoUrl: '', timezone: 'Africa/Nairobi',
-  currencyCode: 'KES', countryCode: 'KE', workingDays: [1, 2, 3, 4, 5], workingStartTime: '08:30',
+  currencyCode: 'KES', countryCode: 'KE', clientPhoneCountryCode: 'GB', workingDays: [1, 2, 3, 4, 5], workingStartTime: '08:30',
   workingEndTime: '17:00', lunchBreakEnabled: false, lunchBreakStart: '13:00', lunchBreakEnd: '14:00',
   slotIntervalMinutes: 30, minimumNoticeHours: 2, maxBookingAheadDays: 90, allowSameDayBookings: true,
   cancellationPolicyNote: ''
@@ -244,7 +245,8 @@ export default function AdminSettingsPage() {
         {modal === 'profile' && <div className="settings-054-form-grid">
           {settingField('practiceName', 'Practice name')}{settingField('publicDisplayName', 'Public display name')}{settingField('email', 'Practice email', 'email')}{settingField('phone', 'Practice phone', 'tel')}
           <label className="settings-054-field span-two"><span>Address</span><textarea value={settingsDraft.address} onChange={(event) => setSettingsDraft({ ...settingsDraft, address: event.target.value })} /></label>
-          {settingField('timezone','Timezone (e.g. Europe/London)')}{settingField('currencyCode','Currency (GBP, KES…)')}{settingField('countryCode','Default client phone country (GB, KE…)')}
+          {settingField('timezone','Timezone (e.g. Europe/London)')}{settingField('currencyCode','Currency (GBP, KES…)')}{settingField('countryCode','Business country (GB, KE…)')}
+          <label className="settings-054-field"><span>Default customer phone country</span><ZipSelect id="defaultClientPhoneCountry" ariaLabel="Default customer phone country" className="phone-country-select" value={settingsDraft.clientPhoneCountryCode} onChange={(value) => setSettingsDraft((current) => ({ ...current, clientPhoneCountryCode: value }))} searchable options={PHONE_COUNTRIES.map((country) => ({ value: country.iso, label: `${country.name} (${country.dialCode})`, buttonLabel: `${country.name} (${country.dialCode})`, flag: [...country.iso].map(letter => String.fromCodePoint(0x1f1e6 + letter.charCodeAt(0) - 65)).join(''), countryName: country.name, dialCode: country.dialCode }))} /></label>
           {field('Booking app URL', data.settings.clientAppUrl ?? '', () => undefined, { readOnly: true })}
         </div>}
         {modal === 'hours' && <div className="settings-054-modal-stack">

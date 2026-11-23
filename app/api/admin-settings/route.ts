@@ -7,6 +7,7 @@ import { invalidateBootstrapCache, writeAdminAuditLog } from '@/lib/db';
 import { dayOfWeek, insideHours, minutes, crossesLunch } from '@/lib/schedulingPolicy.mjs';
 import { getPracticeToday } from '@/lib/bookingTime.mjs';
 import { randomUUID } from 'crypto';
+import { PHONE_COUNTRIES } from '@/lib/phoneCountries';
 
 export const dynamic = 'force-dynamic';
 
@@ -41,6 +42,7 @@ type PracticeSettingsRow = {
   locale: string | null;
   currency_code: string | null;
   country_code: string | null;
+  client_phone_country_code: string | null;
 };
 
 type ProcedureRow = {
@@ -159,7 +161,8 @@ function mapSettings(row: PracticeSettingsRow) {
     timezone: row.timezone ?? 'Africa/Nairobi',
     locale: row.locale ?? 'en-GB',
     currencyCode: row.currency_code ?? 'KES',
-    countryCode: row.country_code ?? 'KE'
+    countryCode: row.country_code ?? 'KE',
+    clientPhoneCountryCode: row.client_phone_country_code ?? row.country_code ?? 'GB'
   };
 }
 
@@ -206,7 +209,7 @@ function groupLeaveRows(rows: LeaveRow[]) {
 async function loadSettingsUncached() {
   const database = getZipBookDatabase();
   const [practiceRows, procedureRows, practitionerRows, assignmentRows, hourRows, leaveRows] = await Promise.all([
-    database.sql<PracticeSettingsRow>`SELECT id, name, public_display_name, booking_subdomain, practice_address, practice_phone, practice_email, logo_url, working_days, working_start_time::text AS working_start_time, working_end_time::text AS working_end_time, slot_interval_minutes, minimum_notice_hours, max_booking_ahead_days, lunch_break_enabled, lunch_break_start::text AS lunch_break_start, lunch_break_end::text AS lunch_break_end, allow_same_day_bookings, cancellation_policy_note, tenant_slug, public_booking_path, client_app_url, admin_app_url, timezone, locale, currency_code, country_code FROM practices WHERE id = ${currentTenant().practiceId} LIMIT 1`,
+    database.sql<PracticeSettingsRow>`SELECT id, name, public_display_name, booking_subdomain, practice_address, practice_phone, practice_email, logo_url, working_days, working_start_time::text AS working_start_time, working_end_time::text AS working_end_time, slot_interval_minutes, minimum_notice_hours, max_booking_ahead_days, lunch_break_enabled, lunch_break_start::text AS lunch_break_start, lunch_break_end::text AS lunch_break_end, allow_same_day_bookings, cancellation_policy_note, tenant_slug, public_booking_path, client_app_url, admin_app_url, timezone, locale, currency_code, country_code, client_phone_country_code FROM practices WHERE id = ${currentTenant().practiceId} LIMIT 1`,
     database.sql<ProcedureRow>`SELECT id, name, duration_minutes, price_guide, active, display_order FROM procedures WHERE practice_id = ${currentTenant().practiceId} ORDER BY display_order, name`,
     database.sql<PractitionerRow>`SELECT id, name, role, active, display_order FROM practitioners WHERE practice_id = ${currentTenant().practiceId} ORDER BY display_order, name`,
     database.sql<PractitionerProcedureRow>`SELECT pp.practitioner_id, pp.procedure_id FROM practitioner_procedures pp JOIN practitioners p ON p.id = pp.practitioner_id WHERE p.practice_id = ${currentTenant().practiceId} ORDER BY pp.practitioner_id, pp.procedure_id`,
@@ -259,7 +262,9 @@ export async function PATCH(request: NextRequest) {
       const countryCode = normaliseText(settings.countryCode).toUpperCase();
       if (!/^[A-Z]{3}$/.test(currencyCode)) throw new Error('Currency must be a three-letter code, for example GBP.');
       if (!/^[A-Z]{2}$/.test(countryCode)) throw new Error('Country must be a two-letter code, for example GB.');
-      await database.sql`UPDATE practices SET name=${practiceName},public_display_name=${publicDisplayName},practice_address=${address},practice_phone=${phone},practice_email=${email},logo_url=${logoUrl},timezone=${timezone},currency_code=${currencyCode},country_code=${countryCode},updated_at=NOW() WHERE id=${currentTenant().practiceId}`;
+      const clientPhoneCountryCode = normaliseText(settings.clientPhoneCountryCode).toUpperCase();
+      if (!PHONE_COUNTRIES.some((country) => country.iso === clientPhoneCountryCode)) throw new Error('Select a valid default customer phone country.');
+      await database.sql`UPDATE practices SET name=${practiceName},public_display_name=${publicDisplayName},practice_address=${address},practice_phone=${phone},practice_email=${email},logo_url=${logoUrl},timezone=${timezone},currency_code=${currencyCode},country_code=${countryCode},client_phone_country_code=${clientPhoneCountryCode},updated_at=NOW() WHERE id=${currentTenant().practiceId}`;
       await writeAdminAuditLog({ action: 'practice_profile_updated', entityType: 'practice', entityId: currentTenant().practiceId, source: 'admin', actor });
       invalidateSettings();
       return NextResponse.json(await loadSettings());
@@ -322,6 +327,8 @@ export async function PATCH(request: NextRequest) {
     const timezone = normaliseText(settings.timezone) || 'Africa/Nairobi';
     const currencyCode = normaliseText(settings.currencyCode).toUpperCase() || 'KES';
     const countryCode = normaliseText(settings.countryCode).toUpperCase() || 'KE';
+    const clientPhoneCountryCode = normaliseText(settings.clientPhoneCountryCode).toUpperCase() || countryCode;
+    if (!PHONE_COUNTRIES.some((country) => country.iso === clientPhoneCountryCode)) throw new Error('Select a valid default customer phone country.');
     const workingDays = normaliseWorkingDays(settings.workingDays);
     const workingStartTime = normaliseTime(settings.workingStartTime, '08:30');
     const workingEndTime = normaliseTime(settings.workingEndTime, '17:00');
@@ -345,6 +352,7 @@ export async function PATCH(request: NextRequest) {
           timezone = ${timezone},
           currency_code = ${currencyCode},
           country_code = ${countryCode},
+          client_phone_country_code = ${clientPhoneCountryCode},
           working_days = ${workingDays},
           working_start_time = ${workingStartTime}::time,
           working_end_time = ${workingEndTime}::time,

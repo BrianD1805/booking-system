@@ -65,6 +65,7 @@ type PracticeRow = {
   locale?: string | null;
   currency_code?: string | null;
   country_code?: string | null;
+  client_phone_country_code?: string | null;
   onboarding_completed?: boolean | null;
 };
 
@@ -366,6 +367,7 @@ function mapPractice(row: PracticeRow): PracticeSettings {
     locale: row.locale ?? 'en-GB',
     currencyCode: row.currency_code ?? 'KES',
     countryCode: row.country_code ?? 'KE',
+    clientPhoneCountryCode: row.client_phone_country_code ?? row.country_code ?? 'GB',
     onboardingCompleted: row.onboarding_completed ?? true
   };
 }

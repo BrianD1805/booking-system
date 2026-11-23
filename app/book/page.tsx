@@ -2,6 +2,7 @@
 
 import { DatePickerField } from '@/components/DatePickerField';
 import { ZipSelect } from '@/components/ZipSelect';
+import { PHONE_COUNTRIES as ALL_PHONE_COUNTRIES, type PhoneCountry } from '@/lib/phoneCountries';
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { APP_VERSION, procedureDuration, type ClientLoginBooking, type ClientLoginProfile } from '@/lib/mockData';
 import { FIRST_AVAILABLE, getAvailabilityForDate, getDateOffset, getDayLabel, practitionersForProcedure } from '@/lib/availability';
@@ -28,108 +29,31 @@ type BookingSuccess = {
 };
 
 
-type PhoneCountry = {
-  name: string;
-  iso: string;
-  dialCode: string;
-};
-
 const MIN_CLIENT_PASSWORD_LENGTH = 8;
 
-const PHONE_COUNTRIES: PhoneCountry[] = [
-  { name: 'Kenya', iso: 'KE', dialCode: '+254' },
-  { name: 'United Kingdom', iso: 'GB', dialCode: '+44' },
-  { name: 'South Africa', iso: 'ZA', dialCode: '+27' },
-  { name: 'United States', iso: 'US', dialCode: '+1' },
-  { name: 'Canada', iso: 'CA', dialCode: '+1' },
-  { name: 'Ireland', iso: 'IE', dialCode: '+353' },
-  { name: 'Australia', iso: 'AU', dialCode: '+61' },
-  { name: 'New Zealand', iso: 'NZ', dialCode: '+64' },
-  { name: 'United Arab Emirates', iso: 'AE', dialCode: '+971' },
-  { name: 'Afghanistan', iso: 'AF', dialCode: '+93' },
-  { name: 'Albania', iso: 'AL', dialCode: '+355' },
-  { name: 'Algeria', iso: 'DZ', dialCode: '+213' },
-  { name: 'Andorra', iso: 'AD', dialCode: '+376' },
-  { name: 'Angola', iso: 'AO', dialCode: '+244' },
-  { name: 'Argentina', iso: 'AR', dialCode: '+54' },
-  { name: 'Austria', iso: 'AT', dialCode: '+43' },
-  { name: 'Bahamas', iso: 'BS', dialCode: '+1' },
-  { name: 'Bahrain', iso: 'BH', dialCode: '+973' },
-  { name: 'Bangladesh', iso: 'BD', dialCode: '+880' },
-  { name: 'Belgium', iso: 'BE', dialCode: '+32' },
-  { name: 'Botswana', iso: 'BW', dialCode: '+267' },
-  { name: 'Brazil', iso: 'BR', dialCode: '+55' },
-  { name: 'Bulgaria', iso: 'BG', dialCode: '+359' },
-  { name: 'Burundi', iso: 'BI', dialCode: '+257' },
-  { name: 'Cameroon', iso: 'CM', dialCode: '+237' },
-  { name: 'China', iso: 'CN', dialCode: '+86' },
-  { name: 'Croatia', iso: 'HR', dialCode: '+385' },
-  { name: 'Cyprus', iso: 'CY', dialCode: '+357' },
-  { name: 'Czechia', iso: 'CZ', dialCode: '+420' },
-  { name: 'Denmark', iso: 'DK', dialCode: '+45' },
-  { name: 'Egypt', iso: 'EG', dialCode: '+20' },
-  { name: 'Ethiopia', iso: 'ET', dialCode: '+251' },
-  { name: 'Finland', iso: 'FI', dialCode: '+358' },
-  { name: 'France', iso: 'FR', dialCode: '+33' },
-  { name: 'Germany', iso: 'DE', dialCode: '+49' },
-  { name: 'Ghana', iso: 'GH', dialCode: '+233' },
-  { name: 'Greece', iso: 'GR', dialCode: '+30' },
-  { name: 'Hong Kong', iso: 'HK', dialCode: '+852' },
-  { name: 'India', iso: 'IN', dialCode: '+91' },
-  { name: 'Indonesia', iso: 'ID', dialCode: '+62' },
-  { name: 'Israel', iso: 'IL', dialCode: '+972' },
-  { name: 'Italy', iso: 'IT', dialCode: '+39' },
-  { name: 'Japan', iso: 'JP', dialCode: '+81' },
-  { name: 'Kuwait', iso: 'KW', dialCode: '+965' },
-  { name: 'Malawi', iso: 'MW', dialCode: '+265' },
-  { name: 'Malaysia', iso: 'MY', dialCode: '+60' },
-  { name: 'Mauritius', iso: 'MU', dialCode: '+230' },
-  { name: 'Mexico', iso: 'MX', dialCode: '+52' },
-  { name: 'Morocco', iso: 'MA', dialCode: '+212' },
-  { name: 'Mozambique', iso: 'MZ', dialCode: '+258' },
-  { name: 'Namibia', iso: 'NA', dialCode: '+264' },
-  { name: 'Netherlands', iso: 'NL', dialCode: '+31' },
-  { name: 'Nigeria', iso: 'NG', dialCode: '+234' },
-  { name: 'Norway', iso: 'NO', dialCode: '+47' },
-  { name: 'Oman', iso: 'OM', dialCode: '+968' },
-  { name: 'Pakistan', iso: 'PK', dialCode: '+92' },
-  { name: 'Philippines', iso: 'PH', dialCode: '+63' },
-  { name: 'Poland', iso: 'PL', dialCode: '+48' },
-  { name: 'Portugal', iso: 'PT', dialCode: '+351' },
-  { name: 'Qatar', iso: 'QA', dialCode: '+974' },
-  { name: 'Romania', iso: 'RO', dialCode: '+40' },
-  { name: 'Rwanda', iso: 'RW', dialCode: '+250' },
-  { name: 'Saudi Arabia', iso: 'SA', dialCode: '+966' },
-  { name: 'Singapore', iso: 'SG', dialCode: '+65' },
-  { name: 'Spain', iso: 'ES', dialCode: '+34' },
-  { name: 'Sweden', iso: 'SE', dialCode: '+46' },
-  { name: 'Switzerland', iso: 'CH', dialCode: '+41' },
-  { name: 'Tanzania', iso: 'TZ', dialCode: '+255' },
-  { name: 'Thailand', iso: 'TH', dialCode: '+66' },
-  { name: 'Turkey', iso: 'TR', dialCode: '+90' },
-  { name: 'Uganda', iso: 'UG', dialCode: '+256' },
-  { name: 'Zambia', iso: 'ZM', dialCode: '+260' },
-  { name: 'Zimbabwe', iso: 'ZW', dialCode: '+263' }
-];
+const PHONE_COUNTRIES: PhoneCountry[] = ALL_PHONE_COUNTRIES;
 
-const DEFAULT_PHONE_COUNTRY = PHONE_COUNTRIES[0];
+const DEFAULT_PHONE_COUNTRY = PHONE_COUNTRIES.find(country => country.iso === 'GB') ?? PHONE_COUNTRIES[0];
 const PRIORITY_PHONE_COUNTRY_ISOS = ['GB', 'ZA', 'KE'];
 const SECONDARY_PHONE_COUNTRY_ISOS = ['AU', 'NZ'];
-const EU_PHONE_COUNTRY_ISOS = ['AT','BE','BG','HR','CY','CZ','DK','FI','FR','DE','GR','IE','IT','NL','PL','PT','RO','ES','SE'];
+const EU_PHONE_COUNTRY_ISOS = ['AT','BE','BG','HR','CY','CZ','DK','EE','FI','FR','DE','GR','HU','IE','IT','LV','LT','LU','MT','NL','PL','PT','RO','SK','SI','ES','SE'];
+const MAIN_WORLD_COUNTRY_ISOS = ['US','CA','AE','IN','CN','JP','BR','MX','AR','ID','PH','PK','BD','NG','GH','EG','MA','ET','TZ','UG','RW','ZM','ZW','NA','BW','MZ','MW','MU','SC','SG','MY','TH','TR','SA','QA','KW','OM','IL','JO','LB','IR','IQ','CH','NO','IS','UA','RS','AL','KR','VN','CL','CO','PE','UY','HK','TW','KE'];
 
 function countryFlag(iso: string) {
   return [...iso.toUpperCase()].map(letter => String.fromCodePoint(0x1f1e6 + letter.charCodeAt(0) - 65)).join('');
 }
 
 function buildCountryOptions(countries: PhoneCountry[]) {
-  const priority = countries.filter((country) => PRIORITY_PHONE_COUNTRY_ISOS.includes(country.iso));
-  const secondary = countries.filter((country) => SECONDARY_PHONE_COUNTRY_ISOS.includes(country.iso));
+  const priority = PRIORITY_PHONE_COUNTRY_ISOS.map(iso => countries.find(country => country.iso === iso)).filter((country): country is PhoneCountry => Boolean(country));
+  const secondary = SECONDARY_PHONE_COUNTRY_ISOS.map(iso => countries.find(country => country.iso === iso)).filter((country): country is PhoneCountry => Boolean(country));
   const eu = countries.filter((country) => EU_PHONE_COUNTRY_ISOS.includes(country.iso) && !priority.some((item) => item.iso === country.iso) && !secondary.some((item) => item.iso === country.iso)).sort((a, b) => a.name.localeCompare(b.name));
   const rest = countries.filter((country) => !priority.some((item) => item.iso === country.iso) && !secondary.some((item) => item.iso === country.iso) && !eu.some((item) => item.iso === country.iso)).sort((a, b) => a.name.localeCompare(b.name));
   return [...priority, ...secondary, ...eu, ...rest].map((country, index, ordered) => ({
     value: phoneCountryLabel(country),
     label: `${countryFlag(country.iso)}  ${country.name}  ${country.dialCode}`,
     buttonLabel: `${countryFlag(country.iso)}  ${country.dialCode}`,
+    flag: countryFlag(country.iso), countryName: country.name, dialCode: country.dialCode,
+    searchOnly: !PRIORITY_PHONE_COUNTRY_ISOS.includes(country.iso) && !SECONDARY_PHONE_COUNTRY_ISOS.includes(country.iso) && !EU_PHONE_COUNTRY_ISOS.includes(country.iso) && !MAIN_WORLD_COUNTRY_ISOS.includes(country.iso),
     separatorAbove: index > 0 && ((PRIORITY_PHONE_COUNTRY_ISOS.includes(ordered[index - 1].iso) && SECONDARY_PHONE_COUNTRY_ISOS.includes(country.iso)) || (SECONDARY_PHONE_COUNTRY_ISOS.includes(ordered[index - 1].iso) && EU_PHONE_COUNTRY_ISOS.includes(country.iso)) || (EU_PHONE_COUNTRY_ISOS.includes(ordered[index - 1].iso) && !EU_PHONE_COUNTRY_ISOS.includes(country.iso) && !SECONDARY_PHONE_COUNTRY_ISOS.includes(country.iso) && !PRIORITY_PHONE_COUNTRY_ISOS.includes(country.iso)))
   }));
 }
@@ -373,9 +297,9 @@ export default function BookPage() {
 
   useEffect(() => {
     if (clientCountryManuallyChanged) return;
-    const nextCountry = PHONE_COUNTRIES.find((country) => country.iso === (practiceSettings.countryCode ?? '').toUpperCase());
+    const nextCountry = PHONE_COUNTRIES.find((country) => country.iso === (practiceSettings.clientPhoneCountryCode ?? practiceSettings.countryCode ?? '').toUpperCase());
     if (nextCountry) setClientLoginCountryInput(phoneCountryLabel(nextCountry));
-  }, [practiceSettings.countryCode, clientCountryManuallyChanged]);
+  }, [practiceSettings.clientPhoneCountryCode, practiceSettings.countryCode, clientCountryManuallyChanged]);
   const successCopyText = successBooking ? [
     `${clientBusinessDisplayName(practiceSettings.practiceName || businessInfo?.name || 'Practice')} appointment confirmed`,
     `Booking ID: ${successBooking.id}`,
@@ -906,6 +830,21 @@ export default function BookPage() {
     setClientLoginCountryInput(value);
   }
 
+  function switchClientLogin(mode: 'login' | 'signup') {
+    if (clientLoginStage === mode) return;
+    setClientLoginStage(mode);
+    setClientLoginNotice('');
+    setClientOtp(null);
+    setClientOtpCode('');
+    if (mode === 'signup') setClientResetPassword('');
+  }
+
+  // Keep the scroll position steady when the selected form changes height.
+  useEffect(() => {
+    const container = document.querySelector<HTMLElement>('.client-auth-card > .client-account-fields');
+    if (container) container.scrollTop = 0;
+  }, [clientLoginStage]);
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!selectedTime || !selectedPractitionerId) return;
@@ -1030,30 +969,23 @@ export default function BookPage() {
               <div className="client-auth-title-copy">
                 <p className="badge blue-badge">Client account</p>
                 <h2>{clientProfile ? 'My account' : 'Login or sign up'}</h2>
-                <p className="mini-copy">
-                  {clientProfile
-                    ? 'Your saved details are ready for quicker booking.'
-                    : 'Login with your mobile number and password, or sign up once with email verification.'}
-                </p>
               </div>
-              <div className={clientLoginNotice.toLowerCase().includes('could not') || clientLoginNotice.toLowerCase().includes('not correct') || clientLoginNotice.toLowerCase().includes('expired') || clientLoginNotice.toLowerCase().includes('not recognised') ? 'client-auth-status-pill warning' : 'client-auth-status-pill'} role="status">
-                <strong>{clientProfile ? 'Signed in' : 'Signed out'}</strong>
-                <span>{clientLoginNotice || (clientProfile ? (clientProfile.customer.fullName === 'Client user' ? clientProfile.customer.phone : clientProfile.customer.fullName) : 'Login or create account')}</span>
+              <div className="client-auth-head-actions">
+                {clientLoginStage !== 'signed-in' && !clientProfile ? (
+                  <div className={`auth-header-toggle ${clientLoginStage === 'login' ? 'login-mode' : 'signup-mode'}`} aria-label="Customer login or sign up">
+                    <button type="button" className={`auth-toggle-label ${clientLoginStage === 'login' ? 'active' : ''}`} onClick={() => switchClientLogin('login')}>Login</button>
+                    <button type="button" className="auth-toggle-switch" role="switch" aria-checked={clientLoginStage !== 'login'} aria-label="Sign up instead of Login" onClick={() => switchClientLogin(clientLoginStage === 'login' ? 'signup' : 'login')}><span className="auth-toggle-knob" aria-hidden="true" /></button>
+                    <button type="button" className={`auth-toggle-label ${clientLoginStage === 'login' ? '' : 'active'}`} onClick={() => switchClientLogin('signup')}>Sign up</button>
+                  </div>
+                ) : (
+                  <div className="client-auth-status-pill" role="status"><strong>Signed in</strong><span>{clientProfile?.customer.fullName ?? 'Customer account'}</span></div>
+                )}
+                <button className="icon-button mobile-close" type="button" aria-label="Close login" onClick={dismissClientModal}>×</button>
               </div>
-              <button className="icon-button mobile-close" type="button" aria-label="Close login" onClick={dismissClientModal}>×</button>
             </div>
 
             {clientLoginStage !== 'signed-in' && (
               <>
-                <div className="auth-tabs" role="tablist" aria-label="Client account options">
-                  <button className={clientLoginStage === 'login' ? 'auth-tab active' : 'auth-tab'} type="button" onClick={() => { setClientLoginStage('login'); setClientLoginNotice(''); setClientOtp(null); setClientOtpCode(''); }}>
-                    Login
-                  </button>
-                  <button className={clientLoginStage === 'signup' || clientLoginStage === 'verify-signup' ? 'auth-tab active' : 'auth-tab'} type="button" onClick={() => { setClientLoginStage('signup'); setClientLoginNotice(''); setClientOtp(null); setClientOtpCode(''); setClientResetPassword(''); }}>
-                    Sign up
-                  </button>
-                </div>
-
                 {(clientLoginStage === 'login' || clientLoginStage === 'signup') && (
                   <div className="grid two controls-grid client-account-fields">
                     {clientLoginStage === 'signup' && (
@@ -1095,8 +1027,8 @@ export default function BookPage() {
                       <label htmlFor="clientPassword">Password</label>
                       <div className="password-input-shell">
                         <input id="clientPassword" value={clientPassword} onChange={(event) => setClientPassword(event.target.value)} type={clientPasswordVisible ? 'text' : 'password'} autoComplete={clientLoginStage === 'signup' ? 'new-password' : 'current-password'} placeholder={clientLoginStage === 'signup' ? 'At least 8 characters' : 'Password'} />
-                        <button className="password-visibility-button" type="button" aria-label={clientPasswordVisible ? 'Hide password' : 'Show password'} onClick={() => setClientPasswordVisible((current) => !current)}>
-                          {clientPasswordVisible ? '🙈' : '👁'}
+                        <button className="password-visibility-button" type="button" aria-label={clientPasswordVisible ? 'Hide password' : 'Show password'} aria-pressed={clientPasswordVisible} onClick={() => setClientPasswordVisible((current) => !current)}>
+                          {clientPasswordVisible ? <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M3 3l18 18"/><path d="M10.6 10.6a2 2 0 002.8 2.8"/><path d="M9.8 5.3A10.4 10.4 0 0112 5c4.5 0 8 3 10 7a17 17 0 01-3.1 4.1"/><path d="M6 6.3C4.3 7.6 3 9.5 2 12c2 4 5.5 7 10 7 1.5 0 2.9-.3 4.2-.9"/></svg> : <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>}
                         </button>
                       </div>
                       {clientLoginStage === 'signup' && <small className={signupPasswordLongEnough ? 'password-rule ok' : 'password-rule'}><span aria-hidden="true">{signupPasswordLongEnough ? '✓' : '○'}</span> Minimum 8 characters</small>}
@@ -1265,8 +1197,8 @@ export default function BookPage() {
                   <label htmlFor="clientResetNewPassword">New password</label>
                   <div className="password-input-shell">
                     <input id="clientResetNewPassword" value={clientResetPassword} onChange={(event) => setClientResetPassword(event.target.value)} type={clientResetPasswordVisible ? 'text' : 'password'} autoComplete="new-password" placeholder="At least 8 characters" />
-                    <button className="password-visibility-button" type="button" aria-label={clientResetPasswordVisible ? 'Hide password' : 'Show password'} onClick={() => setClientResetPasswordVisible((current) => !current)}>
-                      {clientResetPasswordVisible ? '🙈' : '👁'}
+                    <button className="password-visibility-button" type="button" aria-label={clientResetPasswordVisible ? 'Hide password' : 'Show password'} aria-pressed={clientResetPasswordVisible} onClick={() => setClientResetPasswordVisible((current) => !current)}>
+                      {clientResetPasswordVisible ? <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M3 3l18 18"/><path d="M10.6 10.6a2 2 0 002.8 2.8"/><path d="M9.8 5.3A10.4 10.4 0 0112 5c4.5 0 8 3 10 7a17 17 0 01-3.1 4.1"/><path d="M6 6.3C4.3 7.6 3 9.5 2 12c2 4 5.5 7 10 7 1.5 0 2.9-.3 4.2-.9"/></svg> : <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>}
                     </button>
                   </div>
                   <small className={resetPasswordLongEnough ? 'password-rule ok' : 'password-rule'}><span aria-hidden="true">{resetPasswordLongEnough ? '✓' : '○'}</span> Minimum 8 characters</small>
