@@ -203,6 +203,9 @@ export default function BookPage() {
   const [editingClientBookingId, setEditingClientBookingId] = useState<string | null>(null);
   const [clientBookingActionKey, setClientBookingActionKey] = useState('');
   const [clientBookingNotice, setClientBookingNotice] = useState('');
+  const [appointmentsExpanded, setAppointmentsExpanded] = useState(true);
+  const [pushExpanded, setPushExpanded] = useState(false);
+  const [editingSaving, setEditingSaving] = useState(false);
   const [clientLoginOpen, setClientLoginOpen] = useState(false);
   const [clientPasswordResetOpen, setClientPasswordResetOpen] = useState(false);
   const modalHistoryRef = useRef(false);
@@ -849,6 +852,8 @@ export default function BookPage() {
     event.preventDefault();
     if (!selectedTime || !selectedPractitionerId) return;
 
+    if (editingClientBookingId) setEditingSaving(true);
+    setClientBookingNotice('');
     try {
       let bookingId = editingClientBookingId ?? '';
       if (editingClientBookingId) {
@@ -870,7 +875,8 @@ export default function BookPage() {
         const payload = await readJsonResponse<{ booking: { id: string }; profile: ClientLoginProfile }>(response);
         bookingId = payload.booking.id;
         applyClientProfile(payload.profile);
-        await refresh();
+        // Show the approved confirmation immediately; refresh behind it afterwards.
+        void refresh().catch(() => undefined);
       } else {
         const newBooking = await createBooking({
           patientName,
@@ -911,6 +917,8 @@ export default function BookPage() {
       resetSelection();
     } catch (error) {
       setClientBookingNotice(error instanceof Error ? error.message : 'Could not save booking changes.');
+    } finally {
+      setEditingSaving(false);
     }
   }
 
@@ -977,9 +985,15 @@ export default function BookPage() {
                     <button type="button" className="auth-toggle-switch" role="switch" aria-checked={clientLoginStage !== 'login'} aria-label="Sign up instead of Login" onClick={() => switchClientLogin(clientLoginStage === 'login' ? 'signup' : 'login')}><span className="auth-toggle-knob" aria-hidden="true" /></button>
                     <button type="button" className={`auth-toggle-label ${clientLoginStage === 'login' ? '' : 'active'}`} onClick={() => switchClientLogin('signup')}>Sign up</button>
                   </div>
-                ) : (
-                  <div className="client-auth-status-pill" role="status"><strong>Signed in</strong><span>{clientProfile?.customer.fullName ?? 'Customer account'}</span></div>
-                )}
+                ) : clientProfile ? (
+                  <div className="client-auth-signed-in-header" role="status">
+                    <div className="client-auth-signed-in-identity">
+                      <strong>{clientProfile.customer.fullName === 'Client user' ? 'Customer account' : clientProfile.customer.fullName}</strong>
+                      <span>{clientProfile.customer.phone} · Signed in</span>
+                    </div>
+                    <button className="pill client-auth-signout" type="button" onClick={signOutClient}>Sign out</button>
+                  </div>
+                ) : null}
               </div>
               <button className="icon-button mobile-close client-auth-header-close" type="button" aria-label="Close login" onClick={dismissClientModal}>×</button>
             </div>
@@ -1081,14 +1095,36 @@ export default function BookPage() {
 
             {clientLoginStage === 'signed-in' && clientProfile && (
               <div className="client-profile-panel">
-                <div className="client-profile-head">
-                  <div>
-                    <strong>{clientProfile.customer.fullName === 'Client user' ? 'Client account' : clientProfile.customer.fullName}</strong>
-                    <span>{clientProfile.customer.phone}</span>
+                <details className="client-account-dropdown client-appointments-dropdown" open={appointmentsExpanded} onToggle={(event) => setAppointmentsExpanded(event.currentTarget.open)}>
+                  <summary><strong>Appointments</strong><span>{clientProfile.bookings.length} {clientProfile.bookings.length === 1 ? 'appointment' : 'appointments'}</span></summary>
+                  <div className="client-account-dropdown-content">
+                    {clientBookingNotice && <p className={clientBookingNotice.toLowerCase().includes('could') || clientBookingNotice.toLowerCase().includes('cannot') || clientBookingNotice.toLowerCase().includes('expired') ? 'notice warning mobile-auth-notice' : 'notice success mobile-auth-notice'} role="status">{clientBookingNotice}</p>}
+                    <div className="client-booking-list">
+                      {clientProfile.bookings.length ? clientProfile.bookings.map((booking) => {
+                        const bookingDateTime = new Date(`${booking.date}T${booking.time}:00`);
+                        const isPastBooking = bookingDateTime.getTime() < Date.now();
+                        const isBusy = clientBookingActionKey === `${booking.id}-delete`;
+                        return (
+                          <article className="client-booking-item" key={booking.id}>
+                            <div className="client-booking-item-main">
+                              <strong>{booking.treatment}</strong>
+                              <span>{getDayLabel(booking.date)} · {booking.time}–{booking.endTime}</span>
+                              <em>{booking.practitioner} · {booking.status}</em>
+                            </div>
+                            <div className="client-booking-actions">
+                              <button className="pill" type="button" disabled={isPastBooking || saving || isBusy} onClick={() => openEditClientBooking(booking)}>Edit</button>
+                              <button className="pill danger" type="button" disabled={isPastBooking || saving || isBusy} onClick={() => void deleteClientBooking(booking)}>{isBusy ? 'Deleting…' : 'Delete'}</button>
+                            </div>
+                          </article>
+                        );
+                      }) : <p className="mini-copy">No appointments yet.</p>}
+                    </div>
                   </div>
-                  <button className="pill" type="button" onClick={signOutClient}>Sign out</button>
-                </div>
-                <div className="client-push-panel">
+                </details>
+                <details className="client-account-dropdown client-notifications-dropdown" open={pushExpanded} onToggle={(event) => setPushExpanded(event.currentTarget.open)}>
+                  <summary><strong>Push notifications</strong><span>{pushSubscribed ? 'On' : 'Off'}</span></summary>
+                  <div className="client-account-dropdown-content">
+                    <div className="client-push-panel">
                   <div>
                     <strong>Push notifications</strong>
                     <span>
@@ -1113,32 +1149,9 @@ export default function BookPage() {
                     )
                   )}
                 </div>
-                {pushNotice && <p className={pushNotice.toLowerCase().includes('not') || pushNotice.toLowerCase().includes('could') || pushNotice.toLowerCase().includes('off') ? 'notice warning mobile-auth-notice' : 'notice success mobile-auth-notice'} role="status">{pushNotice}</p>}
-                {clientBookingNotice && <p className={clientBookingNotice.toLowerCase().includes('could') || clientBookingNotice.toLowerCase().includes('cannot') || clientBookingNotice.toLowerCase().includes('expired') ? 'notice warning mobile-auth-notice' : 'notice success mobile-auth-notice'} role="status">{clientBookingNotice}</p>}
-                <div className="client-booking-list">
-                  {clientProfile.bookings.length ? clientProfile.bookings.map((booking) => {
-                    const bookingDateTime = new Date(`${booking.date}T${booking.time}:00`);
-                    const isPastBooking = bookingDateTime.getTime() < Date.now();
-                    const isBusy = clientBookingActionKey === `${booking.id}-delete`;
-                    return (
-                      <article className="client-booking-item" key={booking.id}>
-                        <div className="client-booking-item-main">
-                          <strong>{booking.treatment}</strong>
-                          <span>{getDayLabel(booking.date)} · {booking.time}–{booking.endTime}</span>
-                          <em>{booking.practitioner} · {booking.status}</em>
-                        </div>
-                        <div className="client-booking-actions">
-                          <button className="pill" type="button" disabled={isPastBooking || saving || isBusy} onClick={() => openEditClientBooking(booking)}>
-                            Edit
-                          </button>
-                          <button className="pill danger" type="button" disabled={isPastBooking || saving || isBusy} onClick={() => void deleteClientBooking(booking)}>
-                            {isBusy ? 'Deleting…' : 'Delete'}
-                          </button>
-                        </div>
-                      </article>
-                    );
-                  }) : <p className="mini-copy">No previous appointments found yet.</p>}
-                </div>
+                    {pushNotice && <p className={pushNotice.toLowerCase().includes('not') || pushNotice.toLowerCase().includes('could') || pushNotice.toLowerCase().includes('off') ? 'notice warning mobile-auth-notice' : 'notice success mobile-auth-notice'} role="status">{pushNotice}</p>}
+                  </div>
+                </details>
               </div>
             )}
             {clientLoginNotice && <p className={clientLoginNotice.toLowerCase().includes('could not') || clientLoginNotice.toLowerCase().includes('not correct') || clientLoginNotice.toLowerCase().includes('expired') || clientLoginNotice.toLowerCase().includes('not recognised') ? 'notice warning mobile-auth-notice' : 'notice success mobile-auth-notice'} role="status">{clientLoginNotice}</p>}
@@ -1260,7 +1273,7 @@ export default function BookPage() {
             </div>
           )}
 
-          {saving && (
+          {(saving || editingSaving) && (
             <div className="booking-confirmation-wait" role="status" aria-live="polite" aria-label="Waiting for booking confirmation">
               <div className="booking-wait-card">
                 <div className="booking-wait-orbit" aria-hidden="true">
@@ -1268,9 +1281,9 @@ export default function BookPage() {
                   <span></span>
                   <span></span>
                 </div>
-                <p className="badge blue-badge">Confirming appointment</p>
+                <p className="badge blue-badge">{editingClientBookingId ? 'Updating appointment' : 'Confirming appointment'}</p>
                 <h3>Please wait, we are checking the diary.</h3>
-                <p>Your appointment is being confirmed securely. Please keep this screen open.</p>
+                <p>{editingClientBookingId ? 'Checking availability and saving your changes securely.' : 'Your appointment is being confirmed securely. Please keep this screen open.'}</p>
               </div>
             </div>
           )}
@@ -1421,8 +1434,7 @@ export default function BookPage() {
                 <p>{selectedPractitioner ? selectedPractitioner.name : 'No practitioner selected yet'}</p>
               </div>
               <div className="form-row">
-                <label htmlFor="notes">Notes for the practice</label>
-                <textarea id="notes" value={notes} onChange={(event) => setNotes(event.target.value)} placeholder="Optional notes or symptoms." />
+                <textarea id="notes" aria-label="Optional notes" value={notes} onChange={(event) => setNotes(event.target.value)} placeholder="Optional notes or symptoms." />
               </div>
             </section>
           )}
@@ -1440,8 +1452,8 @@ export default function BookPage() {
                   Continue
                 </button>
               ) : (
-                <button className="button primary" type="submit" disabled={!canConfirm || saving || Boolean(error)}>
-                  {saving ? 'Checking diary…' : editingClientBookingId ? 'Save changes' : 'Book appointment'}
+                <button className="button primary" type="submit" disabled={!canConfirm || saving || editingSaving || Boolean(error)}>
+                  {(saving || editingSaving) ? 'Checking availability…' : editingClientBookingId ? 'Save changes' : 'Book appointment'}
                 </button>
               )}
             </div>

@@ -81,6 +81,19 @@ export async function proxy(request: NextRequest) {
     return response;
   }
 
+  // Temporary public demo is isolated to the canonical ZipBook public host.
+  // Never frame or cache it, and never route it through business/Admin hosts.
+  if (pathname === '/demo' || pathname.startsWith('/demo/')) {
+    if (!CLIENT_HOSTS.has(host) && !(process.env.NODE_ENV !== 'production' && isLocalHost(host))) {
+      return new NextResponse('Not found.', {status:404});
+    }
+    const response = NextResponse.next();
+    response.headers.set('Content-Security-Policy', "frame-ancestors 'none'");
+    response.headers.set('X-Robots-Tag', 'noindex, nofollow');
+    response.headers.set('Cache-Control', 'private, no-store, max-age=0');
+    return response;
+  }
+
   if (pathname.startsWith('/api')) {
     logApiRequest(pathname);
     const response = NextResponse.next();

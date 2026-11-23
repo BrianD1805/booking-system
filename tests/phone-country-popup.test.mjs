@@ -35,8 +35,8 @@ test('country selection is rendered as a modal portal outside popup stacking con
   assert.match(select, /Close country selector/);
 });
 
-test('country dialog is accessible via pointer and keyboard with search focus and Escape close', () => {
-  assert.match(select, /window\.requestAnimationFrame\(\(\) => searchRef\.current\?\.focus\(\)\)/);
+test('country dialog is accessible via pointer and keyboard without unwanted mobile keyboard auto-focus', () => {
+  assert.doesNotMatch(select, /searchRef\.current\?\.focus\(\)/);
   assert.match(select, /event\.key === 'Escape'/);
   assert.match(select, /event\.key !== 'Tab'/);
   assert.match(select, /document\.body\.style\.overflow = 'hidden'/);

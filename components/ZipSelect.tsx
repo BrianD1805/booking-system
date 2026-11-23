@@ -34,7 +34,6 @@ const VIEWPORT_GUTTER = 14;
 export function ZipSelect({ id, value, options, onChange, ariaLabel, placeholder = 'Select', disabled = false, className = '', searchable = false }: ZipSelectProps) {
   const rootRef = useRef<HTMLDivElement | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
-  const searchRef = useRef<HTMLInputElement | null>(null);
   const [open, setOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [searchText, setSearchText] = useState('');
@@ -99,7 +98,7 @@ export function ZipSelect({ id, value, options, onChange, ariaLabel, placeholder
     const previousOverflow = document.body.style.overflow;
     if (isCountrySelector) {
       document.body.style.overflow = 'hidden';
-      window.requestAnimationFrame(() => searchRef.current?.focus());
+      // Do not focus the search on open: mobile keyboard appears only after an explicit tap.
     }
     const closeOutside = (event: MouseEvent | TouchEvent) => {
       const node = event.target as Node;
@@ -192,7 +191,7 @@ export function ZipSelect({ id, value, options, onChange, ariaLabel, placeholder
         </div>
         <div className="zip-select-country-search">
           <span className="zip-select-country-search-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="11" cy="11" r="7"/><path d="m16 16 5 5"/></svg></span>
-          <input ref={searchRef} type="search" autoComplete="off" aria-label="Search country or dialling code" placeholder="Search country or code…" value={searchText} onChange={event => setSearchText(event.target.value)} />
+          <input type="search" autoComplete="off" aria-label="Search country or dialling code" placeholder="Search country or code…" value={searchText} onChange={event => setSearchText(event.target.value)} />
         </div>
         {optionsList}
       </div>

@@ -6591,3 +6591,51 @@ button.admin-password-eye .admin-password-eye-slash {
 .platform-demo-confirm { width:min(560px,calc(100vw - 32px)); max-height:90dvh; display:flex; flex-direction:column; padding:0; overflow:hidden; background:#fff; border:1px solid #dbe8f5; border-radius:22px; box-shadow:0 24px 80px rgba(4,19,33,.3); }
 .platform-demo-confirm .settings-054-modal-scroll { overflow-y:auto; flex:1; padding:22px; }
 @media(max-width:760px) { .platform-demo-page-head {flex-direction:column;} .platform-demo-grid {grid-template-columns:1fr;} }
+
+/* Ver-0.063.5 — precise country popup and account sections */
+.zip-select-country-overlay { position: fixed !important; inset: 0 !important; display: flex !important; align-items: center !important; justify-content: center !important; }
+.zip-select-country-dialog { margin: auto !important; inset: auto !important; transform: none !important; }
+.zip-select-country-dialog .zip-select-options-scroll::-webkit-scrollbar-button,
+.zip-select-country-dialog .zip-select-options-scroll::-webkit-scrollbar-button:single-button { display: none !important; height: 0 !important; width: 0 !important; }
+.zip-select-country-dialog .zip-select-options-scroll { scrollbar-width: thin; padding-block: 16px 20px !important; }
+.client-auth-card:not(.client-reset-card) .client-signup-fields .signup-email-row,
+.client-auth-card:not(.client-reset-card) .client-signup-fields .signup-password-row { align-self: start !important; margin: 0 !important; }
+.client-auth-card:not(.client-reset-card) .client-signup-fields .signup-email-row > input,
+.client-auth-card:not(.client-reset-card) .client-signup-fields .signup-password-row .password-input-shell > input { height: 48px !important; min-height: 48px !important; box-sizing: border-box; }
+.client-auth-card .client-profile-panel { display: block !important; }
+.client-auth-signed-in-header { display: flex; align-items: center; gap: 12px; min-width: 0; margin-right: 8px; }
+.client-auth-signed-in-identity { display: grid; min-width: 0; gap: 2px; }
+.client-auth-signed-in-identity strong { color: #336699; font-weight: 800; font-size: .97rem; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.client-auth-signed-in-identity span { color: #536980; font-size: .82rem; }
+.client-auth-signout { flex: 0 0 auto; padding: 7px 11px !important; min-height: 32px !important; }
+.client-account-dropdown { border-bottom: 1px solid #dfebf7; padding: 0 2px 4px; background: transparent; }
+.client-account-dropdown > summary { display: flex; align-items: center; justify-content: space-between; gap: 14px; cursor: pointer; padding: 14px 4px; color: #336699; font-weight: 750; list-style: none; -webkit-tap-highlight-color: transparent; }
+.client-account-dropdown > summary::-webkit-details-marker { display: none; }
+.client-account-dropdown > summary:after { content: '⌄'; margin-left: 8px; font-size: 1.4rem; line-height: 1; transform: rotate(0); transition: transform .18s ease; }
+.client-account-dropdown[open] > summary:after { transform: rotate(180deg); }
+.client-account-dropdown > summary span { margin-left: auto; font-size: .79rem; font-weight: 500; color: #5a7188; }
+.client-account-dropdown-content { padding: 0 2px 12px; }
+.client-account-dropdown .client-push-panel { margin: 0; border: 0; padding: 6px 2px 10px; box-shadow: none; background: transparent; }
+.booking-workflow button, .booking-workflow .zip-select-button, .booking-success-page button,
+.client-booking-actions button { -webkit-tap-highlight-color: transparent !important; }
+@media (max-width:700px) { .client-auth-signed-in-header { flex-wrap: wrap; justify-content: center; } .client-auth-signed-in-identity strong { max-width: 160px; } .client-auth-card:not(.client-reset-card) .client-auth-head:has(.client-auth-signed-in-header) { min-height: 155px !important; } .client-auth-signout { font-size: .82rem; } }
+
+/* Ver-0.063.5 — limited-access, fictional public demo */
+.zip-demo-page{min-height:100dvh;background:#f5f9fe;color:#12283f;padding:0 0 55px}
+.zip-demo-top{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:16px clamp(16px,4vw,48px);border-bottom:1px solid #dae7f3;background:#fff;font-size:.9rem;color:#57708c}
+.zip-demo-brand{font-size:1.25rem;font-weight:850;color:#336699;text-decoration:none}
+.zip-demo-container{max-width:900px;margin:0 auto;padding:24px clamp(16px,3vw,24px)}
+.zip-demo-intro{margin-bottom:20px}.zip-demo-intro h1{font-size:clamp(1.8rem,5vw,2.7rem);letter-spacing:-.04em;line-height:1.1;margin:14px 0 10px}
+.zip-demo-intro p:last-child{color:#57708c;max-width:700px;line-height:1.5}
+.zip-demo-panel{background:#fff;border:1px solid #d9e7f4;border-radius:22px;padding:clamp(18px,3vw,25px);margin-bottom:16px;box-shadow:0 10px 26px rgba(51,102,153,.045)}
+.zip-demo-panel h2{font-size:1.13rem;margin:0 0 10px}.zip-demo-panel p{color:#58708b}.zip-demo-gate{max-width:550px;margin-inline:auto;display:grid;gap:15px;justify-items:start}
+.zip-demo-gate .button{margin-top:6px}.zip-demo-challenge{min-height:68px}.zip-demo-toolbar{display:flex;justify-content:space-between;gap:14px;align-items:center}
+.zip-demo-toolbar p{margin:5px 0 0}.zip-demo-editor-head{display:flex;justify-content:space-between;gap:16px;align-items:center;margin-bottom:15px}
+.zip-demo-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}.zip-demo-fields label{display:grid;gap:7px;font-size:.88rem;font-weight:700;color:#336699}
+.zip-demo-fields input,.zip-demo-fields select{height:45px;width:100%;min-width:0;padding:10px 12px;border-radius:13px;background:#fff;border:1px solid #cedfeb;color:#142942;font:inherit}
+.zip-demo-editor-actions{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-top:19px}
+.zip-demo-list{display:grid;gap:8px}.zip-demo-item{display:flex;align-items:center;justify-content:space-between;gap:14px;border:1px solid #e0ebf7;border-radius:14px;padding:12px 14px}
+.zip-demo-item>div:first-child{display:grid;gap:5px}.zip-demo-item span{color:#60768b;font-size:.85rem}.zip-demo-item>div:last-child{display:flex;gap:8px;flex-wrap:wrap}
+.zip-demo-message{color:#336699!important;font-size:.9rem}.zip-demo-disclaimer{font-size:.86rem;color:#5a7188;line-height:1.5;text-align:center}
+.zip-demo-page button{-webkit-tap-highlight-color:transparent}
+@media(max-width:630px){.zip-demo-fields{grid-template-columns:1fr}.zip-demo-item,.zip-demo-toolbar,.zip-demo-editor-head{align-items:flex-start;flex-direction:column}.zip-demo-item>div:last-child{width:100%}}

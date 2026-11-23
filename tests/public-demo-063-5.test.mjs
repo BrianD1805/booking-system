@@ -1,0 +1,62 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {issuePublicDemoSession,readPublicDemoSession} from '../lib/publicDemoSession.mjs';
+const source=rel=>readFileSync(new URL(`../${rel}`,import.meta.url),'utf8');
+test('public demo sessions use unguessable signed time-limited cookies',()=>{
+  const secret='a'.repeat(40),now=Date.now();
+  const token=issuePublicDemoSession(secret,now);
+  assert.notEqual(token,issuePublicDemoSession(secret,now),'each token needs a random nonce');
+  assert.ok(readPublicDemoSession(secret,token,now+1000));
+  assert.equal(readPublicDemoSession(secret,token,now+901000),null);
+  assert.equal(readPublicDemoSession('b'.repeat(40),token,now+1000),null);
+  assert.equal(readPublicDemoSession(secret,token+'tampered',now+1000),null);
+  assert.equal(readPublicDemoSession('short',token,now+1000),null);
+});
+test('temporary public demo is OFF by default, must pass Turnstile and has DB-backed limits',()=>{
+  const policy=source('lib/publicDemoAuth.ts');
+  const route=source('app/api/demo/start/route.ts');
+  assert.match(policy,/ZIPBOOK_PUBLIC_DEMO_ENABLED === '1'/);
+  assert.match(policy,/siteverify/);
+  assert.match(policy,/payload.action==='zipbook_demo'/);
+  assert.match(policy,/payload.hostname\?\.toLowerCase\(\)===requestedHost/);
+  assert.match(policy,/zipbook_public_demo_attempts/);
+  assert.match(route,/requireDemoOrigin/);
+  assert.match(route,/demoRateCheck/);
+  assert.match(route,/verifyDemoChallenge/);
+  const sql=source('supabase/zipbook_public_demo_ver_0_063_5.sql');
+  assert.match(sql,/ENABLE ROW LEVEL SECURITY/);
+  assert.match(sql,/REVOKE ALL.*zipbook_tenant_runtime/);
+});
+test('demo cannot access real practice, customer data or master login',()=>{
+  const page=source('app/demo/page.tsx');
+  assert.match(page,/fictional data/);
+  assert.match(page,/fetch\('\/api\/demo\/start'/);
+  assert.doesNotMatch(page,/\/api\/admin-|\/api\/bookings|x-zipbook-platform-key|staff-login/);
+  const runtime=source('lib/publicDemoAuth.ts');
+  assert.match(runtime,/httpOnly:true/);
+  assert.match(runtime,/sameSite:'lax'/);
+  assert.match(runtime,/getDemoSession/);
+  const proxy=source('proxy.ts');
+  assert.match(proxy,/pathname === '\/demo'/);
+  assert.match(proxy,/X-Robots-Tag/);
+  assert.match(proxy,/frame-ancestors 'none'/);
+});
+test('country popup is centred and does not auto focus its search field',()=>{
+  const selector=source('components/ZipSelect.tsx');
+  const css=source('app/globals.css');
+  assert.doesNotMatch(selector,/searchRef\.current\?\.focus/);
+  assert.match(selector,/createPortal\(menu, document.body\)/);
+  assert.match(css,/\.zip-select-country-overlay \{ position: fixed !important; inset: 0 !important; display: flex !important; align-items: center !important; justify-content: center !important/);
+  assert.match(css,/::-webkit-scrollbar-button/);
+});
+test('customer account sections, header and edit confirmation match requested flow',()=>{
+  const page=source('app/book/page.tsx');
+  assert.match(page,/client-appointments-dropdown/);
+  assert.match(page,/client-notifications-dropdown/);
+  assert.match(page,/client-auth-signed-in-header/);
+  assert.match(page,/setEditingSaving\(true\)/);
+  assert.match(page,/Checking availability…/);
+  assert.doesNotMatch(page,/htmlFor="notes">Notes for the practice/);
+  assert.match(page,/copyBookingDetails/);
+});
