@@ -1,6 +1,6 @@
 {
   "name": "zippyweb-booking-system",
-  "version": "0.63.3",
+  "version": "0.63.4",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -23,6 +23,7 @@
     "test:account-ux": "node --test tests/saas-account-ux.test.mjs",
     "test:client-login-typecheck": "node --test tests/client-login-legacy-typecheck.test.mjs",
     "test:version": "node --test tests/release-version.test.mjs",
+    "test:demo-reset": "node --test tests/platform-demo-reset.test.mjs",
     "test:country-ux": "node --test tests/phone-country-popup.test.mjs",
     "test:account-ux-patch": "node --test tests/client-account-063-2.test.mjs",
     "test:account-ux-patch3": "node --test tests/client-account-063-3.test.mjs"
