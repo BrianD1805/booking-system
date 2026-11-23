@@ -6487,3 +6487,88 @@ button.admin-password-eye .admin-password-eye-slash {
     margin: 0;
   }
 }
+
+
+/* Ver-0.063.3 — Client-account mobile header, autofill hints and scrollbar clearance. */
+.client-auth-mobile-label { display: none; }
+.client-auth-desktop-label { display: inline; }
+
+/* Remove the Android WebKit blue tap flash without hiding keyboard focus styles. */
+.auth-header-toggle,
+.auth-header-toggle .auth-toggle-label,
+.auth-header-toggle .auth-toggle-switch,
+.auth-header-toggle .auth-toggle-knob {
+  -webkit-tap-highlight-color: transparent !important;
+  tap-highlight-color: transparent;
+}
+.auth-header-toggle button { touch-action: manipulation; }
+
+/* Keep a gap between the right edge of inputs and the internal scrollbar. */
+.client-auth-card:not(.client-reset-card) > .grid,
+.client-auth-card:not(.client-reset-card) > .client-otp-box,
+.client-auth-card:not(.client-reset-card) > .client-profile-panel {
+  box-sizing: border-box;
+  padding-right: 19px !important;
+}
+
+@media (max-width: 700px) {
+  .client-auth-desktop-label { display: none; }
+  .client-auth-mobile-label { display: inline; }
+
+  /* The close button belongs to the header, not to the toggle's row. */
+  .client-auth-card:not(.client-reset-card) .client-auth-head {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto 46px;
+    align-content: start !important;
+    align-items: start !important;
+    justify-content: stretch !important;
+    gap: 16px !important;
+    position: relative !important;
+    min-height: 128px !important;
+    padding: 16px 18px 12px !important;
+  }
+  .client-auth-card:not(.client-reset-card) .client-auth-title-copy {
+    display: block;
+    grid-row: 1;
+    grid-column: 1;
+    flex: none !important;
+    padding-right: 48px;
+  }
+  .client-auth-card:not(.client-reset-card) .client-auth-head-actions {
+    grid-row: 2;
+    grid-column: 1;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    position: static !important;
+    flex: none !important;
+    width: 100% !important;
+    height: 46px !important;
+    min-height: 46px !important;
+    margin: 0 !important;
+  }
+  .client-auth-card:not(.client-reset-card) .auth-header-toggle {
+    position: static !important;
+    flex: 0 0 auto;
+    left: auto !important;
+    top: auto !important;
+    transform: none !important;
+    margin: 0 auto !important;
+  }
+  .client-auth-card:not(.client-reset-card) .client-auth-head > .client-auth-header-close {
+    position: absolute !important;
+    z-index: 2;
+    top: 12px !important;
+    right: 16px !important;
+    bottom: auto !important;
+    left: auto !important;
+    transform: none !important;
+    margin: 0 !important;
+  }
+  .client-auth-card:not(.client-reset-card) > .grid,
+  .client-auth-card:not(.client-reset-card) > .client-otp-box,
+  .client-auth-card:not(.client-reset-card) > .client-profile-panel {
+    padding-right: 16px !important;
+  }
+}

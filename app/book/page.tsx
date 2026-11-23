@@ -967,7 +967,7 @@ export default function BookPage() {
           <div className={`client-auth-card ${clientLoginStage === 'login' ? 'client-auth-login-mode' : 'client-auth-signup-mode'}`}>
             <div className="client-auth-head">
               <div className="client-auth-title-copy">
-                <p className="badge blue-badge">Client account</p>
+                <p className="badge blue-badge"><span className="client-auth-desktop-label">Client account</span><span className="client-auth-mobile-label">Client Account - Login/Setup</span></p>
                 <h2>{clientProfile ? 'My account' : 'Login or sign up'}</h2>
               </div>
               <div className="client-auth-head-actions">
@@ -980,8 +980,8 @@ export default function BookPage() {
                 ) : (
                   <div className="client-auth-status-pill" role="status"><strong>Signed in</strong><span>{clientProfile?.customer.fullName ?? 'Customer account'}</span></div>
                 )}
-                <button className="icon-button mobile-close" type="button" aria-label="Close login" onClick={dismissClientModal}>×</button>
               </div>
+              <button className="icon-button mobile-close client-auth-header-close" type="button" aria-label="Close login" onClick={dismissClientModal}>×</button>
             </div>
 
             {clientLoginStage !== 'signed-in' && (
@@ -1012,7 +1012,7 @@ export default function BookPage() {
                           options={COUNTRY_OPTIONS}
                           searchable
                         />
-                        <input id="clientLoginPhone" value={clientLoginPhone} onChange={(event) => setClientLoginPhone(event.target.value)} inputMode="tel" autoComplete="tel-national" placeholder="0712345678" />
+                        <input id="clientLoginPhone" value={clientLoginPhone} onChange={(event) => setClientLoginPhone(event.target.value)} type="tel" inputMode="tel" autoComplete="off" name="zipbook-contact-clientloginphone" data-lpignore="true" data-1p-ignore="true" data-form-type="other" autoCorrect="off" autoCapitalize="off" spellCheck={false} placeholder="0712345678" />
                       </div>
                       <small>{previewPhone(selectedLoginCountry, clientLoginPhone)}</small>
                     </div>
@@ -1176,7 +1176,7 @@ export default function BookPage() {
                       options={COUNTRY_OPTIONS}
                       searchable
                     />
-                    <input id="clientResetPhone" value={clientLoginPhone} onChange={(event) => setClientLoginPhone(event.target.value)} inputMode="tel" autoComplete="tel-national" placeholder="0712345678" />
+                    <input id="clientResetPhone" value={clientLoginPhone} onChange={(event) => setClientLoginPhone(event.target.value)} type="tel" inputMode="tel" autoComplete="off" name="zipbook-contact-clientresetphone" data-lpignore="true" data-1p-ignore="true" data-form-type="other" autoCorrect="off" autoCapitalize="off" spellCheck={false} placeholder="0712345678" />
                   </div>
                   <small>{previewPhone(selectedLoginCountry, clientLoginPhone)}</small>
                 </div>
@@ -1283,7 +1283,7 @@ export default function BookPage() {
               </div>
               <div className="form-row">
                 <label htmlFor="patientPhone">Mobile number</label>
-                <input id="patientPhone" value={patientPhone} onChange={(event) => setPatientPhone(event.target.value)} inputMode="tel" autoComplete="tel" placeholder="+254712345678" required />
+                <input id="patientPhone" value={patientPhone} onChange={(event) => setPatientPhone(event.target.value)} type="tel" inputMode="tel" autoComplete="off" name="zipbook-contact-patientphone" data-lpignore="true" data-1p-ignore="true" data-form-type="other" autoCorrect="off" autoCapitalize="off" spellCheck={false} placeholder="+254712345678" required />
               </div>
               <div className="form-row">
                 <label htmlFor="patientEmail">Email address</label>
