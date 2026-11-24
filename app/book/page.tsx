@@ -296,7 +296,7 @@ export default function BookPage() {
   const clientLoginFullPhone = buildInternationalPhone(selectedLoginCountry, clientLoginPhone);
   const signupPasswordLongEnough = clientPassword.length >= MIN_CLIENT_PASSWORD_LENGTH;
   const resetPasswordLongEnough = clientResetPassword.length >= MIN_CLIENT_PASSWORD_LENGTH;
-  const canSignInClient = Boolean(selectedLoginCountry && clientLoginFullPhone && clientPassword.trim());
+  
   const canRequestPasswordReset = Boolean(selectedLoginCountry && clientLoginFullPhone && clientLoginEmail.trim());
   const canCompletePasswordReset = Boolean(clientOtpCode.trim().length >= 4 && resetPasswordLongEnough);
   const canGoToTreatment = patientName.trim() && patientPhone.trim() && patientEmail.trim();
@@ -775,11 +775,23 @@ export default function BookPage() {
   }
 
   async function signInClient() {
+    if (clientLoginLoading) return;
+    const inputError = !selectedLoginCountry || !/^[+\d\s().-]+$/.test(clientLoginPhone.trim()) || !/^\+\d{7,15}$/.test(clientLoginFullPhone)
+      ? 'Enter a valid mobile number, not an email address.'
+      : !clientPassword.trim() ? 'Enter your password.' : '';
+    if (inputError) {
+      setClientSignupFeedback({ kind: 'error', message: inputError });
+      return;
+    }
     setClientLoginLoading(true);
+    setClientSignupFeedback({ kind: 'busy', message: 'Checking your mobile number and password…' });
+    const controller = new AbortController();
+    const requestTimeout = window.setTimeout(() => controller.abort(), 25000);
     setClientLoginNotice('');
     try {
       const response = await fetch('/api/client-login/login', {
         method: 'POST',
+        signal: controller.signal,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           phone: clientLoginFullPhone,
@@ -794,10 +806,13 @@ export default function BookPage() {
       window.localStorage.setItem('zipbook-client-session', payload.sessionToken);
       setClientSessionToken(payload.sessionToken);
       applyClientProfile(payload.profile);
+      setClientSignupFeedback(null);
       setClientLoginNotice('Signed in.');
     } catch (error) {
-      setClientLoginNotice(error instanceof Error ? error.message : 'Could not sign in.');
+      const message = error instanceof Error && error.name === 'AbortError' ? 'Login took too long. Please check your connection and try again.' : error instanceof SyntaxError ? 'The login service returned an unexpected response. Please try again.' : error instanceof Error ? error.message : 'Could not sign in. Please try again.';
+      setClientSignupFeedback({ kind: 'error', message });
     } finally {
+      window.clearTimeout(requestTimeout);
       setClientLoginLoading(false);
     }
   }
@@ -966,7 +981,7 @@ export default function BookPage() {
   }
 
   return (
-    <main className="shell fresh-shell">
+    <main className="shell fresh-shell client-book-shell">
       <header className="client-home-topbar" aria-label="Client app header">
         <a className="client-home-brand" href="/book" aria-label="ZipBook client home">
           <img src={headerLogo} alt="" width="44" height="44" />
@@ -1074,7 +1089,7 @@ export default function BookPage() {
                         />
                         <input id="clientLoginPhone" value={clientLoginPhone} onChange={(event) => setClientLoginPhone(event.target.value)} type="tel" inputMode="tel" autoComplete="off" name="zipbook-contact-clientloginphone" data-lpignore="true" data-1p-ignore="true" data-form-type="other" autoCorrect="off" autoCapitalize="off" spellCheck={false} placeholder="0712345678" />
                       </div>
-                      <small>{previewPhone(selectedLoginCountry, clientLoginPhone)}</small>
+                      <small>{clientLoginPhone.trim() && !/^[+\d\s().-]+$/.test(clientLoginPhone.trim()) ? 'Enter a mobile number, not an email address.' : previewPhone(selectedLoginCountry, clientLoginPhone)}</small>
                     </div>
                     {clientLoginStage === 'signup' && (
                       <div className="form-row signup-email-row">
@@ -1118,7 +1133,7 @@ export default function BookPage() {
 
                 <div className="client-login-bottom client-auth-bottom">
                   {clientLoginStage === 'login' && (
-                    <button className="button primary" type="button" onClick={signInClient} disabled={clientLoginLoading || !canSignInClient}>
+                    <button className="button primary" type="button" onClick={signInClient} disabled={clientLoginLoading}>
                       {clientLoginLoading ? 'Signing in…' : 'Login'}
                     </button>
                   )}
@@ -1203,20 +1218,20 @@ export default function BookPage() {
           </div>
           {clientSignupFeedback && (
             <div className="client-signup-feedback-backdrop">
-              <div className="client-signup-feedback-panel" role={clientSignupFeedback.kind === 'error' ? 'alertdialog' : 'status'} aria-modal={clientSignupFeedback.kind === 'error' ? true : undefined} aria-label={clientSignupFeedback.kind === 'error' ? 'Account creation needs attention' : 'Creating account'} aria-live="assertive">
+              <div className="client-signup-feedback-panel" role={clientSignupFeedback.kind === 'error' ? 'alertdialog' : 'status'} aria-modal={clientSignupFeedback.kind === 'error' ? true : undefined} aria-label={clientSignupFeedback.kind === 'error' ? (clientLoginStage === 'login' ? 'Login needs attention' : 'Account creation needs attention') : (clientLoginStage === 'login' ? 'Logging you in' : 'Creating account')} aria-live="assertive">
                 {clientSignupFeedback.kind === 'busy' ? (
                   <>
                     <span className="client-signup-feedback-spinner" aria-hidden="true" />
-                    <h3>Creating your account…</h3>
+                    <h3>{clientLoginStage === 'login' ? 'Logging you in…' : 'Creating your account…'}</h3>
                     <p>{clientSignupFeedback.message}</p>
                   </>
                 ) : (
                   <>
                     <span className="client-signup-feedback-error-icon" aria-hidden="true">!</span>
-                    <h3>Account not created yet</h3>
+                    <h3>{clientLoginStage === 'login' ? 'Could not log in' : 'Account not created yet'}</h3>
                     <p>{clientSignupFeedback.message}</p>
                     <div className="client-signup-feedback-actions">
-                      {/(already|existing|uses this email|sign in|sign-in|pending sign-up)/i.test(clientSignupFeedback.message) && (
+                      {clientLoginStage !== 'login' && /(already|existing|uses this email|sign in|sign-in|pending sign-up)/i.test(clientSignupFeedback.message) && (
                         <button className="pill" type="button" onClick={() => { setClientSignupFeedback(null); switchClientLogin('login'); }}>Go to Login</button>
                       )}
                       <button className="button primary" type="button" autoFocus onClick={() => setClientSignupFeedback(null)}>OK, check details</button>
@@ -1503,7 +1518,7 @@ export default function BookPage() {
                 <p>{getDayLabel(selectedDate)} at {selectedTime ? showTime(selectedDate,selectedTime) : 'choose a time'}</p>
                 <p>{selectedPractitioner ? selectedPractitioner.name : 'No practitioner selected yet'}</p>
               </div>
-              <div className="form-row">
+              <div className="form-row booking-notes-row">
                 <textarea id="notes" aria-label="Optional notes" value={notes} onChange={(event) => setNotes(event.target.value)} placeholder="Optional notes or symptoms." />
               </div>
             </section>

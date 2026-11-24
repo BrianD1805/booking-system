@@ -1667,7 +1667,7 @@ textarea { min-height: 110px; resize: vertical; }
   height: 240px;
   right: -110px;
   top: -110px;
-  background: rgba(137, 82, 205, 0.16);
+  background: rgba(137, 82, 205, 0.23);
 }
 
 .client-home-welcome::after {
@@ -1675,7 +1675,7 @@ textarea { min-height: 110px; resize: vertical; }
   height: 190px;
   left: -86px;
   bottom: -90px;
-  background: rgba(51, 102, 153, 0.16);
+  background: rgba(51, 102, 153, 0.23);
 }
 
 .client-home-welcome > * {
@@ -6791,4 +6791,44 @@ button.admin-password-eye .admin-password-eye-slash {
 }
 @media (min-width: 761px) {
   .client-home-topbar { width: min(100%, 760px); }
+}
+
+/* Ver-0.063.14 — targeted customer booking and account refinements. */
+.booking-workflow.is-open { background: #ffffff; }
+.booking-workflow .workflow-card,
+.booking-workflow .workflow-card > .workflow-head,
+.booking-workflow .workflow-card > .flow-step,
+.booking-workflow .workflow-card > .workflow-actions,
+.booking-workflow .diary-inline-actions { background: #ffffff; }
+/* Keep a visible, soft grey focus indicator instead of the heavy blue outline. */
+.client-book-shell .booking-workflow :is(input, textarea):focus,
+.client-book-shell .client-auth-popup :is(input, textarea):focus {
+  outline: none;
+  border-color: #c9d9eb;
+  box-shadow: 0 0 0 4px #e5ebf2;
+}
+.booking-workflow .booking-notes-row { margin-top: 16px; }
+.client-account-dropdown {
+  border: 1px solid #d8e5f4;
+  border-radius: 18px;
+  padding: 0 12px;
+  margin-bottom: 12px;
+  background: #fff;
+}
+.client-account-dropdown > summary { position: relative; padding-right: 42px; min-height: 56px; }
+.client-account-dropdown > summary::before {
+  content: ''; position: absolute; right: 2px; top: 50%; transform: translateY(-50%);
+  width: 30px; height: 30px; border: 1px solid #d8e5f4; border-radius: 50%;
+}
+.client-account-dropdown > summary:after { position: absolute; right: 11px; top: calc(50% - 1px); margin: 0; }
+.client-account-dropdown[open] > summary:after { right: 12px; top: calc(50% - 4px); }
+@media (max-width: 760px) {
+  .client-book-shell { padding-top: 12px; padding-bottom: 10px; }
+  .client-book-shell .client-home-welcome {
+    min-height: max(0px, calc(100dvh - 105px - env(safe-area-inset-bottom)));
+    padding-block: clamp(14px, 3dvh, 28px);
+    gap: 10px;
+    align-content: start;
+  }
+  .client-book-shell .client-home-icon-wrap { margin-top: 4px; }
 }

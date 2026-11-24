@@ -14,8 +14,8 @@ test('legacy image and PWA use packaged assets; other tenants retain uploaded lo
 });
 test('booking home colour changes preserve existing controls',()=>{
  const css=read('app/globals.css').toString();
- assert.match(css,/\.client-home-welcome::before \{[^}]*rgba\(137, 82, 205, 0.16\)/);
- assert.match(css,/\.client-home-welcome::after \{[^}]*rgba\(51, 102, 153, 0.16\)/);
+ assert.match(css,/\.client-home-welcome::before \{[^}]*rgba\(137, 82, 205, 0.23\)/);
+ assert.match(css,/\.client-home-welcome::after \{[^}]*rgba\(51, 102, 153, 0.23\)/);
  assert.match(css,/\.client-home-actions \.large-cta \{[^}]*background: #336699/);
  assert.match(read('app/book/page.tsx').toString(),/className="button primary large-cta"[^>]*onClick=\{openBookingFlow\}/);
 });
