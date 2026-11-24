@@ -2,7 +2,7 @@ import {createHash} from 'node:crypto';
 import {issuePublicDemoSession,readPublicDemoSession} from './publicDemoSession.mjs';
 import {NextRequest, NextResponse} from 'next/server';
 import {platformTransaction} from './dbProvider';
-import {currentTenant} from './tenantScope.mjs';
+import {currentTenant,isVerifiedDemoRequestContext} from './tenantScope.mjs';
 import {getDefaultPracticeId} from './tenant';
 
 const DEMO_COOKIE = 'zipbook_public_demo';
@@ -20,6 +20,12 @@ export function realDemoConfigured() {
 export function isRealDemoTenant() {
   const tenant=currentTenant();
   return realDemoConfigured() && tenant.legacy && tenant.practiceId===demoAllowedId();
+}
+
+// A configured demo practice is still an ordinary practice for requests
+// WITHOUT a verified, unexpired demo session. Keep that distinction explicit.
+export function isActiveRealDemoRequest() {
+  return isRealDemoTenant() && isVerifiedDemoRequestContext();
 }
 
 const DEMO_TTL_SECONDS = 30 * 60;

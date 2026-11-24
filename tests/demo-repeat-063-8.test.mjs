@@ -82,7 +82,7 @@ test('demo customer can use the genuine account signup/login and cannot access u
   assert.match(tenant,/demoActionRateCheck/);
   assert.doesNotMatch(tenant,/Public demo visitors receive an automatic temporary customer account/);
   const db=source('lib/db.ts');
-  assert.match(db,/!currentTenant\(\).legacy \|\| isRealDemoTenant\(\)/);
+  assert.match(db,/!currentTenant\(\).legacy \|\| isActiveRealDemoRequest\(\)/);
   assert.match(db,/provider:'demo-no-email'/);
   assert.match(db,/provider:'demo-no-push'/);
   const page=source('app/book/page.tsx');

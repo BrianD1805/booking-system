@@ -73,7 +73,7 @@ test('no master key leak, with OTP email verification but no demo booking email 
   const tenant=source('lib/tenantRequest.ts');
   assert.doesNotMatch(page,/x-zipbook-admin-key|ZIPBOOK_ADMIN_DATA_KEY|ZIPBOOK_PLATFORM_KEY/);
   assert.match(tenant,/path.startsWith\('\/api\/client-login\/'\)/);
-  assert.match(tenant,/isRealDemoTenant\(\)/);
+  assert.match(tenant,/isActiveRealDemoRequest\(\)/);
   assert.match(db,/provider:'demo-no-email'/);
   assert.match(db,/provider:'demo-no-push'/);
   assert.match(page,/appointment notification emails and push alerts are disabled/);

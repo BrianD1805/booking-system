@@ -212,6 +212,20 @@ export default function BookPage() {
   const modalHistoryRef = useRef(false);
   const [businessInfo, setBusinessInfo] = useState<{name:string;legacy:boolean;publicBookings?:boolean} | null>(null);
   const [demoMode, setDemoMode] = useState(false);
+  const [demoExitError, setDemoExitError] = useState('');
+  async function leaveDemoForNormalBooking() {
+    try {
+      const response = await fetch('/api/demo/logout', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}', cache: 'no-store'
+      });
+      if (!response.ok) throw new Error('Could not end this demo session.');
+      // Do not carry a demo customer session into an ordinary booking visit.
+      window.localStorage.removeItem('zipbook-client-session');
+      window.location.replace('/book');
+    } catch {
+      setDemoExitError('Could not end the demo. Please try again.');
+    }
+  }
   useEffect(()=>{void fetch('/api/demo/session',{cache:'no-store'}).then(r=>r.ok?r.json():null).then(v=>setDemoMode(Boolean(v?.active && v?.realDemo))).catch(()=>undefined);},[]);
   useEffect(()=>{
     const requested=new URLSearchParams(window.location.search).get('demoAccount');
@@ -972,7 +986,7 @@ export default function BookPage() {
           </button>
         </div>
         {demoMode && (
-          <p className="client-signed-in-note" role="status"><strong>Public demo:</strong> You are using the real booking application with fictional customer data. <a href="/demo">Open both demo apps</a>.</p>
+          <div className="client-signed-in-note" role="status"><strong>Public demo:</strong> You are using the real booking application with fictional customer data. <a href="/demo">Open both demo apps</a>.{' '}<button className="pill" type="button" onClick={() => void leaveDemoForNormalBooking()}>End demo and open normal booking</button>{demoExitError && <p role="alert">{demoExitError}</p>}</div>
         )}
         {clientProfile && (
           <p className="client-signed-in-note" role="status">

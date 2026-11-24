@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { lookupTenant } from './dbProvider';
 import { classifyTenantHost, runInTenant } from './tenantScope.mjs';
 import { getDefaultPracticeId } from './tenant';
-import {isRealDemoTenant,getDemoSession,requireDemoWriteOrigin,demoActionRateCheck} from './publicDemoAuth';
+import {isActiveRealDemoRequest,getDemoSession,requireDemoWriteOrigin,demoActionRateCheck} from './publicDemoAuth';
 
 export async function withTenantRequest(request: NextRequest, work: () => Promise<Response>): Promise<Response> {
   // Never accept tenant IDs from request bodies, query strings or forwarded tenant headers.
@@ -26,8 +26,13 @@ export async function withTenantRequest(request: NextRequest, work: () => Promis
       return NextResponse.json({error:'This feature is not enabled for pilot businesses.'},{status:403,headers});
     }
   }
-  return runInTenant({ ...tenant, host:host.host, legacy:host.kind === 'legacy' }, async () => {
-    if(isRealDemoTenant()) {
+  // A demo cookie alone does not change the tenant's identity. It only grants
+  // a short-lived demo capability to this particular request. Without it, the
+  // original /book and customer account APIs behave exactly as before.
+  const verifiedDemo = host.kind === 'legacy' ? getDemoSession(request) : null;
+  return runInTenant({ ...tenant, host:host.host, legacy:host.kind === 'legacy',
+    demoVisitor: Boolean(verifiedDemo), demoExpiresAt: verifiedDemo?.expiresAt ?? null }, async () => {
+    if(isActiveRealDemoRequest()) {
       const path=request.nextUrl.pathname;
       const method=request.method.toUpperCase();
       // The normal customer account experience is available ONLY inside an

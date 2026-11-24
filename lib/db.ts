@@ -9,7 +9,7 @@ import { deliverClientOtp, isOtpTestModeEnabled } from './otpDelivery';
 import { buildClientBookingConfirmationEmailHtml, sendZipBookEmail } from './emailDelivery';
 import { isPhonePushUserAgent, isPushDeliveryConfigured, normalisePushSubscription, sendPushNotification, type BrowserPushSubscription, type StoredPushSubscription } from './pushDelivery';
 import { currentTenant } from './tenantScope.mjs';
-import {isRealDemoTenant} from './publicDemoAuth';
+import {isActiveRealDemoRequest} from './publicDemoAuth';
 import { publicBookingSlots } from './publicAvailability.mjs';
 import { addMinutes } from '@/lib/availability';
 import {
@@ -328,10 +328,21 @@ async function createClientSession(customerId: string) {
   const database = db();
   const sessionToken = makeToken('client');
   const sessionId = `sess-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-  await database.sql`
-    INSERT INTO client_sessions (id, practice_id, customer_id, session_token_hash, expires_at)
-    VALUES (${sessionId}, ${currentTenant().practiceId}, ${customerId}, ${hashSecret(sessionToken)}, NOW() + INTERVAL '30 days')
-  `;
+  // An ordinary practice login still lasts 30 days. A demo login must
+  // NEVER outlive the signed demo it belongs to, even though both use the
+  // same practice_001 customer database.
+  if (isActiveRealDemoRequest()) {
+    const demoExpiresAt = currentTenant().demoExpiresAt as string;
+    await database.sql`
+      INSERT INTO client_sessions (id, practice_id, customer_id, session_token_hash, expires_at)
+      VALUES (${sessionId}, ${currentTenant().practiceId}, ${customerId}, ${hashSecret(sessionToken)}, ${demoExpiresAt}::timestamptz)
+    `;
+  } else {
+    await database.sql`
+      INSERT INTO client_sessions (id, practice_id, customer_id, session_token_hash, expires_at)
+      VALUES (${sessionId}, ${currentTenant().practiceId}, ${customerId}, ${hashSecret(sessionToken)}, NOW() + INTERVAL '30 days')
+    `;
+  }
   return sessionToken;
 }
 
@@ -1067,7 +1078,7 @@ async function sendClientBookingConfirmation(input: {
   practitionerName: string;
   businessName: string;
 }): Promise<{ attempted: boolean; delivered: boolean; provider: string; recipient: string }> {
-  if(isRealDemoTenant()) return {attempted:false,delivered:false,provider:'demo-no-email',recipient:''};
+  if(isActiveRealDemoRequest()) return {attempted:false,delivered:false,provider:'demo-no-email',recipient:''};
   const recipient = input.booking.patientEmail.trim();
   if (!recipient) {
     return { attempted: false, delivered: false, provider: 'email-not-configured', recipient: '' };
@@ -1323,7 +1334,7 @@ export async function requestClientSignupOtp(input: { phone?: string; localPhone
   // For an independent business, only an email-verified account can see its
   // own bookings. Never claim previously-created guest records from a phone
   // number alone: the same number may have been entered by another person.
-  const customer = (!currentTenant().legacy || isRealDemoTenant())
+  const customer = (!currentTenant().legacy || isActiveRealDemoRequest())
     ? (existingAccount
       ? await findCustomerById(existingAccount.customer_id)
       : await createUnlinkedSaasClientCustomer(phone, email, fullName))
@@ -1331,7 +1342,7 @@ export async function requestClientSignupOtp(input: { phone?: string; localPhone
   if (!customer) throw new Error('Pending account is not available. Please contact the business.');
   // This is only a pending, unverified SaaS account already tied to this
   // exact phone AND email. Never update previously booked guest identities.
-  if ((!currentTenant().legacy || isRealDemoTenant()) && existingAccount) {
+  if ((!currentTenant().legacy || isActiveRealDemoRequest()) && existingAccount) {
     await db().sql`UPDATE customers SET full_name = ${fullName}, updated_at = NOW()
       WHERE practice_id = ${currentTenant().practiceId} AND id = ${customer.id}
         AND has_client_login = FALSE AND email = ${email}`;
@@ -1395,7 +1406,7 @@ export async function verifyClientSignupOtp(input: { otpId: string; code: string
   if (otp.attempts >= 5) throw new Error('Too many incorrect attempts. Please request a new sign-up code.');
 
   // An OTP issued by an older build must not create a nameless SaaS account.
-  if (!currentTenant().legacy || isRealDemoTenant()) {
+  if (!currentTenant().legacy || isActiveRealDemoRequest()) {
     const pendingCustomer = await findCustomerById(otp.customer_id);
     if (!pendingCustomer || !pendingCustomer.fullName.trim() || pendingCustomer.fullName === 'Client user') {
       throw new Error('Please restart sign-up and enter your first name and surname.');
@@ -1815,7 +1826,7 @@ async function getActiveAdminPushSubscriptions(): Promise<StoredPushSubscription
 }
 
 async function sendAdminBookingChangePush(input: { booking: Booking; action: 'booking_updated' | 'booking_deleted'; procedureName: string }) {
-  if(isRealDemoTenant()) return {attempted:false,delivered:0,failed:0,configured:false,provider:'demo-no-push',subscriptions:0};
+  if(isActiveRealDemoRequest()) return {attempted:false,delivered:0,failed:0,configured:false,provider:'demo-no-push',subscriptions:0};
   if (!isPushDeliveryConfigured()) {
     return { attempted: false, delivered: 0, failed: 0, configured: false, provider: 'web-push', subscriptions: 0 };
   }
@@ -1950,7 +1961,7 @@ async function sendClientBookingPushNotification(input: {
   body?: string;
   tagSuffix?: string;
 }): Promise<{ attempted: boolean; delivered: number; failed: number; configured: boolean; provider: string; subscriptions: number; error?: string }> {
-  if(isRealDemoTenant()) return {attempted:false,delivered:0,failed:0,configured:false,provider:'demo-no-push',subscriptions:0};
+  if(isActiveRealDemoRequest()) return {attempted:false,delivered:0,failed:0,configured:false,provider:'demo-no-push',subscriptions:0};
   if (!isPushDeliveryConfigured()) {
     return { attempted: false, delivered: 0, failed: 0, configured: false, provider: 'web-push', subscriptions: 0 };
   }

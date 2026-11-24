@@ -1,6 +1,6 @@
 {
   "name": "zippyweb-booking-system",
-  "version": "0.63.8",
+  "version": "0.63.9",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -30,7 +30,8 @@
     "test:demo-ux": "node --test tests/public-demo-063-5.test.mjs",
     "test:real-demo": "node --test tests/real-demo-063-6.test.mjs",
     "test:demo-time": "node --test tests/demo-local-time-063-7.test.mjs",
-    "test:demo-repeat": "node --test tests/demo-repeat-063-8.test.mjs"
+    "test:demo-repeat": "node --test tests/demo-repeat-063-8.test.mjs",
+    "test:demo-isolation": "node --test tests/demo-session-isolation-063-9.test.mjs"
   },
   "dependencies": {
     "@netlify/plugin-nextjs": "latest",

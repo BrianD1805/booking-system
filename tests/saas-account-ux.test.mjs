@@ -28,7 +28,7 @@ test('server requires a verified identity before customer account can be created
   assert.match(db, /normaliseSignupName\(input\.firstName, input\.surname\)/);
   assert.match(db, /createUnlinkedSaasClientCustomer\(phone, email, fullName\)/);
   assert.match(db, /\$\{fullName\}.*\$\{phone\}.*\$\{email\}/);
-  assert.match(db, /if \(\(!currentTenant\(\)\.legacy \|\| isRealDemoTenant\(\)\) && existingAccount\)/);
+  assert.match(db, /if \(\(!currentTenant\(\)\.legacy \|\| isActiveRealDemoRequest\(\)\) && existingAccount\)/);
   assert.match(db, /pendingCustomer\.fullName === 'Client user'/);
 });
 

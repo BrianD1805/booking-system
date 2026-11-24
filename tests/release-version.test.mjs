@@ -22,7 +22,7 @@ test('public, Admin and tenant API share one displayed release', () => {
   assert.match(read('app/book/page.tsx'), /APP_VERSION/);
   assert.match(read('app/api/tenant-context/route.ts'), /APP_VERSION/);
   assert.ok(read('README.md').includes(displayed), 'Current README must display current version');
-  assert.ok(read('FULL_PROGRAM_RELEASE_VER_0_063_8.md').includes(displayed), 'Current release notes must display current version');
+  assert.ok(read('FULL_PROGRAM_RELEASE_VER_0_063_9.md').includes(displayed), 'Current release notes must display current version');
 });
 
 test('service-worker cache key follows displayed release', () => {
