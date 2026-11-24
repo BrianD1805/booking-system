@@ -7,6 +7,7 @@ import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { APP_VERSION, procedureDuration, type ClientLoginBooking, type ClientLoginProfile } from '@/lib/mockData';
 import { FIRST_AVAILABLE, getAvailabilityForDate, getDateOffset, getDayLabel, practitionersForProcedure } from '@/lib/availability';
 import { bookingStartIsPast, getPracticeToday } from '@/lib/bookingTime.mjs';
+import { demoLocalTime, demoLocalRange, demoLocalDayLabel, demoLocalParts } from '@/lib/demoLocalTime.mjs';
 import { useBookingDatabase } from '@/lib/useBookingDatabase';
 import { ClientInstallPrompt } from './ClientInstallPrompt';
 
@@ -261,6 +262,10 @@ export default function BookPage() {
   const [now, setNow] = useState(() => new Date());
   const { bootstrap, bookings, loading, saving, error, createBooking, refresh } = useBookingDatabase(selectedDate, 'client', clientSessionToken);
   const { practiceSettings, procedures, blockedDates, blockedTimes, practitioners } = bootstrap;
+  const practiceTimeZone = practiceSettings.timezone || 'Africa/Nairobi';
+  const localTimeZone = demoMode ? Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC' : '';
+  const showTime = (date: string, time: string) => demoMode ? demoLocalTime(date, time, practiceTimeZone, localTimeZone) : time;
+  const showRange = (date: string, start: string, end: string) => demoMode ? demoLocalRange(date, start, end, practiceTimeZone, localTimeZone) : `${start}–${end}`;
   const selectedProcedure = useMemo(() => procedures.find((item) => item.id === procedureId) ?? procedures[0], [procedureId, procedures]);
   const activeProcedureId = selectedProcedure?.id ?? procedureId;
   const context = useMemo(() => ({
@@ -785,7 +790,7 @@ export default function BookPage() {
       return;
     }
 
-    const confirmed = window.confirm(`Delete booking for ${booking.treatment} on ${getDayLabel(booking.date)} at ${booking.time}?`);
+    const confirmed = window.confirm(`Delete booking for ${booking.treatment} on ${demoMode ? demoLocalDayLabel(booking.date,booking.time,practiceTimeZone,localTimeZone) : getDayLabel(booking.date)} at ${showTime(booking.date,booking.time)}?`);
     if (!confirmed) return;
 
     setClientBookingActionKey(`${booking.id}-delete`);
@@ -905,8 +910,8 @@ export default function BookPage() {
         patientEmail,
         treatment: selectedProcedure?.name ?? 'Selected treatment',
         duration: procedureDuration(activeProcedureId, procedures),
-        dateLabel: getDayLabel(selectedDate),
-        time: selectedTime,
+        dateLabel: demoMode ? demoLocalDayLabel(selectedDate,selectedTime,practiceTimeZone,localTimeZone) : getDayLabel(selectedDate),
+        time: demoMode ? (demoLocalParts(selectedDate,selectedTime,practiceTimeZone,localTimeZone)?.time || selectedTime) : selectedTime,
         practitioner: selectedPractitioner?.name ?? 'Selected practitioner',
         notes
       });
@@ -1106,14 +1111,13 @@ export default function BookPage() {
                     {clientBookingNotice && <p className={clientBookingNotice.toLowerCase().includes('could') || clientBookingNotice.toLowerCase().includes('cannot') || clientBookingNotice.toLowerCase().includes('expired') ? 'notice warning mobile-auth-notice' : 'notice success mobile-auth-notice'} role="status">{clientBookingNotice}</p>}
                     <div className="client-booking-list">
                       {clientProfile.bookings.length ? clientProfile.bookings.map((booking) => {
-                        const bookingDateTime = new Date(`${booking.date}T${booking.time}:00`);
-                        const isPastBooking = bookingDateTime.getTime() < Date.now();
+                        const isPastBooking = bookingStartIsPast(booking.date, booking.endTime, practiceTimeZone, now);
                         const isBusy = clientBookingActionKey === `${booking.id}-delete`;
                         return (
                           <article className="client-booking-item" key={booking.id}>
                             <div className="client-booking-item-main">
                               <strong>{booking.treatment}</strong>
-                              <span>{getDayLabel(booking.date)} · {booking.time}–{booking.endTime}</span>
+                              <span>{demoMode ? demoLocalDayLabel(booking.date,booking.time,practiceTimeZone,localTimeZone) : getDayLabel(booking.date)} · {showRange(booking.date,booking.time,booking.endTime)}</span>
                               <em>{booking.practitioner} · {booking.status}</em>
                             </div>
                             <div className="client-booking-actions">
@@ -1350,9 +1354,10 @@ export default function BookPage() {
           {step === 2 && (
             <section className="flow-step diary-choice-step">
               <div className="form-row">
-                <label htmlFor="date">Diary date</label>
+                <label htmlFor="date">{demoMode ? 'Practice diary date' : 'Diary date'}</label>
                 <DatePickerField id="date" value={selectedDate} min={getPracticeToday(now, practiceSettings.timezone)} required ariaLabel="Choose diary date" onChange={(nextDate) => { setSelectedDate(nextDate); resetSelection(); }} />
               </div>
+              {demoMode && <p className="demo-timezone-note" role="status">Demo appointment times use your local timezone ({localTimeZone}). The calendar date belongs to the practice ({practiceTimeZone}), with a local date shown when it differs.</p>}
               <div className="summary-strip">
                 <strong>{loading ? 'Loading diary…' : getDayLabel(selectedDate)}</strong>
                 <span>{availableSlots.length} Available Times</span>
@@ -1360,7 +1365,7 @@ export default function BookPage() {
               {selectedTime ? (
                 <div className="selected-slot-summary">
                   <span>Selected time</span>
-                  <strong>{selectedTime}{selectedSlot?.endTime ? `–${selectedSlot.endTime}` : ''} · {selectedPractitioner?.name ?? 'Practitioner selected'}</strong>
+                  <strong>{selectedTime ? (selectedSlot?.endTime ? showRange(selectedDate,selectedTime,selectedSlot.endTime) : showTime(selectedDate,selectedTime)) : ''} · {selectedPractitioner?.name ?? 'Practitioner selected'}</strong>
                 </div>
               ) : (
                 <p className="mini-copy">Choose a date, then open the time selector to view the full list of available appointment times.</p>
@@ -1382,6 +1387,7 @@ export default function BookPage() {
                     <p className="badge blue-badge">Available times</p>
                     <h2 id="time-picker-title">{getDayLabel(selectedDate)}</h2>
                     <p className="mini-copy">Select a start time. Longer appointments will visibly cover the extra diary blocks they need.</p>
+                    {demoMode && <p className="demo-timezone-note" role="status">Times shown in your local timezone ({localTimeZone}). Calendar date is the practice date ({practiceTimeZone}); local dates are shown where different.</p>}
                   </div>
                   <button className="icon-button mobile-close" type="button" aria-label="Close time selector" onClick={dismissClientModal}>×</button>
                 </div>
@@ -1407,8 +1413,8 @@ export default function BookPage() {
                           setSelectedPractitionerId(slot.practitionerId ?? '');
                         }}
                       >
-                        <strong>{slot.time}</strong>
-                        <span>{hasPassed ? 'Time passed' : isCoveredBySelection ? 'Included in selected appointment' : slot.available ? `${slot.endTime} · ${slot.practitionerName}` : slot.reason ?? 'Unavailable'}</span>
+                        <strong>{showTime(selectedDate,slot.time)}</strong>
+                        <span>{hasPassed ? 'Time passed' : isCoveredBySelection ? 'Included in selected appointment' : slot.available ? `${showTime(selectedDate,slot.endTime)} · ${slot.practitionerName}` : slot.reason ?? 'Unavailable'}</span>
                       </button>
                     );
                   })}
@@ -1435,7 +1441,7 @@ export default function BookPage() {
                 <h3>{editingClientBookingId ? 'Review your changes' : 'Review your appointment'}</h3>
                 <p><strong>{patientName || 'Patient'}</strong></p>
                 <p>{selectedProcedure?.name} · {procedureDuration(activeProcedureId, procedures)} mins</p>
-                <p>{getDayLabel(selectedDate)} at {selectedTime || 'choose a time'}</p>
+                <p>{demoMode && selectedTime ? demoLocalDayLabel(selectedDate,selectedTime,practiceTimeZone,localTimeZone) : getDayLabel(selectedDate)} at {selectedTime ? showTime(selectedDate,selectedTime) : 'choose a time'}{demoMode ? ' (your local time)' : ''}</p>
                 <p>{selectedPractitioner ? selectedPractitioner.name : 'No practitioner selected yet'}</p>
               </div>
               <div className="form-row">

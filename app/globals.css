@@ -6652,3 +6652,20 @@ button.admin-password-eye .admin-password-eye-slash {
 
 .zip-demo-diary-banner {text-align:center;background:#edf5ff;color:#23446c;border-bottom:1px solid #d1e1f5;padding:9px 16px;font-size:13px;font-weight:600;}
 .zip-demo-diary-banner a {color:#1557a4;text-decoration:underline;}
+
+
+/* Ver-0.063.7 — remove the WebKit tap flash across all application areas. */
+*, *::before, *::after {
+  -webkit-tap-highlight-color: transparent !important;
+}
+/* Keyboard focus remains visually identifiable; only the touch flash is removed. */
+:where(a, button, input, select, textarea, summary, [role="button"]):focus-visible {
+  outline: 3px solid #336699;
+  outline-offset: 3px;
+}
+.demo-timezone-note {
+  color: #336699;
+  font-size: 0.88rem;
+  line-height: 1.45;
+  margin: 8px 0 12px;
+}

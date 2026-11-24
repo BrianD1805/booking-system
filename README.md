@@ -1,55 +1,48 @@
-# ZipBook Ver-0.063.6 — Full programme
+# ZipBook Ver-0.063.7 — Full Programme
 
-Full connected public demo of the real customer app and Practice Diary, tenant-restricted and Turnstile-protected. See `FULL_PROGRAM_RELEASE_VER_0_063_6.md` and `supabase/zipbook_real_demo_ver_0_063_6.sql` for required security and deployment instructions. No master key is shared with demo visitors.
+Released 24 November 2026 (UK). The project is the real multi-tenant ZipBook appointment booking and Practice Diary platform, deployed with GitHub, Netlify and Supabase. ZippyWeb owns the separate commercial billing/payment integration.
 
-# ZipBook — Ver-0.063.5
+## Ver-0.063.7 changes
 
-A ZippyWeb product. Multi-tenant SaaS appointment scheduling, booking and client account system, deployed using GitHub, Netlify and Supabase. Commercial plans, payments and subscriptions will be managed by ZippyWeb, not duplicated in ZipBook.
+- Globally removes WebKit's blue tap highlight from clickable elements, without removing keyboard focus feedback.
+- The real `/demo` landing page opens **both** the Customer App and Practice Diary in new tabs (`noopener noreferrer`).
+- For temporary, authorised **public demo sessions only**, appointment displays in Customer App, Practice Diary and reception use the visitor's browser timezone, including the date when it differs from the practice date.
+- Booking API values, actual calendar/working days, availability checks and database values remain in the business's configured IANA timezone. Non-demo businesses use their own practice timezone. The demo currently uses the original `Africa/Nairobi` tenant timezone. The ordinary diary clock now matches the business timezone instead of mixing device and practice clocks.
+- Customer booking history now determines past bookings using practice time, avoiding incorrect browser-local comparisons.
 
-## Latest full release
+**Release details and acceptance checks:** `FULL_PROGRAM_RELEASE_VER_0_063_7.md`.
 
-**Ver-0.063.5 — Client Account Mobile UX**, 23 November 2026.
+## Security and setup
 
-- Mobile client account close icon is fixed top-right, with a separate centred Login/Sign up toggle.
-- Mobile badge reads “Client Account - Login/Setup”; desktop header remains unchanged.
-- Telephone forms request browser autofill suppression, and popup fields have extra right scrollbar clearance.
+The Ver-0.063.6 real connected public demo is disabled by default until the owner has verified test-only tenant data and configured its Turnstile/session environment variables. Its temporary, tenant-restricted visitor session uses the real `/book` and real Practice Diary and must never expose the Platform or Admin master keys.
 
-- Country popup is centred on both desktop and mobile, with searchable worldwide country/territory dialling codes.
-- Common choices are presented first: United Kingdom, South Africa, Kenya, Australia, New Zealand, EU, and major world countries.
-- Business Admin **Edit practice profile** has a separate **Default customer phone country** setting.
-- Customer Login/Sign up uses a ZippyWeb-style toggle in the popup header and a stable-height layout.
-- Password visibility uses fixed eye/eye-off icons.
-- The customer signup popup no longer repeats explanatory header text.
+See `FULL_PROGRAM_RELEASE_VER_0_063_6.md` and `supabase/zipbook_real_demo_ver_0_063_6.sql` for original demo setup, permissions and safety checks. **No new SQL migration or Netlify variable is needed for Ver-0.063.7.**
 
-See `FULL_PROGRAM_RELEASE_VER_0_063_3.md` for the latest patch and `supabase/zipbook_default_customer_phone_country_ver_0_063_1.sql` for the previously required migration. Supabase migration required: `supabase/zipbook_public_demo_ver_0_063_5.sql`. Public demo remains disabled until enabled with Netlify security settings.
+## Version and release policy
 
-## Source and release policy
+- `lib/domains.ts` provides the authoritative `APP_VERSION` displayed on public/Admin pages.
+- Update `package.json`, root `package-lock.json`, `lib/domains.ts`, `public/sw.js`, README and the release note for **every** release.
+- Use dot-number patch suffixes like `Ver-0.063.7` rather than letters; run `npm run test:version` on each release.
+- Always issue a full programme ZIP; preserve approved client Home, Admin and popup layouts unless a requested change requires an adjustment.
+- Never allow a public demo session to access real tenant customers, owner-only settings, other businesses or master keys.
 
-- `lib/domains.ts` defines **the authoritative APP_VERSION** displayed by public booking pages and the Admin interface.
-- Keep `package.json`, root package-lock version metadata, `public/sw.js` cache key, README and release notes synchronised with each release.
-- `npm run test:version` verifies the shared version and package consistency.
-- For small patch builds, use dot-numbered patches such as Ver-0.063.1, Ver-0.063.2, Ver-0.063.5 (not A/B/C).
-- Preserve the approved public booking page, Admin layout and modal styling except where changes are specifically requested.
-- Never enable public bookings for every tenant automatically; retain platform approval and secure tenant isolation.
-
-## Local test command (Windows CMD; no Netlify Dev)
+## Standard local test (Windows CMD)
 
 ```cmd
-npm ci && npm run test:version && npm run test:heartbeat && npm run test:booking-time && npm run test:scheduling && npm run test:saas && npm run test:tenants && npm run test:onboarding && npm run test:integration && npm run test:branding && npm run test:readiness && npm run test:procedure-ux && npm run test:diary-slots && npm run test:public-booking && npm run test:customer-accounts && npm run test:account-ux && npm run test:client-login-typecheck && npm run test:country-ux && npm run test:account-ux-patch && npm run test:account-ux-patch3 && npm run test:demo-ux && npm audit --omit=dev && npm run typecheck && npm run build
+npm ci && npm run test:version && npm run test:heartbeat && npm run test:booking-time && npm run test:scheduling && npm run test:saas && npm run test:tenants && npm run test:onboarding && npm run test:integration && npm run test:branding && npm run test:readiness && npm run test:procedure-ux && npm run test:diary-slots && npm run test:public-booking && npm run test:customer-accounts && npm run test:account-ux && npm run test:client-login-typecheck && npm run test:country-ux && npm run test:account-ux-patch && npm run test:account-ux-patch3 && npm run test:demo-reset && npm run test:demo-ux && npm run test:real-demo && npm run test:demo-time && npm audit --omit=dev && npm run typecheck && npm run build
 ```
 
-No new Supabase migration is needed for this patch. After tests and build pass:
+Run GitHub push separately after all tests pass:
 
 ```cmd
-git status && git add -A && git commit -m "ZipBook Ver-0.063.5 Client Account Mobile UX" && git push origin main
+git status && git add -A && git commit -m "ZipBook Ver-0.063.7 Global Tap UX and Local Demo Times" && git push origin main
 ```
 
-## Customer-facing entry points
+The above local typecheck, audit and build are required before deployment; do not assume their success solely from the ZIP or in-environment source tests. Check the live `/api/tenant-context` version after Netlify publishes.
 
-- `https://demo-dental.zipbook.app/book` — public demo tenant booking page.
-- `https://demo-dental.zipbook.app/api/tenant-context` — check reported live version.
+## Key public routes
 
-Do not infer the deployed release from a ZIP filename. Netlify must publish the updated commit and the live version endpoint must agree with the release.
-
-
-See `FULL_PROGRAM_RELEASE_VER_0_063_4.md` for the Ver-0.063.5 demo reset, PWA icon and security notes.
+- `https://zipbook.app/demo` — restricted real connected demo landing page
+- `https://zipbook.app/book` — original customer booking application
+- `https://admin.zipbook.app/admin` — genuine Practice Diary
+- `https://demo-dental.zipbook.app/book` — separate demonstration tenant
