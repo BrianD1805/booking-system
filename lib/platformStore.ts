@@ -69,3 +69,20 @@ export async function setBusinessState(id:string,action:'activate'|'publish'|'su
     await audit(c,id,`platform_business_${action}`);
   });
 }
+
+// Customer data only; never restore demo defaults or change practice/staff settings.
+export async function deleteBusinessCustomerData(id:string, confirmation:unknown) {
+  return platformTransaction(async c=>{
+    const practice=(await c.query<{tenant_slug:string;pilot_enabled:boolean}>(`SELECT p.tenant_slug,p.pilot_enabled FROM public.practices p JOIN public.zipbook_owner_invitations i ON i.practice_id=p.id WHERE p.id=$1 AND p.plan_code='pilot' FOR UPDATE OF p`,[id])).rows[0];
+    if(!practice) throw new PlatformError('Business not found.');
+    if(practice.pilot_enabled) throw new PlatformError('Suspend access before deleting data to prevent new activity.');
+    if(confirmation!==`DELETE ${practice.tenant_slug}`) throw new PlatformError('Type the exact business confirmation.');
+    const count=(await c.query<{bookings:number;customers:number}>(`SELECT (SELECT count(*)::int FROM public.bookings WHERE practice_id=$1) AS bookings,(SELECT count(*)::int FROM public.customers WHERE practice_id=$1) AS customers`,[id])).rows[0];
+    for(const table of ['notification_logs','late_messages','client_push_subscriptions','customer_documents','customer_family_members','client_sessions','client_login_otps','client_accounts','zipbook_client_auth_limits','bookings','customers']) {
+      await c.query(`DELETE FROM public.${table} WHERE practice_id=$1`,[id]);
+    }
+    await c.query(`DELETE FROM public.audit_logs WHERE practice_id=$1 AND (source='client' OR entity_type IN ('booking','customer','client_account','client_session') OR action LIKE 'client_%' OR action LIKE 'booking_%' OR action LIKE 'customer_%')`,[id]);
+    await c.query(`INSERT INTO public.audit_logs(id,practice_id,action,entity_type,entity_id,source,details) VALUES($1,$2,'platform_customer_data_deleted','practice',$2,'platform-admin',$3::jsonb)`,[randomUUID(),id,JSON.stringify(count)]);
+    return {message:`Deleted ${count.bookings} bookings and ${count.customers} customers. Practice and diary settings retained.`,counts:count};
+  });
+}

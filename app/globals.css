@@ -6832,3 +6832,12 @@ button.admin-password-eye .admin-password-eye-slash {
   }
   .client-book-shell .client-home-icon-wrap { margin-top: 4px; }
 }
+
+/* Ver-0.063.15: solid white customer booking canvas, without grey shadow bleed. */
+.client-book-shell .booking-workflow.is-open { background: #fff !important; }
+.client-book-shell .booking-workflow.is-open > .workflow-card { background: #fff !important; box-shadow: none; }
+.client-book-shell .booking-workflow.is-open > .workflow-card > :is(.workflow-head,.flow-step,.workflow-actions),
+.client-book-shell .booking-workflow.is-open .diary-inline-actions { background: #fff !important; box-shadow: none; }
+@media (max-width: 760px) { .client-book-shell .client-home-icon-wrap { margin-top: 29px; } }
+
+body:has(.client-book-shell .booking-workflow.is-open) { background: #fff; }

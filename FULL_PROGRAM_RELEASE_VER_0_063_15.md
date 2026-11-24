@@ -1,0 +1,3 @@
+# ZipBook Ver-0.063.15
+Customer booking white canvas (shadow bleed removed), live next-date selection in practice timezone, mobile logo +25px, tenant-specific data-only reset, five-hour platform session.
+No new SQL or environment variable. Suspend the target business before deleting data, back up first, type DELETE followed by its slug, then re-enable diary/public bookings as desired. No settings are reset. Existing legacy demo reset remains separate. Session uses a signed host-only HttpOnly SameSite=Strict cookie with fixed expiry and the existing platform key; signing out clears this browser's cookie. Key rotation invalidates all outstanding tokens.

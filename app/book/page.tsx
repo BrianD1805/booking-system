@@ -4,9 +4,9 @@ import { DatePickerField } from '@/components/DatePickerField';
 import { ZipSelect } from '@/components/ZipSelect';
 import { PHONE_COUNTRIES as ALL_PHONE_COUNTRIES, type PhoneCountry } from '@/lib/phoneCountries';
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
-import { APP_VERSION, procedureDuration, type ClientLoginBooking, type ClientLoginProfile } from '@/lib/mockData';
+import { APP_VERSION, procedureDuration, type Booking, type ClientLoginBooking, type ClientLoginProfile } from '@/lib/mockData';
 import { FIRST_AVAILABLE, getAvailabilityForDate, getDateOffset, getDayLabel, practitionersForProcedure } from '@/lib/availability';
-import { bookingStartIsPast, getPracticeToday } from '@/lib/bookingTime.mjs';
+import { assertClientBookingRules, bookingStartIsPast, getPracticeToday } from '@/lib/bookingTime.mjs';
 import { useBookingDatabase } from '@/lib/useBookingDatabase';
 import { ClientInstallPrompt } from './ClientInstallPrompt';
 
@@ -249,6 +249,8 @@ export default function BookPage() {
   const [pushSubscribed, setPushSubscribed] = useState(false);
   const [pushBusy, setPushBusy] = useState(false);
   const [pushNotice, setPushNotice] = useState('');
+  const dateSearch = useRef<AbortController | null>(null);
+  const [findingDate, setFindingDate] = useState(false);
   const [step, setStep] = useState<FlowStep>(0);
   const [patientName, setPatientName] = useState('');
   const [patientPhone, setPatientPhone] = useState('');
@@ -393,6 +395,10 @@ export default function BookPage() {
     return () => { cancelled = true; };
   }, [clientSessionToken,demoMode]);
 
+  useEffect(() => {
+    return () => { dateSearch.current?.abort(); };
+  }, [bookingOpen, step, activeProcedureId, practitionerChoice]);
+
   function resetSelection() {
     setSelectedTime('');
     setSelectedPractitionerId('');
@@ -461,6 +467,7 @@ export default function BookPage() {
       return;
     }
     if (bookingOpen) {
+      dateSearch.current?.abort();
       setTimePickerOpen(false);
       setBookingOpen(false);
       setEditingClientBookingId(null);
@@ -484,6 +491,8 @@ export default function BookPage() {
   function openBookingFlow() {
     pushClientModalHistory();
     setEditingClientBookingId(null);
+    resetSelection();
+    setSelectedDate(getPracticeToday(new Date(), practiceTimeZone));
     setClientBookingNotice('');
     if (clientProfile) prefillBookingDetailsFromProfile(clientProfile);
     setStep(0);
@@ -905,6 +914,36 @@ export default function BookPage() {
     const container = document.querySelector<HTMLElement>('.client-auth-card > .client-account-fields');
     if (container) container.scrollTop = 0;
   }, [clientLoginStage]);
+
+  async function advanceBookingStep() {
+    if (step !== 1 || editingClientBookingId) { setStep(current => Math.min(3, current + 1) as FlowStep); return; }
+    if (findingDate) return;
+    const controller = new AbortController();
+    dateSearch.current = controller;
+    setFindingDate(true);
+    setClientBookingNotice('');
+    const current = new Date();
+    const today = getPracticeToday(current, practiceTimeZone);
+    const horizon = Math.max(0, Number(practiceSettings.maxBookingAheadDays ?? 90));
+    const eligible = (date: string, time: string) => { try { assertClientBookingRules(date, time, practiceSettings, current); return true; } catch { return false; } };
+    try {
+      for (let offset = 0; offset <= horizon; offset++) {
+        if (controller.signal.aborted) return;
+        const date = new Date(Date.parse(today + 'T00:00:00Z') + offset * 86400000).toISOString().slice(0, 10);
+        if (!getAvailabilityForDate([], date, activeProcedureId, context, practitionerChoice).some(slot => slot.available && eligible(date, slot.time))) continue;
+        const response = await fetch(`/api/availability?date=${encodeURIComponent(date)}`, { cache: 'no-store', signal: controller.signal, headers: clientSessionToken ? { Authorization: `Bearer ${clientSessionToken}` } : {} });
+        if (!response.ok) throw new Error('Could not check the next available date. Please choose a date manually.');
+        const data = await response.json() as { bookings: Booking[] };
+        if (getAvailabilityForDate(data.bookings, date, activeProcedureId, context, practitionerChoice).some(slot => slot.available && eligible(date, slot.time))) {
+          if (controller.signal.aborted) return;
+          setSelectedDate(date); resetSelection(); setStep(2); return;
+        }
+      }
+      if (!controller.signal.aborted) { setSelectedDate(today); resetSelection(); setClientBookingNotice('No available appointment dates were found within the booking window.'); setStep(2); }
+    } catch (error) {
+      if (!controller.signal.aborted) { setClientBookingNotice(error instanceof Error ? error.message : 'Could not check availability.'); setStep(2); }
+    } finally { if (dateSearch.current === controller) { dateSearch.current = null; setFindingDate(false); } }
+  }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -1526,15 +1565,15 @@ export default function BookPage() {
 
           {step !== 2 && (
             <div className="workflow-actions">
-              <button className="pill" type="button" disabled={step === 0 || saving} onClick={() => setStep((current) => Math.max(0, current - 1) as FlowStep)}>Back</button>
+              <button className="pill" type="button" disabled={step === 0 || saving || findingDate} onClick={() => setStep((current) => Math.max(0, current - 1) as FlowStep)}>Back</button>
               {step < 3 ? (
                 <button
                   className="button primary"
                   type="button"
-                  disabled={(step === 0 && !canGoToTreatment) || (step === 1 && !canGoToDiary)}
-                  onClick={() => setStep((current) => Math.min(3, current + 1) as FlowStep)}
+                  disabled={findingDate || loading || (step === 0 && !canGoToTreatment) || (step === 1 && !canGoToDiary)}
+                  onClick={() => void advanceBookingStep()}
                 >
-                  Continue
+                  {findingDate ? 'Finding available date…' : 'Continue'}
                 </button>
               ) : (
                 <button className="button primary" type="submit" disabled={!canConfirm || saving || editingSaving || Boolean(error)}>

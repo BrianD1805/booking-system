@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server';
 import { withPlatformRequest, platformJson } from '@/lib/platformRequest';
-import { listBusinesses, provisionBusiness, reissueInvitation, setBusinessState } from '@/lib/platformStore';
+import { listBusinesses, provisionBusiness, reissueInvitation, setBusinessState, deleteBusinessCustomerData } from '@/lib/platformStore';
 import { validateBusiness } from '@/lib/platformPolicy.mjs';
 import { isEmailProviderConfigured, sendZipBookEmail } from '@/lib/emailDelivery';
 export const dynamic='force-dynamic';
@@ -23,6 +23,7 @@ export async function POST(request: NextRequest) {
     }
     const id=typeof body.id==='string'?body.id:'';
     if(!/^practice-[a-f0-9-]{36}$/.test(id)) return platformJson({error:'Invalid business.'},400);
+    if(body.action==='delete-data') return platformJson({ok:true,...await deleteBusinessCustomerData(id,body.confirmation)});
     if(body.action==='resend') {
       if(!isEmailProviderConfigured()) return platformJson({error:'Configure Resend before sending an invitation.'},400);
       return invite(await reissueInvitation(id));
