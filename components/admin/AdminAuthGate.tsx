@@ -108,7 +108,13 @@ export function AdminAuthGate({ children }: { children: React.ReactNode }) {
         setBusiness(resolved);
         setMasterKey(resolved.legacy ? stored.masterKey : '');
         if (!resolved.legacy || stored.masterKey) await checkStatus(resolved.legacy ? stored.masterKey : '', stored.staffToken, false, resolved.legacy);
-        else setChecking(false);
+        else {
+          // A verified 15-minute public demo visitor needs no master key.
+          const demoResponse=await fetch('/api/demo/session',{cache:'no-store'}).catch(()=>null);
+          const demo=demoResponse?.ok?await demoResponse.json().catch(()=>null):null;
+          if(demo?.active && demo.realDemo) await checkStatus('', '', false, true);
+          else setChecking(false);
+        }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Business is unavailable.');
         setChecking(false);
@@ -228,6 +234,12 @@ export function AdminAuthGate({ children }: { children: React.ReactNode }) {
   }
 
   function signOut() {
+    if(staff?.role==='Demo / Reception') {
+      void fetch('/api/demo/logout', {method:'POST',headers:{'Content-Type':'application/json'},body:'{}'})
+        .finally(()=>{window.location.assign(window.location.hostname==='localhost' ? '/demo' : 'https://zipbook.app/demo');});
+      setStaff(null);
+      return;
+    }
     void fetch('/api/admin-auth/staff/logout', {method:'POST',headers:makeAdminAuthHeaders()}).catch(()=>undefined);
     adminSessionRemove(STAFF_TOKEN_STORAGE);
     adminSessionRemove(STAFF_PROFILE_STORAGE);
@@ -242,6 +254,9 @@ export function AdminAuthGate({ children }: { children: React.ReactNode }) {
   }
 
   if (!business) return <main className="shell fresh-shell admin-shell"><section className="card clean-panel"><h1 className="section-title">Business unavailable</h1><p>{error || 'Please check your business address.'}</p></section></main>;
+  if (staff?.role==='Demo / Reception' && !['/admin','/admin/reception','/admin/data'].includes(pathname || '')) {
+    return <><AdminToastHost/><main className="shell fresh-shell admin-shell"><section className="card clean-panel"><p className="badge blue-badge">Public demo · restricted access</p><h1 className="section-title">Protected settings are not available to visitors.</h1><p>The actual diary, reception flow and fictional client search are available. Staff, security, practice settings and integrations stay owner-only.</p><a className="button primary" href="/admin">Return to the Practice Diary</a></section></main></>;
+  }
   if (!staff) {
     const masterKeyScreen = business.legacy && staffCount === null;
     const firstStaffScreen = business.legacy && staffCount === 0;
@@ -384,7 +399,7 @@ export function AdminAuthGate({ children }: { children: React.ReactNode }) {
       <AdminToastHost />
       <div className="admin-staff-bar">
         <div className="admin-staff-identity">
-          <span>Signed in</span>
+          <span>{staff.role==='Demo / Reception' ? 'Temporary public demo' : 'Signed in'}</span>
           <strong>{staff.fullName}</strong>
           <small>{business.legacy ? staff.role : `${business.name} · ${staff.role}`}</small>
         </div>
@@ -409,10 +424,10 @@ export function AdminAuthGate({ children }: { children: React.ReactNode }) {
             <div id="adminMegaMenu" className="admin-mega-menu" role="menu">
               <div className="admin-mega-menu-head">
                 <strong>ZipBook Admin</strong>
-                <span>One clean menu for diary, reception, clients and practice tools.</span>
+                <span>{staff.role==='Demo / Reception' ? 'Explore the actual Practice Diary with test data. Settings remain private.' : 'One clean menu for diary, reception, clients and practice tools.'}</span>
               </div>
               <div className="admin-mega-menu-grid">
-                {adminMenuItems.filter(item => (item.href !== '/admin/integrations' || !business.legacy) && (business.legacy || staff.role === "Owner" || !["/admin/staff", "/admin/settings", "/admin/integrations"].includes(item.href))).map((item) => {
+                {adminMenuItems.filter(item => staff.role==='Demo / Reception' ? ['/admin','/admin/reception','/admin/data'].includes(item.href) : (item.href !== '/admin/integrations' || !business.legacy) && (business.legacy || staff.role === "Owner" || !["/admin/staff", "/admin/settings", "/admin/integrations"].includes(item.href))).map((item) => {
                   const active = pathname === item.href || (item.href !== '/admin' && pathname?.startsWith(item.href));
                   return (
                     <a key={item.href} href={item.href} className={active ? 'active' : ''} role="menuitem" onClick={() => setMenuOpen(false)}>
@@ -422,11 +437,12 @@ export function AdminAuthGate({ children }: { children: React.ReactNode }) {
                   );
                 })}
               </div>
-              <button type="button" className="admin-mega-signout" onClick={() => { setMenuOpen(false); signOut(); }}>Staff sign out</button>
+              <button type="button" className="admin-mega-signout" onClick={() => { setMenuOpen(false); signOut(); }}>{staff.role==='Demo / Reception' ? 'End demo session' : 'Staff sign out'}</button>
             </div>
           )}
         </div>
       </div>
+      {staff.role==='Demo / Reception' && <div className="zip-demo-diary-banner" role="status">LIVE ZIPBOOK DEMO · Real connected Practice Diary · Test data only · <a href="https://zipbook.app/demo">Back to demo</a></div>}
       {isAdminUtility ? children : children}
     </>
   );

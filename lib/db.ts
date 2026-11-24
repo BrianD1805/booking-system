@@ -9,6 +9,7 @@ import { deliverClientOtp, isOtpTestModeEnabled } from './otpDelivery';
 import { buildClientBookingConfirmationEmailHtml, sendZipBookEmail } from './emailDelivery';
 import { isPhonePushUserAgent, isPushDeliveryConfigured, normalisePushSubscription, sendPushNotification, type BrowserPushSubscription, type StoredPushSubscription } from './pushDelivery';
 import { currentTenant } from './tenantScope.mjs';
+import {isRealDemoTenant} from './publicDemoAuth';
 import { publicBookingSlots } from './publicAvailability.mjs';
 import { addMinutes } from '@/lib/availability';
 import {
@@ -332,6 +333,28 @@ async function createClientSession(customerId: string) {
     VALUES (${sessionId}, ${currentTenant().practiceId}, ${customerId}, ${hashSecret(sessionToken)}, NOW() + INTERVAL '30 days')
   `;
   return sessionToken;
+}
+
+// Real demonstration: a separate, short-lived customer identity per visitor.
+// All contact details are synthetic. Never send to a real person.
+export async function createTemporaryDemoClient(): Promise<{sessionToken:string;profile:ClientLoginProfile}> {
+  if(!isRealDemoTenant()) throw new Error('This business is not a public demonstration.');
+  const database=db();
+  const suffix=makeToken('demo').replace(/[^a-z0-9]/gi,'').slice(-14).toLowerCase();
+  const customerId=`demo-cust-${suffix}`;
+  const sessionToken=makeToken('client');
+  const sessionId=`demo-sess-${suffix}`;
+  const phone=`+120255501${String(Math.floor(Math.random()*100)).padStart(2,'0')}`;
+  const email=`visitor-${suffix}@example.invalid`;
+  await database.sql`
+    INSERT INTO customers(id,practice_id,full_name,phone,email,notes,has_client_login,last_seen_at)
+    VALUES(${customerId},${currentTenant().practiceId},${`Demo Visitor ${suffix.slice(-4)}`},${phone},${email},${'Fictional public demonstration record'},${true},NOW())
+  `;
+  await database.sql`
+    INSERT INTO client_sessions(id,practice_id,customer_id,session_token_hash,expires_at)
+    VALUES(${sessionId},${currentTenant().practiceId},${customerId},${hashSecret(sessionToken)},NOW()+INTERVAL '15 minutes')
+  `;
+  return {sessionToken,profile:await getClientProfile(customerId)};
 }
 
 function mapPractice(row: PracticeRow): PracticeSettings {
@@ -1066,6 +1089,7 @@ async function sendClientBookingConfirmation(input: {
   practitionerName: string;
   businessName: string;
 }): Promise<{ attempted: boolean; delivered: boolean; provider: string; recipient: string }> {
+  if(isRealDemoTenant()) return {attempted:false,delivered:false,provider:'demo-no-email',recipient:''};
   const recipient = input.booking.patientEmail.trim();
   if (!recipient) {
     return { attempted: false, delivered: false, provider: 'email-not-configured', recipient: '' };
@@ -1813,6 +1837,7 @@ async function getActiveAdminPushSubscriptions(): Promise<StoredPushSubscription
 }
 
 async function sendAdminBookingChangePush(input: { booking: Booking; action: 'booking_updated' | 'booking_deleted'; procedureName: string }) {
+  if(isRealDemoTenant()) return {attempted:false,delivered:0,failed:0,configured:false,provider:'demo-no-push',subscriptions:0};
   if (!isPushDeliveryConfigured()) {
     return { attempted: false, delivered: 0, failed: 0, configured: false, provider: 'web-push', subscriptions: 0 };
   }
@@ -1947,6 +1972,7 @@ async function sendClientBookingPushNotification(input: {
   body?: string;
   tagSuffix?: string;
 }): Promise<{ attempted: boolean; delivered: number; failed: number; configured: boolean; provider: string; subscriptions: number; error?: string }> {
+  if(isRealDemoTenant()) return {attempted:false,delivered:0,failed:0,configured:false,provider:'demo-no-push',subscriptions:0};
   if (!isPushDeliveryConfigured()) {
     return { attempted: false, delivered: 0, failed: 0, configured: false, provider: 'web-push', subscriptions: 0 };
   }

@@ -1,3 +1,7 @@
+# ZipBook Ver-0.063.6 — Full programme
+
+Full connected public demo of the real customer app and Practice Diary, tenant-restricted and Turnstile-protected. See `FULL_PROGRAM_RELEASE_VER_0_063_6.md` and `supabase/zipbook_real_demo_ver_0_063_6.sql` for required security and deployment instructions. No master key is shared with demo visitors.
+
 # ZipBook — Ver-0.063.5
 
 A ZippyWeb product. Multi-tenant SaaS appointment scheduling, booking and client account system, deployed using GitHub, Netlify and Supabase. Commercial plans, payments and subscriptions will be managed by ZippyWeb, not duplicated in ZipBook.

@@ -2,8 +2,26 @@ import {createHash} from 'node:crypto';
 import {issuePublicDemoSession,readPublicDemoSession} from './publicDemoSession.mjs';
 import {NextRequest, NextResponse} from 'next/server';
 import {platformTransaction} from './dbProvider';
+import {currentTenant} from './tenantScope.mjs';
+import {getDefaultPracticeId} from './tenant';
 
 const DEMO_COOKIE = 'zipbook_public_demo';
+const DEMO_DOMAIN = 'zipbook.app';
+const demoAllowedId = () => (process.env.ZIPBOOK_REAL_DEMO_TENANT_ID || '').trim();
+
+// Deliberate multi-part opt-in. Never turn an ordinary live tenant into a public demo by accident.
+export function realDemoConfigured() {
+  const id=demoAllowedId();
+  return isPublicDemoEnabled() && process.env.ZIPBOOK_REAL_DEMO_ENABLED === '1' &&
+    process.env.ZIPBOOK_REAL_DEMO_DATA_CONFIRMED === 'YES_TEST_DATA_ONLY' &&
+    Boolean(id) && id===getDefaultPracticeId() &&
+    (process.env.ZIPBOOK_DEMO_RESET_ALLOWED_IDS || '').split(',').map(v=>v.trim()).includes(id);
+}
+export function isRealDemoTenant() {
+  const tenant=currentTenant();
+  return realDemoConfigured() && tenant.legacy && tenant.practiceId===demoAllowedId();
+}
+
 const DEMO_TTL_SECONDS = 15 * 60;
 const noStore = {'Cache-Control':'private, no-store, max-age=0', 'X-Robots-Tag':'noindex, nofollow'};
 
@@ -18,8 +36,13 @@ export function isPublicDemoEnabled() {return envReady();}
 
 export function demoHostAllowed(request:NextRequest) {
   const host=(request.headers.get('host') || '').split(':')[0].toLowerCase();
-  return host === 'zipbook.app' || host === 'www.zipbook.app' ||
+  return host === 'zipbook.app' || host === 'www.zipbook.app' || host === 'admin.zipbook.app' ||
     (process.env.NODE_ENV !== 'production' && (host === 'localhost' || host === '127.0.0.1'));
+}
+
+export function demoStartHostAllowed(request:NextRequest) {
+  const host=(request.headers.get('host')||'').split(':')[0].toLowerCase();
+  return host==='zipbook.app' || host==='www.zipbook.app' || (process.env.NODE_ENV!=='production' && ['localhost','127.0.0.1'].includes(host));
 }
 
 export function demoJson(data:unknown,status=200) {
@@ -48,10 +71,10 @@ export function verifyDemoToken(token:string,now=Date.now()) {
   return readPublicDemoSession(secret(),token,now);
 }
 export function demoCookieOn(response:NextResponse,token:string) {
-  response.cookies.set(DEMO_COOKIE,token,{httpOnly:true,sameSite:'lax',secure:process.env.NODE_ENV==='production',path:'/',maxAge:DEMO_TTL_SECONDS});
+  response.cookies.set(DEMO_COOKIE,token,{httpOnly:true,sameSite:'lax',secure:process.env.NODE_ENV==='production',path:'/',domain:process.env.NODE_ENV==='production'?DEMO_DOMAIN:undefined,maxAge:DEMO_TTL_SECONDS});
 }
 export function demoCookieOff(response:NextResponse) {
-  response.cookies.set(DEMO_COOKIE,'',{httpOnly:true,sameSite:'lax',secure:process.env.NODE_ENV==='production',path:'/',maxAge:0});
+  response.cookies.set(DEMO_COOKIE,'',{httpOnly:true,sameSite:'lax',secure:process.env.NODE_ENV==='production',path:'/',domain:process.env.NODE_ENV==='production'?DEMO_DOMAIN:undefined,maxAge:0});
 }
 export function getDemoSession(request:NextRequest) {
   if(!demoHostAllowed(request)) return null;
@@ -95,3 +118,45 @@ export async function verifyDemoChallenge(request:NextRequest,token:string) {
 }
 
 export function publicDemoSiteKey() {return envReady()?process.env.ZIPBOOK_DEMO_TURNSTILE_SITE_KEY||'':'';}
+
+
+// Demo visitors can only use real diary appointments and read fictional customer
+// records. No settings, staff management, audit, password reset or platform APIs.
+export function demoDiaryApiPermitted(path:string,method:string) {
+  if(method==='GET' && (path==='/api/bootstrap' || path==='/api/bookings' || path==='/api/customers' || path==='/api/admin-data/customers' ||
+    path==='/api/admin-data/booking-alerts' || /^\/api\/admin-data\/customers\/[^/]+$/.test(path))) return true;
+  if(path==='/api/bookings' && method==='POST') return true;
+  if(/^\/api\/bookings\/[^/]+$/.test(path) && (method==='PATCH'||method==='DELETE')) return true;
+  return false;
+}
+
+export function demoVirtualStaff() {
+  const time=new Date().toISOString();
+  return {id:'demo-reception',fullName:'Demo Reception',email:'demo@example.invalid',phone:'',role:'Demo / Reception',active:true,createdAt:time,updatedAt:time};
+}
+
+export function requireDemoWriteOrigin(request:NextRequest) {
+  const origin=request.headers.get('origin')||'';
+  const target=request.headers.get('host')||'';
+  if(!origin) return request.headers.get('sec-fetch-site')==='same-origin';
+  try {
+    const url=new URL(origin);
+    return url.host.toLowerCase()===target.toLowerCase() &&
+      (url.protocol==='https:' || (process.env.NODE_ENV!=='production' && url.protocol==='http:'));
+  } catch {return false;}
+}
+
+// Shared database rate limiter, keyed to the signed visitor token, not client-supplied IDs.
+export async function demoActionRateCheck(request:NextRequest) {
+  const token=request.cookies.get(DEMO_COOKIE)?.value||'';
+  if(!getDemoSession(request) || !token) return false;
+  const fingerprint=createHash('sha256').update(`zipbook-real-demo-action:${secret()}:${token}`).digest('hex');
+  const result=await platformTransaction(async client=>(await client.query<{attempts:number}>(`
+    INSERT INTO public.zipbook_public_demo_attempts(fingerprint,window_start,attempts)
+    VALUES($1,now(),1)
+    ON CONFLICT (fingerprint) DO UPDATE SET
+      attempts=CASE WHEN zipbook_public_demo_attempts.window_start < now()-interval '15 minutes' THEN 1 ELSE LEAST(zipbook_public_demo_attempts.attempts+1,100) END,
+      window_start=CASE WHEN zipbook_public_demo_attempts.window_start < now()-interval '15 minutes' THEN now() ELSE zipbook_public_demo_attempts.window_start END
+    RETURNING attempts`,[fingerprint])).rows[0]);
+  return (result?.attempts ?? 100)<=20;
+}

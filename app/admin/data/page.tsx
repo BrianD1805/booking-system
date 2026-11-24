@@ -19,7 +19,9 @@ type AdminClient = {
 
 export default function AdminDataPage() {
   const [legacy, setLegacy] = useState(false);
+  const [publicDemo, setPublicDemo] = useState(false);
   useEffect(()=>{void fetch('/api/tenant-context',{cache:'no-store'}).then(r=>r.json()).then(p=>setLegacy(p.tenant?.legacy === true)).catch(()=>undefined);},[]);
+  useEffect(()=>{void fetch('/api/demo/session',{cache:'no-store'}).then(r=>r.ok?r.json():null).then(v=>setPublicDemo(Boolean(v?.active && v?.realDemo))).catch(()=>undefined);},[]);
   const [query, setQuery] = useState('');
   const [clients, setClients] = useState<AdminClient[]>([]);
   const [loading, setLoading] = useState(false);
@@ -110,10 +112,10 @@ export default function AdminDataPage() {
         <div>
           <p className="badge blue-badge">Clients · {APP_VERSION}</p>
           <h1 className="hero-title clean-title">Clients.</h1>
-          <p className="hero-copy tight-copy">Search, add, edit and safely manage client records, family listings, documents, contact preferences and notes.</p>
+          <p className="hero-copy tight-copy">{publicDemo ? 'Explore fictional test clients from the live demonstration diary. Personal details and settings cannot be changed.' : 'Search, add, edit and safely manage client records, family listings, documents, contact preferences and notes.'}</p>
         </div>
         <div className="command-actions admin-compact-actions">
-          <Link href="/admin/data/new" className="button primary admin-compact-button">Add client</Link>
+          {!publicDemo && <Link href="/admin/data/new" className="button primary admin-compact-button">Add client</Link>}
           <button type="button" onClick={() => loadClients()} disabled={loading} className={`pill admin-busy-button admin-compact-button ${loading ? 'is-loading' : ''}`}>{loading && <span className="admin-spinner" aria-hidden="true" />}Load clients</button>
         </div>
       </section>
@@ -137,7 +139,7 @@ export default function AdminDataPage() {
           </div>
           <div className="clients-one-line-list">
             {clients.map((client) => (
-              <Link key={client.id} className="client-one-line-row" href={`/admin/data/${encodeURIComponent(client.id)}`}>
+              <Link key={client.id} className="client-one-line-row" href={publicDemo ? "/admin/data" : `/admin/data/${encodeURIComponent(client.id)}`}>
                 <strong>{client.fullName}</strong>
                 <span>{client.phone}</span>
               </Link>
@@ -147,7 +149,7 @@ export default function AdminDataPage() {
         </div>
       </section>
       <p className="micro-copy clients-security-note">Staff login verified for this browser session. Client and family record changes are recorded in the audit trail.</p>
-      {legacy && <section className="card clean-panel admin-data-panel">
+      {legacy && !publicDemo && <section className="card clean-panel admin-data-panel">
         <div className="section-heading-row compact-row">
           <div>
             <h2 className="section-title compact">Demo cleanup</h2>

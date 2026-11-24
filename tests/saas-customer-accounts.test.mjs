@@ -19,7 +19,8 @@ test('tenant hostname remains authoritative and SaaS customers use only verified
   const tenant = read('lib/tenantRequest.ts');
   assert.match(tenant, /classifyTenantHost\(request.headers.get\('host'\)/);
   assert.match(tenant, /lookupTenant\(host.kind === 'legacy'/);
-  assert.doesNotMatch(tenant, /path.startsWith\('\/api\/client-login\/'\)/);
+  assert.match(tenant, /if\(isRealDemoTenant\(\)\)/);
+  assert.match(tenant, /path.startsWith\('\/api\/client-login\/'\)/);
   assert.match(tenant, /path === '\/api\/client-login\/request-code'/);
   assert.match(tenant, /path === '\/api\/client-login\/verify'/);
   const routes = ['login', 'session', 'sign-up/request-code', 'sign-up/verify', 'password-reset/request-code','password-reset/confirm', 'bookings/[id]', 'logout'];

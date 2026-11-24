@@ -4,11 +4,15 @@ import { NextRequest, NextResponse } from 'next/server';
 import { verifyAdminDataKey } from '@/lib/adminDataAuth';
 import { countAdminStaffMembers, getAdminStaffBySession } from '@/lib/db';
 import { readStaffToken } from '@/lib/adminStaffAuth';
+import {getDemoSession,isRealDemoTenant,demoVirtualStaff} from '@/lib/publicDemoAuth';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
   return withTenantRequest(request, async () => {
+  if (isRealDemoTenant() && getDemoSession(request) && !verifyAdminDataKey(request)) {
+    return NextResponse.json({staffCount:1,staff:demoVirtualStaff(),authenticated:true,demo:true},{headers:{'Cache-Control':'private, no-store'}});
+  }
   if (currentTenant().legacy && !verifyAdminDataKey(request)) {
     return NextResponse.json({ error: 'Master admin key is required.' }, { status: 401 });
   }

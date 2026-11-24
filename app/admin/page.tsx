@@ -153,6 +153,8 @@ export default function AdminPage() {
   const [editingBookingId, setEditingBookingId] = useState<string | null>(null);
   const [liveBookingAlert, setLiveBookingAlert] = useState<BookingChangeAlert | null>(null);
   const [adminPushSupported, setAdminPushSupported] = useState(false);
+  const [demoVisitor, setDemoVisitor] = useState(false);
+  useEffect(()=>{void fetch('/api/demo/session',{cache:'no-store'}).then(r=>r.ok?r.json():null).then(v=>setDemoVisitor(Boolean(v?.active && v?.realDemo))).catch(()=>undefined);},[]);
   const [adminPushConfigured, setAdminPushConfigured] = useState(false);
   const [adminPushSubscribed, setAdminPushSubscribed] = useState(false);
   const [adminPushBusy, setAdminPushBusy] = useState(false);
@@ -217,7 +219,7 @@ export default function AdminPage() {
     let cancelled = false;
 
     async function checkAdminPhonePushReadiness() {
-      const supported = adminBrowserPushSupported();
+      const supported = demoVisitor ? false : adminBrowserPushSupported();
       if (cancelled) return;
 
       setAdminPushSupported(supported);
@@ -253,9 +255,10 @@ export default function AdminPage() {
 
     void checkAdminPhonePushReadiness();
     return () => { cancelled = true; };
-  }, []);
+  }, [demoVisitor]);
 
   async function activateAdminPhonePush() {
+    if(demoVisitor) {setAdminPushNotice('Push is disabled for public demo visits.');return;}
     if (!adminBrowserPushSupported()) {
       setAdminPushSupported(false);
       setAdminPushNotice('Phone push alerts only work on a supported mobile browser/app. Desktop and laptop use the live diary popup.');

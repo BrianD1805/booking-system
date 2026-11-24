@@ -28,15 +28,18 @@ test('temporary public demo is OFF by default, must pass Turnstile and has DB-ba
   assert.match(sql,/ENABLE ROW LEVEL SECURITY/);
   assert.match(sql,/REVOKE ALL.*zipbook_tenant_runtime/);
 });
-test('demo cannot access real practice, customer data or master login',()=>{
+test('public demo is now the real booking and diary, with no master key passed to visitors',()=>{
   const page=source('app/demo/page.tsx');
-  assert.match(page,/fictional data/);
-  assert.match(page,/fetch\('\/api\/demo\/start'/);
-  assert.doesNotMatch(page,/\/api\/admin-|\/api\/bookings|x-zipbook-platform-key|staff-login/);
+  assert.match(page,/href="\/book"/);
+  assert.match(page,/admin\.zipbook\.app\/admin\?demo=1/);
+  assert.match(page,/clientSessionToken/);
+  assert.doesNotMatch(page,/initialItems|fictional appointment added|mockBooking/);
   const runtime=source('lib/publicDemoAuth.ts');
   assert.match(runtime,/httpOnly:true/);
   assert.match(runtime,/sameSite:'lax'/);
   assert.match(runtime,/getDemoSession/);
+  assert.match(runtime,/demoDiaryApiPermitted/);
+  assert.match(runtime,/domain:process.env.NODE_ENV==='production'\?DEMO_DOMAIN/);
   const proxy=source('proxy.ts');
   assert.match(proxy,/pathname === '\/demo'/);
   assert.match(proxy,/X-Robots-Tag/);

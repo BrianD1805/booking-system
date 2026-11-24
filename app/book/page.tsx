@@ -210,6 +210,8 @@ export default function BookPage() {
   const [clientPasswordResetOpen, setClientPasswordResetOpen] = useState(false);
   const modalHistoryRef = useRef(false);
   const [businessInfo, setBusinessInfo] = useState<{name:string;legacy:boolean;publicBookings?:boolean} | null>(null);
+  const [demoMode, setDemoMode] = useState(false);
+  useEffect(()=>{void fetch('/api/demo/session',{cache:'no-store'}).then(r=>r.ok?r.json():null).then(v=>setDemoMode(Boolean(v?.active && v?.realDemo))).catch(()=>undefined);},[]);
   useEffect(() => {
     let cancelled = false;
     void fetch('/api/tenant-context',{cache:'no-store'}).then(async response => {
@@ -346,7 +348,7 @@ export default function BookPage() {
     let cancelled = false;
 
     async function checkPushReadiness() {
-      const supported = browserPushSupported();
+      const supported = demoMode ? false : browserPushSupported();
       if (cancelled) return;
       setPushSupported(supported);
       setPushSubscribed(false);
@@ -380,7 +382,7 @@ export default function BookPage() {
 
     void checkPushReadiness();
     return () => { cancelled = true; };
-  }, [clientSessionToken]);
+  }, [clientSessionToken,demoMode]);
 
   function resetSelection() {
     setSelectedTime('');
@@ -954,6 +956,9 @@ export default function BookPage() {
             Make a booking
           </button>
         </div>
+        {demoMode && (
+          <p className="client-signed-in-note" role="status"><strong>Public demo:</strong> You are using the real booking application with fictional customer data. <a href="/demo">Open both demo apps</a>.</p>
+        )}
         {clientProfile && (
           <p className="client-signed-in-note" role="status">
             Signed in as <strong>{clientProfile.customer.fullName === 'Client user' ? clientProfile.customer.phone : clientProfile.customer.fullName}</strong>
