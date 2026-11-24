@@ -8,7 +8,6 @@ import { Header } from '@/components/Header';
 import { APP_VERSION, practitionerName, procedureName, type Booking, type BookingStatus, type Customer } from '@/lib/mockData';
 import { FIRST_AVAILABLE, getAvailabilityForDate, getDiarySlotsForDate, getDateOffset, getDayLabel, practitionersForProcedure } from '@/lib/availability';
 import { bookingStartIsPast, getPracticeToday } from '@/lib/bookingTime.mjs';
-import { demoLocalTime, demoLocalRange, demoLocalDayLabel } from '@/lib/demoLocalTime.mjs';
 import { useBookingDatabase } from '@/lib/useBookingDatabase';
 import { makeAdminAuthHeaders } from '@/components/admin/AdminAuthGate';
 import { showAdminToast } from '@/components/admin/AdminToast';
@@ -96,10 +95,6 @@ function slotStartsInsideSelectedAppointment(slotTime: string, selectedStartTime
   return slotStart > selectedStart && slotStart < selectedEnd;
 }
 
-function formatTwelveHourClock(date: Date) {
-  return date.toLocaleTimeString('en-GB', { hour: 'numeric', minute: '2-digit', hour12: true });
-}
-
 function bookingHasPassed(selectedDate: string, endTime: string, now: Date, timeZone?: string) {
   return bookingStartIsPast(selectedDate, endTime, timeZone, now);
 }
@@ -134,6 +129,7 @@ function bookingAlertTitle(action: string) {
 
 export default function AdminPage() {
   const [selectedDate, setSelectedDate] = useState(() => getPracticeToday());
+  const initialPracticeDateSynced = useRef(false);
   const [procedureId, setProcedureId] = useState('checkup');
   const [selectedPractitionerId, setSelectedPractitionerId] = useState('practitioner_001');
   const [diaryPractitionerFilter, setDiaryPractitionerFilter] = useState('all');
@@ -206,17 +202,18 @@ export default function AdminPage() {
     ? visibleOpenSlots.reduce((total, slot) => total + (slot.availablePractitioners?.length ?? (slot.available ? 1 : 0)), 0)
     : visibleOpenSlots.length;
   const upcomingBookingCount = dateBookings.filter((booking) => !bookingHasPassed(selectedDate, booking.endTime, now, practiceSettings.timezone)).length;
-  // The normal diary clock is in the practice's timezone, like its slots.
-  // Only public demo visitors see slots converted to their own device timezone.
   const practiceTimeZone = practiceSettings.timezone || 'Africa/Nairobi';
-  const localTimeZone = demoVisitor ? Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC' : '';
-  const practiceClockLabel = new Intl.DateTimeFormat('en-GB', {
+  useEffect(() => {
+    if (loading || initialPracticeDateSynced.current) return;
+    initialPracticeDateSynced.current = true;
+    setSelectedDate(previous => previous === getPracticeToday() ? getPracticeToday(new Date(), practiceTimeZone) : previous);
+  }, [loading, practiceTimeZone]);
+  const currentClockLabel = new Intl.DateTimeFormat('en-GB', {
     timeZone: practiceTimeZone, hour: 'numeric', minute: '2-digit', hour12: true
   }).format(now);
-  const currentClockLabel = demoVisitor ? formatTwelveHourClock(now) : practiceClockLabel;
-  const showTime = (date: string, time: string) => demoVisitor ? demoLocalTime(date, time, practiceTimeZone, localTimeZone) : time;
-  const showRange = (date: string, start: string, end: string) => demoVisitor ? demoLocalRange(date, start, end, practiceTimeZone, localTimeZone) : `${start}–${end}`;
-  const lastRefreshedLabel = lastRefreshedAt ? new Date(lastRefreshedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true }) : 'Not refreshed yet';
+  const showTime = (_date: string, time: string) => time;
+  const showRange = (_date: string, start: string, end: string) => `${start}–${end}`;
+  const lastRefreshedLabel = lastRefreshedAt ? new Date(lastRefreshedAt).toLocaleTimeString('en-GB', { timeZone: practiceTimeZone, hour: 'numeric', minute: '2-digit', hour12: true }) : 'Not refreshed yet';
   const canSave = Boolean(selectedTime && activePractitionerId && patientName.trim() && patientPhone.trim() && patientEmail.trim()
     && !bookingStartIsPast(selectedDate, selectedTime, practiceSettings.timezone, now));
 
@@ -593,7 +590,7 @@ export default function AdminPage() {
           <div>
             <p className="badge blue-badge">Live diary update</p>
             <h2>{bookingAlertTitle(liveBookingAlert.action)}</h2>
-            <p>{liveBookingAlert.patientName} · {liveBookingAlert.procedureName}{liveBookingAlert.date ? ` · ${demoVisitor && liveBookingAlert.time ? demoLocalDayLabel(liveBookingAlert.date,liveBookingAlert.time,practiceTimeZone,localTimeZone) : getDayLabel(liveBookingAlert.date)}` : ''}{liveBookingAlert.time ? ` at ${showTime(liveBookingAlert.date, liveBookingAlert.time)}` : ''}</p>
+            <p>{liveBookingAlert.patientName} · {liveBookingAlert.procedureName}{liveBookingAlert.date ? ` · ${getDayLabel(liveBookingAlert.date)}` : ''}{liveBookingAlert.time ? ` at ${showTime(liveBookingAlert.date, liveBookingAlert.time)}` : ''}</p>
           </div>
           <div className="admin-live-alert-actions">
             <button className="button primary compact-button" type="button" onClick={() => { setLiveBookingAlert(null); void handleDiaryRefresh(); }}>Refresh diary</button>
@@ -611,11 +608,6 @@ export default function AdminPage() {
                 <span>{getDayLabel(selectedDate)} · {currentClockLabel}</span>
               </div>
               <p className="mini-copy">Visual {practiceSettings.slotIntervalMinutes}-minute diary preview for the selected date and practitioner filter.</p>
-              {demoVisitor ? (
-                <p className="demo-timezone-note" role="status">Demo times shown in your local timezone ({localTimeZone}). Practice calendar date and availability use {practiceTimeZone} (currently {practiceClockLabel}).</p>
-              ) : (
-                <p className="demo-timezone-note">Diary times and clock: {practiceTimeZone}.</p>
-              )}
             </div>
             <div className="admin-refresh-cluster"><span className="admin-clock-pill" aria-label="Current time">{currentClockLabel}</span><span className="admin-last-refreshed">Last refreshed {lastRefreshedLabel}</span><button type="button" onClick={() => void handleDiaryRefresh()} disabled={saving || loading} className={`pill admin-action-button ${loading ? 'is-loading' : ''}`}><span className="refresh-icon" aria-hidden="true">↻</span>{loading ? 'Refreshing…' : 'Refresh'}</button></div>
           </div>
@@ -817,7 +809,7 @@ export default function AdminPage() {
                 <h3>{editingBookingId ? 'Confirm booking changes' : 'Confirm staff booking'}</h3>
                 <p>{patientName || 'Patient name required'}{selectedCustomer ? ' · existing customer' : ' · ad-hoc/no-login booking'}</p>
                 <p>{procedureName(activeProcedureId, procedures)} with {practitionerName(activePractitionerId, practitioners)}</p>
-                <p>{getDayLabel(selectedDate)} at {selectedTime ? showTime(selectedDate, selectedTime) : 'choose a time'}{demoVisitor ? ' (local time)' : ''}</p>
+                <p>{getDayLabel(selectedDate)} at {selectedTime ? showTime(selectedDate, selectedTime) : 'choose a time'}</p>
               </div>
             </section>
           )}

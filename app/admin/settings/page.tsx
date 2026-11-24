@@ -6,6 +6,7 @@ import { Header } from '@/components/Header';
 import Link from 'next/link';
 import { ZipSelect } from '@/components/ZipSelect';
 import { PHONE_COUNTRIES } from '@/lib/phoneCountries';
+import { practiceTimeZoneOptions } from '@/lib/practiceTimeZones.mjs';
 import { APP_VERSION } from '@/lib/mockData';
 import { makeAdminAuthHeaders } from '@/components/admin/AdminAuthGate';
 import { showAdminToast } from '@/components/admin/AdminToast';
@@ -119,6 +120,7 @@ export default function AdminSettingsPage() {
   const selectedPractitioner = data.practitioners.find((item) => item.id === selectedPractitionerId) ?? null;
   const clinicianSchedule = useMemo(() => data.workingHours.filter((day) => day.practitionerId === selectedPractitionerId), [data.workingHours, selectedPractitionerId]);
   const clinicianLeave = useMemo(() => data.leave.filter((entry) => entry.practitionerId === selectedPractitionerId), [data.leave, selectedPractitionerId]);
+  const practiceTimeZoneOptionsList = useMemo(() => practiceTimeZoneOptions(settingsDraft.timezone), [settingsDraft.timezone]);
   const activeDays = clinicianSchedule.filter((day) => day.active).length;
   const selectedProcedures = selectedPractitioner?.procedureIds.map((id) => data.procedures.find((procedure) => procedure.id === id)?.name).filter(Boolean) ?? [];
 
@@ -245,7 +247,7 @@ export default function AdminSettingsPage() {
         {modal === 'profile' && <div className="settings-054-form-grid">
           {settingField('practiceName', 'Practice name')}{settingField('publicDisplayName', 'Public display name')}{settingField('email', 'Practice email', 'email')}{settingField('phone', 'Practice phone', 'tel')}
           <label className="settings-054-field span-two"><span>Address</span><textarea value={settingsDraft.address} onChange={(event) => setSettingsDraft({ ...settingsDraft, address: event.target.value })} /></label>
-          {settingField('timezone','Timezone (e.g. Europe/London)')}{settingField('currencyCode','Currency (GBP, KES…)')}{settingField('countryCode','Business country (GB, KE…)')}
+          <label className="settings-054-field"><span>Practice time zone</span><ZipSelect id="practice-time-zone" ariaLabel="Practice time zone" searchable value={settingsDraft.timezone} options={practiceTimeZoneOptionsList} onChange={(value) => setSettingsDraft((current) => ({ ...current, timezone: value }))} /></label>{settingField('currencyCode','Currency (GBP, KES…)')}{settingField('countryCode','Business country (GB, KE…)')}
           <label className="settings-054-field"><span>Default customer phone country</span><ZipSelect id="defaultClientPhoneCountry" ariaLabel="Default customer phone country" className="phone-country-select" value={settingsDraft.clientPhoneCountryCode} onChange={(value) => setSettingsDraft((current) => ({ ...current, clientPhoneCountryCode: value }))} searchable options={PHONE_COUNTRIES.map((country) => ({ value: country.iso, label: `${country.name} (${country.dialCode})`, buttonLabel: `${country.name} (${country.dialCode})`, flag: [...country.iso].map(letter => String.fromCodePoint(0x1f1e6 + letter.charCodeAt(0) - 65)).join(''), countryName: country.name, dialCode: country.dialCode }))} /></label>
           {field('Booking app URL', data.settings.clientAppUrl ?? '', () => undefined, { readOnly: true })}
         </div>}

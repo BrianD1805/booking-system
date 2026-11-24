@@ -153,7 +153,7 @@ export function ZipSelect({ id, value, options, onChange, ariaLabel, placeholder
 
   const optionsList = (
     <div className="zip-select-options-scroll" role="listbox" aria-label={isCountrySelector ? 'Countries and dialling codes' : ariaLabel ?? 'Options'}>
-      {visibleOptions.length === 0 && <p className="zip-select-empty">No matching country</p>}
+      {visibleOptions.length === 0 && <p className="zip-select-empty">{isCountrySelector ? 'No matching country' : 'No matching option'}</p>}
       {visibleOptions.map(option => (
         <div key={option.value}>
           {option.separatorAbove && !searchText.trim() && <div className="zip-select-divider" aria-hidden="true" />}

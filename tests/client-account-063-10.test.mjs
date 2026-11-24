@@ -57,12 +57,12 @@ test('incomplete sign-up fields give explicit feedback instead of a nonresponsiv
   assert.match(page, /if \(inputError\) \{\s*setClientSignupFeedback\(\{ kind: 'error', message: inputError \}\)/);
 });
 
-test('all release metadata, including new account UX tests, uses patch version 0.063.10', () => {
+test('account UX patch 10 stays registered after subsequent releases', () => {
   const pkg = JSON.parse(source('package.json'));
   const lock = JSON.parse(source('package-lock.json'));
-  assert.equal(pkg.version, '0.63.10');
+  assert.match(pkg.version, /^0\.63\.\d+$/);
   assert.equal(lock.version, pkg.version);
   assert.equal(lock.packages[''].version, pkg.version);
   assert.equal(pkg.scripts['test:account-ux-patch10'], 'node --test tests/client-account-063-10.test.mjs');
-  assert.match(source('lib/domains.ts'), /Ver-0\.063\.10/);
+  assert.match(source('lib/domains.ts'), /Ver-0\.063\.\d+/);
 });

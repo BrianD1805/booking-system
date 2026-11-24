@@ -3,12 +3,11 @@
 import { DatePickerField } from '@/components/DatePickerField';
 import { ZipSelect } from '@/components/ZipSelect';
 import Link from 'next/link';
-import { FormEvent, KeyboardEvent, useEffect, useMemo, useState } from 'react';
+import { FormEvent, KeyboardEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { Header } from '@/components/Header';
 import { APP_VERSION, practitionerName, procedureDuration, procedureName, type Booking, type Customer } from '@/lib/mockData';
 import { FIRST_AVAILABLE, getAvailabilityForDate, getDayLabel, practitionersForProcedure } from '@/lib/availability';
 import { bookingStartIsPast, getPracticeToday } from '@/lib/bookingTime.mjs';
-import { demoLocalTime, demoLocalRange, demoLocalDayLabel } from '@/lib/demoLocalTime.mjs';
 import { useBookingDatabase } from '@/lib/useBookingDatabase';
 import { makeAdminAuthHeaders } from '@/components/admin/AdminAuthGate';
 import { showAdminToast } from '@/components/admin/AdminToast';
@@ -43,6 +42,7 @@ function slotStartsInsideSelectedAppointment(slotTime: string, selectedStartTime
 
 export default function ReceptionBookingPage() {
   const [selectedDate, setSelectedDate] = useState(() => getPracticeToday());
+  const initialPracticeDateSynced = useRef(false);
   const [procedureId, setProcedureId] = useState('checkup');
   const [selectedPractitionerId, setSelectedPractitionerId] = useState(FIRST_AVAILABLE);
   const [selectedTime, setSelectedTime] = useState('');
@@ -61,15 +61,17 @@ export default function ReceptionBookingPage() {
   const [successBooking, setSuccessBooking] = useState<ReceptionSuccessBooking | null>(null);
   const [copyStatus, setCopyStatus] = useState('');
   const [now, setNow] = useState(() => new Date());
-  const [demoVisitor, setDemoVisitor] = useState(false);
-  useEffect(()=>{void fetch('/api/demo/session',{cache:'no-store'}).then(r=>r.ok?r.json():null).then(v=>setDemoVisitor(Boolean(v?.active && v?.realDemo))).catch(()=>undefined);},[]);
 
   const { bootstrap, bookings, loading, saving, error, lastRefreshedAt, createBooking, refresh } = useBookingDatabase(selectedDate);
   const { practiceSettings, procedures, blockedDates, blockedTimes, practitioners } = bootstrap;
   const practiceTimeZone = practiceSettings.timezone || 'Africa/Nairobi';
-  const localTimeZone = demoVisitor ? Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC' : '';
-  const showTime = (date: string, time: string) => demoVisitor ? demoLocalTime(date,time,practiceTimeZone,localTimeZone) : time;
-  const showRange = (date: string,start: string,end: string) => demoVisitor ? demoLocalRange(date,start,end,practiceTimeZone,localTimeZone) : `${start}–${end}`;
+  useEffect(() => {
+    if (loading || initialPracticeDateSynced.current) return;
+    initialPracticeDateSynced.current = true;
+    setSelectedDate(previous => previous === getPracticeToday() ? getPracticeToday(new Date(), practiceTimeZone) : previous);
+  }, [loading, practiceTimeZone]);
+  const showTime = (_date: string, time: string) => time;
+  const showRange = (_date: string,start: string,end: string) => `${start}–${end}`;
 
   const activeProcedureId = procedures.find((procedure) => procedure.id === procedureId)?.id ?? procedures[0]?.id ?? procedureId;
   const context = useMemo(() => ({
@@ -103,7 +105,7 @@ export default function ReceptionBookingPage() {
   const canSave = Boolean(selectedSlot?.available && selectedTime && bookingPractitionerId && hasPatientDetails && !selectedSlotHasPassed);
 
   const currentStep = !hasPatientDetails ? 1 : !selectedTime ? 2 : 3;
-  const lastRefreshedLabel = lastRefreshedAt ? new Date(lastRefreshedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true }) : 'Not refreshed yet';
+  const lastRefreshedLabel = lastRefreshedAt ? new Date(lastRefreshedAt).toLocaleTimeString('en-GB', { timeZone: practiceTimeZone, hour: 'numeric', minute: '2-digit', hour12: true }) : 'Not refreshed yet';
 
   useEffect(() => {
     const timer = window.setInterval(() => setNow(new Date()), 30000);
@@ -265,7 +267,7 @@ export default function ReceptionBookingPage() {
         treatment: procedureName(booking.procedureId, procedures),
         duration: procedureDuration(booking.procedureId, procedures),
         practitioner: practitionerName(booking.practitionerId, practitioners),
-        dateLabel: demoVisitor ? demoLocalDayLabel(booking.date,booking.time,practiceTimeZone,localTimeZone) : getDayLabel(booking.date),
+        dateLabel: getDayLabel(booking.date),
         time: showRange(booking.date,booking.time,booking.endTime)
       });
       setCopyStatus('');
@@ -403,7 +405,6 @@ export default function ReceptionBookingPage() {
 
           <div className="reception-day-note">
             <strong>{loading ? 'Loading diary…' : getDayLabel(selectedDate)}</strong>
-            {demoVisitor && <p className="demo-timezone-note">Demo times are shown in your device timezone ({localTimeZone}). Diary date and availability use {practiceTimeZone}.</p>}
             <span>{selectedTime ? `Selected ${selectedSlot?.endTime ? showRange(selectedDate,selectedTime,selectedSlot.endTime) : showTime(selectedDate,selectedTime)}` : 'Choose an available start time below.'}</span>
           </div>
 
@@ -447,7 +448,7 @@ export default function ReceptionBookingPage() {
             <p>{patientPhone || 'No mobile'} · {patientEmail || 'No email'}</p>
             <p>{procedureName(activeProcedureId, procedures)} · {procedureDuration(activeProcedureId, procedures)} mins</p>
             <p>{bookingPractitionerId ? practitionerName(bookingPractitionerId, practitioners) : 'Choose a practitioner/time'}</p>
-            <p>{selectedTime && demoVisitor ? demoLocalDayLabel(selectedDate,selectedTime,practiceTimeZone,localTimeZone) : getDayLabel(selectedDate)} · {selectedTime ? (selectedSlot?.endTime ? showRange(selectedDate,selectedTime,selectedSlot.endTime) : showTime(selectedDate,selectedTime)) : 'No time selected'}</p>
+            <p>{getDayLabel(selectedDate)} · {selectedTime ? (selectedSlot?.endTime ? showRange(selectedDate,selectedTime,selectedSlot.endTime) : showTime(selectedDate,selectedTime)) : 'No time selected'}</p>
           </div>
 
           <div className="form-row">

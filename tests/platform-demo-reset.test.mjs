@@ -4,7 +4,7 @@ import {readFileSync} from 'node:fs';
 import {demoResetAllowedIds, validateDemoSettings, assertDemoResetConfirmation} from '../lib/demoResetPolicy.mjs';
 import {businessManifest} from '../lib/brandingPolicy.mjs';
 const read=relative=>readFileSync(new URL(`../${relative}`,import.meta.url),'utf8');
-const baseline={workingDays:[1,2,3,4,5],workingStartTime:'08:30',workingEndTime:'17:00',slotIntervalMinutes:15,minimumNoticeHours:2,maxBookingAheadDays:90,lunchBreakEnabled:false,lunchBreakStart:'13:00',lunchBreakEnd:'14:00',allowSameDayBookings:true,cancellationPolicyNote:'Demo only',clientPhoneCountryCode:'GB'};
+const baseline={workingDays:[1,2,3,4,5],workingStartTime:'08:30',workingEndTime:'17:00',slotIntervalMinutes:15,minimumNoticeHours:2,maxBookingAheadDays:90,lunchBreakEnabled:false,lunchBreakStart:'13:00',lunchBreakEnd:'14:00',allowSameDayBookings:true,cancellationPolicyNote:'Demo only',clientPhoneCountryCode:'GB',timezone:'Europe/London',currencyCode:'GBP'};
 
 test('demo reset has a private allowlist and is deny-by-default',()=>{
   assert.deepEqual(demoResetAllowedIds(''),[]);
@@ -14,7 +14,7 @@ test('demo reset has a private allowlist and is deny-by-default',()=>{
 });
 test('saved defaults validate all fields and reject destructive unknown settings',()=>{
   assert.deepEqual(validateDemoSettings(baseline),baseline);
-  for(const invalid of [{...baseline,slotIntervalMinutes:0},{...baseline,clientPhoneCountryCode:'K-E'},{...baseline,ownerEmail:'change@wrong.com'},{...baseline,workingDays:[]},{...baseline,workingEndTime:'08:00'},{...baseline,allowSameDayBookings:'true'}]) assert.throws(()=>validateDemoSettings(invalid));
+  for(const invalid of [{...baseline,slotIntervalMinutes:0},{...baseline,clientPhoneCountryCode:'K-E'},{...baseline,ownerEmail:'change@wrong.com'},{...baseline,workingDays:[]},{...baseline,workingEndTime:'08:00'},{...baseline,allowSameDayBookings:'true'},{...baseline,timezone:'Invalid/Place'},{...baseline,currencyCode:'UK'}]) assert.throws(()=>validateDemoSettings(invalid));
 });
 test('reset needs acknowledgement plus exact DELETE',()=>{
   assert.throws(()=>assertDemoResetConfirmation('delete',true));

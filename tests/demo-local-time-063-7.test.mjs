@@ -33,8 +33,8 @@ test('real booking API values stay in the practice timezone',()=>{
   assert.match(book,/time: selectedTime,/);
   assert.match(admin,/time: selectedTime,/);
   assert.match(reception,/time: selectedTime,/);
-  assert.match(admin,/Practice calendar date and availability use/);
-  assert.match(book,/The calendar date belongs to the practice/);
+  assert.doesNotMatch(admin,/Practice calendar date and availability use/);
+  assert.doesNotMatch(book,/The calendar date belongs to the practice/);
 });
 
 test('both full demo links open in separate safe tabs',()=>{

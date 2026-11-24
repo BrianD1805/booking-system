@@ -3,6 +3,7 @@ export type DemoSettings={
   slotIntervalMinutes:number;minimumNoticeHours:number;maxBookingAheadDays:number;
   lunchBreakEnabled:boolean;lunchBreakStart:string;lunchBreakEnd:string;
   allowSameDayBookings:boolean;cancellationPolicyNote:string;clientPhoneCountryCode:string;
+  timezone:string;currencyCode:string;
 };
 export function demoResetAllowedIds(raw:unknown):string[];
 export const DEMO_SETTING_KEYS:readonly string[];
