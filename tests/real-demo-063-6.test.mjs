@@ -20,11 +20,11 @@ test('demo uses a single host-resolved real tenant with a second, explicit safet
   assert.match(route,/verifyDemoChallenge\(request,body.challenge\)/);
 });
 
-test('real demo session is signed, limited to 15 minutes and shared across both ZipBook subdomains',()=>{
+test('real demo session is signed, limited to 30 minutes and shared across both ZipBook subdomains',()=>{
   const secret='s'.repeat(44);
   const token=issuePublicDemoSession(secret,Date.UTC(2026,10,24));
   assert.ok(readPublicDemoSession(secret,token,Date.UTC(2026,10,24)+30000));
-  assert.equal(readPublicDemoSession(secret,token,Date.UTC(2026,10,24)+901000),null);
+  assert.equal(readPublicDemoSession(secret,token,Date.UTC(2026,10,24)+1801000),null);
   const policy=source('lib/publicDemoAuth.ts');
   assert.match(policy,/host === 'admin.zipbook.app'/);
   assert.match(policy,/DEMO_DOMAIN = 'zipbook.app'/);
@@ -52,25 +52,22 @@ test('public diary cannot access owner-only or staff-management capabilities',()
   assert.match(gate,/Protected settings are not available/);
 });
 
-test('demo customer app and diary use the existing real booking API and a synthetic client session',()=>{
+test('demo customer app uses real sign-up / login while diary keeps genuine booking routes',()=>{
   const start=source('app/api/demo/start/route.ts');
   const db=source('lib/db.ts');
   const page=source('app/demo/page.tsx');
-  assert.match(start,/createTemporaryDemoClient\(\)/);
-  assert.match(db,/export async function createTemporaryDemoClient/);
-  assert.match(db,/INSERT INTO customers\(id,practice_id,full_name,phone,email/);
-  assert.match(db,/INSERT INTO client_sessions\(id,practice_id,customer_id,session_token_hash,expires_at\)/);
-  assert.match(db,/NOW\(\)\+INTERVAL '15 minutes'/);
-  assert.match(db,/@example.invalid/);
-  assert.match(page,/localStorage.setItem\('zipbook-client-session'/);
-  assert.match(page,/href="\/book"/);
+  assert.doesNotMatch(start,/createTemporaryDemoClient\(\)/);
+  assert.match(start,/beginPublicDemoVisit\(request\)/);
+  assert.match(page,/href="\/book\?demoAccount=signup"/);
   assert.match(page,/admin.zipbook.app\/admin\?demo=1/);
   assert.doesNotMatch(page,/initialItems\(/);
+  assert.match(db,/requestClientSignupOtp/);
+  assert.match(db,/verifyClientSignupOtp/);
   assert.match(source('app/api/bookings/route.ts'),/createBookingInDatabase/);
   assert.match(source('app/api/bookings/route.ts'),/getBookings\(date\)/);
 });
 
-test('no master key leak, public signup or demo email and push abuse',()=>{
+test('no master key leak, with OTP email verification but no demo booking email or push abuse',()=>{
   const page=source('app/demo/page.tsx');
   const db=source('lib/db.ts');
   const tenant=source('lib/tenantRequest.ts');
@@ -79,7 +76,7 @@ test('no master key leak, public signup or demo email and push abuse',()=>{
   assert.match(tenant,/isRealDemoTenant\(\)/);
   assert.match(db,/provider:'demo-no-email'/);
   assert.match(db,/provider:'demo-no-push'/);
-  assert.match(page,/Use made-up details only/);
+  assert.match(page,/appointment notification emails and push alerts are disabled/);
 });
 
 test('visitor actions are CSRF protected, DB rate limited, and stop when the signed session expires',()=>{

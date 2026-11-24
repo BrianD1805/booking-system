@@ -8,7 +8,7 @@ test('public demo sessions use unguessable signed time-limited cookies',()=>{
   const token=issuePublicDemoSession(secret,now);
   assert.notEqual(token,issuePublicDemoSession(secret,now),'each token needs a random nonce');
   assert.ok(readPublicDemoSession(secret,token,now+1000));
-  assert.equal(readPublicDemoSession(secret,token,now+901000),null);
+  assert.equal(readPublicDemoSession(secret,token,now+1801000),null);
   assert.equal(readPublicDemoSession('b'.repeat(40),token,now+1000),null);
   assert.equal(readPublicDemoSession(secret,token+'tampered',now+1000),null);
   assert.equal(readPublicDemoSession('short',token,now+1000),null);
@@ -30,9 +30,8 @@ test('temporary public demo is OFF by default, must pass Turnstile and has DB-ba
 });
 test('public demo is now the real booking and diary, with no master key passed to visitors',()=>{
   const page=source('app/demo/page.tsx');
-  assert.match(page,/href="\/book"/);
   assert.match(page,/admin\.zipbook\.app\/admin\?demo=1/);
-  assert.match(page,/clientSessionToken/);
+  assert.match(page,/href="\/book\?demoAccount=signup"/);
   assert.doesNotMatch(page,/initialItems|fictional appointment added|mockBooking/);
   const runtime=source('lib/publicDemoAuth.ts');
   assert.match(runtime,/httpOnly:true/);

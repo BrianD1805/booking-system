@@ -213,6 +213,16 @@ export default function BookPage() {
   const [businessInfo, setBusinessInfo] = useState<{name:string;legacy:boolean;publicBookings?:boolean} | null>(null);
   const [demoMode, setDemoMode] = useState(false);
   useEffect(()=>{void fetch('/api/demo/session',{cache:'no-store'}).then(r=>r.ok?r.json():null).then(v=>setDemoMode(Boolean(v?.active && v?.realDemo))).catch(()=>undefined);},[]);
+  useEffect(()=>{
+    const requested=new URLSearchParams(window.location.search).get('demoAccount');
+    if(requested!=='signup'&&requested!=='login')return;
+    let cancelled=false;
+    void fetch('/api/demo/session',{cache:'no-store'}).then(r=>r.ok?r.json():null).then(v=>{
+      if(cancelled||!v?.active||!v?.realDemo)return;
+      setDemoMode(true);setClientLoginStage(requested==='signup'?'signup':'login');setClientLoginOpen(true);
+    }).catch(()=>undefined);
+    return()=>{cancelled=true;};
+  },[]);
   useEffect(() => {
     let cancelled = false;
     void fetch('/api/tenant-context',{cache:'no-store'}).then(async response => {

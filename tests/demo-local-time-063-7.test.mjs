@@ -39,7 +39,7 @@ test('real booking API values stay in the practice timezone',()=>{
 
 test('both full demo links open in separate safe tabs',()=>{
   const page=source('app/demo/page.tsx');
-  assert.match(page,/href="\/book" target="_blank" rel="noopener noreferrer"/);
+  assert.match(page,/href="\/book\?demoAccount=signup" target="_blank" rel="noopener noreferrer"/);
   assert.match(page,/href=\{diaryHref\} target="_blank" rel="noopener noreferrer"/);
 });
 

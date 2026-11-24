@@ -1,12 +1,15 @@
 import { withTenantRequest } from '@/lib/tenantRequest';
 import { NextRequest, NextResponse } from 'next/server';
 import { requestClientSignupOtp } from '@/lib/db';
+import {isRealDemoTenant} from '@/lib/publicDemoAuth';
+import {isEmailProviderConfigured} from '@/lib/emailDelivery';
 
 export const dynamic = 'force-dynamic';
 
 export async function POST(request: NextRequest) {
   return withTenantRequest(request, async () => {
   try {
+    if (isRealDemoTenant() && !isEmailProviderConfigured()) return NextResponse.json({error:'Demo email verification is not configured yet.'},{status:503});
     const body = await request.json();
     const result = await requestClientSignupOtp({
       phone: typeof body?.phone === 'string' ? body.phone : '',

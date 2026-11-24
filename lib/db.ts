@@ -335,28 +335,6 @@ async function createClientSession(customerId: string) {
   return sessionToken;
 }
 
-// Real demonstration: a separate, short-lived customer identity per visitor.
-// All contact details are synthetic. Never send to a real person.
-export async function createTemporaryDemoClient(): Promise<{sessionToken:string;profile:ClientLoginProfile}> {
-  if(!isRealDemoTenant()) throw new Error('This business is not a public demonstration.');
-  const database=db();
-  const suffix=makeToken('demo').replace(/[^a-z0-9]/gi,'').slice(-14).toLowerCase();
-  const customerId=`demo-cust-${suffix}`;
-  const sessionToken=makeToken('client');
-  const sessionId=`demo-sess-${suffix}`;
-  const phone=`+120255501${String(Math.floor(Math.random()*100)).padStart(2,'0')}`;
-  const email=`visitor-${suffix}@example.invalid`;
-  await database.sql`
-    INSERT INTO customers(id,practice_id,full_name,phone,email,notes,has_client_login,last_seen_at)
-    VALUES(${customerId},${currentTenant().practiceId},${`Demo Visitor ${suffix.slice(-4)}`},${phone},${email},${'Fictional public demonstration record'},${true},NOW())
-  `;
-  await database.sql`
-    INSERT INTO client_sessions(id,practice_id,customer_id,session_token_hash,expires_at)
-    VALUES(${sessionId},${currentTenant().practiceId},${customerId},${hashSecret(sessionToken)},NOW()+INTERVAL '15 minutes')
-  `;
-  return {sessionToken,profile:await getClientProfile(customerId)};
-}
-
 function mapPractice(row: PracticeRow): PracticeSettings {
   return {
     practiceId: row.id,
@@ -1345,7 +1323,7 @@ export async function requestClientSignupOtp(input: { phone?: string; localPhone
   // For an independent business, only an email-verified account can see its
   // own bookings. Never claim previously-created guest records from a phone
   // number alone: the same number may have been entered by another person.
-  const customer = !currentTenant().legacy
+  const customer = (!currentTenant().legacy || isRealDemoTenant())
     ? (existingAccount
       ? await findCustomerById(existingAccount.customer_id)
       : await createUnlinkedSaasClientCustomer(phone, email, fullName))
@@ -1353,7 +1331,7 @@ export async function requestClientSignupOtp(input: { phone?: string; localPhone
   if (!customer) throw new Error('Pending account is not available. Please contact the business.');
   // This is only a pending, unverified SaaS account already tied to this
   // exact phone AND email. Never update previously booked guest identities.
-  if (!currentTenant().legacy && existingAccount) {
+  if ((!currentTenant().legacy || isRealDemoTenant()) && existingAccount) {
     await db().sql`UPDATE customers SET full_name = ${fullName}, updated_at = NOW()
       WHERE practice_id = ${currentTenant().practiceId} AND id = ${customer.id}
         AND has_client_login = FALSE AND email = ${email}`;
@@ -1417,7 +1395,7 @@ export async function verifyClientSignupOtp(input: { otpId: string; code: string
   if (otp.attempts >= 5) throw new Error('Too many incorrect attempts. Please request a new sign-up code.');
 
   // An OTP issued by an older build must not create a nameless SaaS account.
-  if (!currentTenant().legacy) {
+  if (!currentTenant().legacy || isRealDemoTenant()) {
     const pendingCustomer = await findCustomerById(otp.customer_id);
     if (!pendingCustomer || !pendingCustomer.fullName.trim() || pendingCustomer.fullName === 'Client user') {
       throw new Error('Please restart sign-up and enter your first name and surname.');

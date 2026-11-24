@@ -30,18 +30,24 @@ export async function withTenantRequest(request: NextRequest, work: () => Promis
     if(isRealDemoTenant()) {
       const path=request.nextUrl.pathname;
       const method=request.method.toUpperCase();
-      if(path==='/api/client-login/session' && !getDemoSession(request))
-        return NextResponse.json({error:'The public demo session has ended. Please start a new demo.'},{status:401,headers});
-      if(path.startsWith('/api/client-login/') &&
-        !['/api/client-login/session','/api/client-login/logout'].includes(path) &&
-        !/^\/api\/client-login\/bookings\/[^/]+$/.test(path)) {
-        return NextResponse.json({error:'Public demo visitors receive an automatic temporary customer account. No email or password is needed.'},{status:403,headers});
-      }
+      // The normal customer account experience is available ONLY inside an
+      // active, signed public demo session. Unrelated OTP and push APIs remain closed.
+      const allowedCustomerPath = [
+        '/api/client-login/session','/api/client-login/logout','/api/client-login/login',
+        '/api/client-login/sign-up/request-code','/api/client-login/sign-up/verify',
+        '/api/client-login/bookings','/api/client-login/password-reset/request-code',
+        '/api/client-login/password-reset/confirm'
+      ].includes(path) || /^\/api\/client-login\/bookings\/[^/]+$/.test(path);
+      if(path.startsWith('/api/client-login/') && !allowedCustomerPath)
+        return NextResponse.json({error:'This account feature is not available in the public demo.'},{status:403,headers});
+      if(path.startsWith('/api/client-login/') && path!=='/api/client-login/logout' && !getDemoSession(request))
+        return NextResponse.json({error:'The 30-minute demo has ended. Start another verified demo session.'},{status:401,headers});
       // All public demo writes, including customer-side edits, need a verified
       // temporary visitor session and shared, database-backed action budget.
       const demoWrite=(path==='/api/bookings' && method==='POST') ||
         (/^\/api\/bookings\/[^/]+$/.test(path) && ['PATCH','DELETE'].includes(method)) ||
-        (/^\/api\/client-login\/bookings\/[^/]+$/.test(path) && ['PATCH','DELETE'].includes(method));
+        (/^\/api\/client-login\/bookings\/[^/]+$/.test(path) && ['PATCH','DELETE'].includes(method)) ||
+        (path.startsWith('/api/client-login/') && method==='POST' && path!=='/api/client-login/logout');
       if(demoWrite && (!getDemoSession(request)||!requireDemoWriteOrigin(request)))
         return NextResponse.json({error:'Open the public demo first to start a protected session.'},{status:403,headers});
       if(demoWrite) {

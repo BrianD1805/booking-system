@@ -22,7 +22,7 @@ export function isRealDemoTenant() {
   return realDemoConfigured() && tenant.legacy && tenant.practiceId===demoAllowedId();
 }
 
-const DEMO_TTL_SECONDS = 15 * 60;
+const DEMO_TTL_SECONDS = 30 * 60;
 const noStore = {'Cache-Control':'private, no-store, max-age=0', 'X-Robots-Tag':'noindex, nofollow'};
 
 function envReady() {
