@@ -821,11 +821,11 @@ export default function BookPage() {
 
   async function deleteClientBooking(booking: ClientLoginBooking) {
     if (!clientSessionToken) {
-      setClientBookingNotice('Please sign in before deleting a booking.');
+      setClientBookingNotice('Please sign in before cancelling a booking.');
       return;
     }
 
-    const confirmed = window.confirm(`Delete booking for ${booking.treatment} on ${getDayLabel(booking.date)} at ${showTime(booking.date,booking.time)}?`);
+    const confirmed = window.confirm(`Cancel booking for ${booking.treatment} on ${getDayLabel(booking.date)} at ${showTime(booking.date,booking.time)}?`);
     if (!confirmed) return;
 
     setClientBookingActionKey(`${booking.id}-delete`);
@@ -838,9 +838,9 @@ export default function BookPage() {
       const payload = await readJsonResponse<{ profile: ClientLoginProfile }>(response);
       applyClientProfile(payload.profile);
       await refresh();
-      setClientBookingNotice('Booking deleted. The practice diary has been updated.');
+      setClientBookingNotice('Booking cancelled. The practice diary has been updated.');
     } catch (error) {
-      setClientBookingNotice(error instanceof Error ? error.message : 'Could not delete booking.');
+      setClientBookingNotice(error instanceof Error ? error.message : 'Could not cancel booking.');
     } finally {
       setClientBookingActionKey('');
     }
@@ -1158,7 +1158,7 @@ export default function BookPage() {
                             </div>
                             <div className="client-booking-actions">
                               <button className="pill" type="button" disabled={isPastBooking || saving || isBusy} onClick={() => openEditClientBooking(booking)}>Edit</button>
-                              <button className="pill danger" type="button" disabled={isPastBooking || saving || isBusy} onClick={() => void deleteClientBooking(booking)}>{isBusy ? 'Deleting…' : 'Delete'}</button>
+                              <button className="pill danger" type="button" disabled={isPastBooking || saving || isBusy} onClick={() => void deleteClientBooking(booking)}>{isBusy ? 'Cancelling…' : 'Cancel'}</button>
                             </div>
                           </article>
                         );
@@ -1321,7 +1321,7 @@ export default function BookPage() {
       <form className={`booking-workflow ${bookingOpen ? 'is-open' : ''}`} onSubmit={handleSubmit}>
         <div className="workflow-card">
           <div className="workflow-head">
-            <div>
+            <div className="booking-step-heading">
               <p className="badge blue-badge">{editingClientBookingId ? 'Edit appointment' : `Step ${step + 1} of ${steps.length}`}</p>
               <h2>{editingClientBookingId && step === 3 ? 'Review changes' : steps[step]}</h2>
             </div>

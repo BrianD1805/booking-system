@@ -6746,3 +6746,49 @@ button.admin-password-eye .admin-password-eye-slash {
 .client-signup-feedback-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; width: 100%; margin-top: 10px; }
 .client-signup-feedback-actions button { min-height: 42px; }
 @media (max-width: 500px) { .client-signup-feedback-actions { flex-direction: column; } .client-signup-feedback-actions button { width: 100%; } }
+
+/* Ver-0.063.13: customer booking flow only; leave other popup surfaces unchanged. */
+.booking-workflow .workflow-card,
+.booking-workflow .workflow-card > .workflow-head,
+.booking-workflow .workflow-card > .flow-step,
+.booking-workflow .workflow-card > .workflow-actions,
+.booking-workflow .diary-inline-actions {
+  background: #ffffff;
+}
+.booking-workflow .workflow-card > .workflow-head {
+  align-items: center;
+  padding-block: 10px;
+}
+.booking-workflow .booking-step-heading {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  min-width: 0;
+}
+.booking-workflow .booking-step-heading .badge,
+.booking-workflow .booking-step-heading h2 { margin: 0; }
+.booking-workflow .workflow-card > .flow-step {
+  scrollbar-width: thin;
+  scrollbar-color: #8223FA #ffffff;
+}
+@supports selector(::-webkit-scrollbar) {
+  .booking-workflow .workflow-card > .flow-step { scrollbar-width: auto; scrollbar-color: auto; }
+  .booking-workflow .workflow-card > .flow-step::-webkit-scrollbar { display: block; width: 10px; }
+  .booking-workflow .workflow-card > .flow-step::-webkit-scrollbar-track { background: #ffffff; margin-block: 16px; }
+  .booking-workflow .workflow-card > .flow-step::-webkit-scrollbar-thumb { background: #8223FA; border: 2px solid #ffffff; border-radius: 999px; }
+  .booking-workflow .workflow-card > .flow-step::-webkit-scrollbar-button,
+  .booking-workflow .workflow-card > .flow-step::-webkit-scrollbar-button:single-button { display: none; width: 0; height: 0; }
+}
+.client-account-dropdown > summary:after {
+  content: ''; display: inline-block; flex: 0 0 12px; width: 12px; height: 2px;
+  border: 0; border-radius: 1px; background: currentColor; transform: none;
+}
+.client-account-dropdown[open] > summary:after {
+  flex-basis: 9px; width: 9px; height: 9px; border-radius: 0;
+  background: transparent; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor;
+  transform: translateY(-2px) rotate(45deg);
+}
+@media (min-width: 761px) {
+  .client-home-topbar { width: min(100%, 760px); }
+}
