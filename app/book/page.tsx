@@ -212,31 +212,7 @@ export default function BookPage() {
   const modalHistoryRef = useRef(false);
   const [businessInfo, setBusinessInfo] = useState<{name:string;legacy:boolean;publicBookings?:boolean} | null>(null);
   const [demoMode, setDemoMode] = useState(false);
-  const [demoExitError, setDemoExitError] = useState('');
-  async function leaveDemoForNormalBooking() {
-    try {
-      const response = await fetch('/api/demo/logout', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}', cache: 'no-store'
-      });
-      if (!response.ok) throw new Error('Could not end this demo session.');
-      // Do not carry a demo customer session into an ordinary booking visit.
-      window.localStorage.removeItem('zipbook-client-session');
-      window.location.replace('/book');
-    } catch {
-      setDemoExitError('Could not end the demo. Please try again.');
-    }
-  }
   useEffect(()=>{void fetch('/api/demo/session',{cache:'no-store'}).then(r=>r.ok?r.json():null).then(v=>setDemoMode(Boolean(v?.active && v?.realDemo))).catch(()=>undefined);},[]);
-  useEffect(()=>{
-    const requested=new URLSearchParams(window.location.search).get('demoAccount');
-    if(requested!=='signup'&&requested!=='login')return;
-    let cancelled=false;
-    void fetch('/api/demo/session',{cache:'no-store'}).then(r=>r.ok?r.json():null).then(v=>{
-      if(cancelled||!v?.active||!v?.realDemo)return;
-      setDemoMode(true);setClientLoginStage(requested==='signup'?'signup':'login');setClientLoginOpen(true);
-    }).catch(()=>undefined);
-    return()=>{cancelled=true;};
-  },[]);
   useEffect(() => {
     let cancelled = false;
     void fetch('/api/tenant-context',{cache:'no-store'}).then(async response => {
@@ -267,6 +243,7 @@ export default function BookPage() {
   const [clientSessionToken, setClientSessionToken] = useState('');
   const [clientProfile, setClientProfile] = useState<ClientLoginProfile | null>(null);
   const [clientLoginLoading, setClientLoginLoading] = useState(false);
+  const [clientSignupFeedback, setClientSignupFeedback] = useState<{ kind: 'busy' | 'error'; message: string } | null>(null);
   const [clientLoginNotice, setClientLoginNotice] = useState('');
   const [pushSupported, setPushSupported] = useState(false);
   const [pushConfigured, setPushConfigured] = useState(false);
@@ -316,7 +293,6 @@ export default function BookPage() {
   const signupPasswordLongEnough = clientPassword.length >= MIN_CLIENT_PASSWORD_LENGTH;
   const resetPasswordLongEnough = clientResetPassword.length >= MIN_CLIENT_PASSWORD_LENGTH;
   const canSignInClient = Boolean(selectedLoginCountry && clientLoginFullPhone && clientPassword.trim());
-  const canStartClientSignup = Boolean(selectedLoginCountry && clientLoginFullPhone && clientSignupFirstName.trim() && clientSignupSurname.trim() && clientLoginEmail.trim() && signupPasswordLongEnough);
   const canRequestPasswordReset = Boolean(selectedLoginCountry && clientLoginFullPhone && clientLoginEmail.trim());
   const canCompletePasswordReset = Boolean(clientOtpCode.trim().length >= 4 && resetPasswordLongEnough);
   const canGoToTreatment = patientName.trim() && patientPhone.trim() && patientEmail.trim();
@@ -477,6 +453,7 @@ export default function BookPage() {
     }
     if (clientLoginOpen) {
       setClientLoginOpen(false);
+      setClientSignupFeedback(null);
       return;
     }
     if (bookingOpen) {
@@ -531,6 +508,8 @@ export default function BookPage() {
   }
 
   function openClientLogin(stage: LoginStage) {
+    setClientSignupFeedback(null);
+    setClientLoginNotice('');
     pushClientModalHistory();
     setClientPasswordResetOpen(false);
     setClientLoginStage(stage);
@@ -654,11 +633,29 @@ export default function BookPage() {
   }, [bookingOpen, timePickerOpen, clientLoginOpen, clientPasswordResetOpen, successBooking]);
 
   async function requestClientSignupCode() {
+    if (clientLoginLoading) return;
+    // Give useful feedback even when a required field is missing. A disabled
+    // button previously looked broken because the visitor received no explanation.
+    const inputError = !clientSignupFirstName.trim() ? 'Enter your first name.'
+      : !clientSignupSurname.trim() ? 'Enter your surname.'
+      : !selectedLoginCountry || !clientLoginFullPhone ? 'Select a country and enter your mobile number.'
+      : !clientLoginEmail.trim() ? 'Enter your email address.'
+      : !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(clientLoginEmail.trim()) ? 'Enter a valid email address.'
+      : !signupPasswordLongEnough ? 'Choose a password containing at least 8 characters.' : '';
+    if (inputError) {
+      setClientSignupFeedback({ kind: 'error', message: inputError });
+      return;
+    }
+
     setClientLoginLoading(true);
+    setClientSignupFeedback({ kind: 'busy', message: 'Checking your details and sending your email verification code…' });
     setClientLoginNotice('');
+    const controller = new AbortController();
+    const requestTimeout = window.setTimeout(() => controller.abort(), 25000);
     try {
       const response = await fetch('/api/client-login/sign-up/request-code', {
         method: 'POST',
+        signal: controller.signal,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           phone: clientLoginFullPhone,
@@ -673,13 +670,23 @@ export default function BookPage() {
         })
       });
       const payload = await readJsonResponse<ClientCodeResponse>(response);
+      if (payload.deliveryReady === false && payload.deliveryMode !== 'server-console-preview' && !payload.testOtpCode) {
+        throw new Error(payload.deliveryMessage || 'We could not send your verification email. Please try again.');
+      }
       setClientOtp(payload);
       setClientOtpCode('');
       setClientLoginStage('verify-signup');
       setClientLoginNotice(payload.deliveryMessage ?? `We have sent a sign-up code to ${payload.destination}.`);
+      setClientSignupFeedback(null);
     } catch (error) {
-      setClientLoginNotice(error instanceof Error ? error.message : 'Could not send the sign-up code.');
+      // Show the server's duplicate-email / mobile response in a visible popup
+      // instead of burying it below the form's internal scrollbar.
+      const message = error instanceof Error && error.name === 'AbortError'
+        ? 'The request took too long. Please check your connection and try again.'
+        : error instanceof Error ? error.message : 'Could not send the sign-up code. Please try again.';
+      setClientSignupFeedback({ kind: 'error', message });
     } finally {
+      window.clearTimeout(requestTimeout);
       setClientLoginLoading(false);
     }
   }
@@ -868,6 +875,7 @@ export default function BookPage() {
     if (clientLoginStage === mode) return;
     setClientLoginStage(mode);
     setClientLoginNotice('');
+    setClientSignupFeedback(null);
     setClientOtp(null);
     setClientOtpCode('');
     if (mode === 'signup') setClientResetPassword('');
@@ -986,7 +994,7 @@ export default function BookPage() {
           </button>
         </div>
         {demoMode && (
-          <div className="client-signed-in-note" role="status"><strong>Public demo:</strong> You are using the real booking application with fictional customer data. <a href="/demo">Open both demo apps</a>.{' '}<button className="pill" type="button" onClick={() => void leaveDemoForNormalBooking()}>End demo and open normal booking</button>{demoExitError && <p role="alert">{demoExitError}</p>}</div>
+          <div className="client-signed-in-note" role="status"><strong>Public demo:</strong> Test the real customer booking app. You can book as a guest or choose Login / Sign up. <a href="/demo">Return to demo options</a>.</div>
         )}
         {clientProfile && (
           <p className="client-signed-in-note" role="status">
@@ -1111,7 +1119,7 @@ export default function BookPage() {
                     </button>
                   )}
                   {clientLoginStage === 'signup' && (
-                    <button className="button primary" type="button" onClick={requestClientSignupCode} disabled={clientLoginLoading || !canStartClientSignup}>
+                    <button className="button primary" type="button" onClick={requestClientSignupCode} disabled={clientLoginLoading}>
                       {clientLoginLoading ? 'Sending code…' : 'Create account'}
                     </button>
                   )}
@@ -1189,6 +1197,31 @@ export default function BookPage() {
             )}
             {clientLoginNotice && <p className={clientLoginNotice.toLowerCase().includes('could not') || clientLoginNotice.toLowerCase().includes('not correct') || clientLoginNotice.toLowerCase().includes('expired') || clientLoginNotice.toLowerCase().includes('not recognised') ? 'notice warning mobile-auth-notice' : 'notice success mobile-auth-notice'} role="status">{clientLoginNotice}</p>}
           </div>
+          {clientSignupFeedback && (
+            <div className="client-signup-feedback-backdrop">
+              <div className="client-signup-feedback-panel" role={clientSignupFeedback.kind === 'error' ? 'alertdialog' : 'status'} aria-modal={clientSignupFeedback.kind === 'error' ? true : undefined} aria-label={clientSignupFeedback.kind === 'error' ? 'Account creation needs attention' : 'Creating account'} aria-live="assertive">
+                {clientSignupFeedback.kind === 'busy' ? (
+                  <>
+                    <span className="client-signup-feedback-spinner" aria-hidden="true" />
+                    <h3>Creating your account…</h3>
+                    <p>{clientSignupFeedback.message}</p>
+                  </>
+                ) : (
+                  <>
+                    <span className="client-signup-feedback-error-icon" aria-hidden="true">!</span>
+                    <h3>Account not created yet</h3>
+                    <p>{clientSignupFeedback.message}</p>
+                    <div className="client-signup-feedback-actions">
+                      {/(already|existing|uses this email|sign in|sign-in|pending sign-up)/i.test(clientSignupFeedback.message) && (
+                        <button className="pill" type="button" onClick={() => { setClientSignupFeedback(null); switchClientLogin('login'); }}>Go to Login</button>
+                      )}
+                      <button className="button primary" type="button" autoFocus onClick={() => setClientSignupFeedback(null)}>OK, check details</button>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+          )}
         </section>
       )}
 

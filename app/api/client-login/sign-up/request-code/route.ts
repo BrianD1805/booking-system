@@ -34,9 +34,12 @@ export async function POST(request: NextRequest) {
       ...(result.testOtpCode ? { testOtpCode: result.testOtpCode } : {})
     });
   } catch (error) {
+    const duplicate = (error as { code?: string })?.code === '23505';
     return NextResponse.json({
-      error: error instanceof Error ? error.message : 'Could not create your sign-up code.'
-    }, { status: 400 });
+      error: duplicate
+        ? 'An account already uses this email address or mobile number. Please sign in or reset your password.'
+        : error instanceof Error ? error.message : 'Could not create your sign-up code.'
+    }, { status: duplicate ? 409 : 400 });
   }
   });
 }

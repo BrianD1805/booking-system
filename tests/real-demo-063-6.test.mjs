@@ -58,7 +58,8 @@ test('demo customer app uses real sign-up / login while diary keeps genuine book
   const page=source('app/demo/page.tsx');
   assert.doesNotMatch(start,/createTemporaryDemoClient\(\)/);
   assert.match(start,/beginPublicDemoVisit\(request\)/);
-  assert.match(page,/href="\/book\?demoAccount=signup"/);
+  assert.match(page,/href="\/book"/);
+  assert.doesNotMatch(page,/demoAccount=signup/);
   assert.match(page,/admin.zipbook.app\/admin\?demo=1/);
   assert.doesNotMatch(page,/initialItems\(/);
   assert.match(db,/requestClientSignupOtp/);

@@ -31,7 +31,8 @@ test('temporary public demo is OFF by default, must pass Turnstile and has DB-ba
 test('public demo is now the real booking and diary, with no master key passed to visitors',()=>{
   const page=source('app/demo/page.tsx');
   assert.match(page,/admin\.zipbook\.app\/admin\?demo=1/);
-  assert.match(page,/href="\/book\?demoAccount=signup"/);
+  assert.match(page,/href="\/book"/);
+  assert.doesNotMatch(page,/demoAccount=signup/);
   assert.doesNotMatch(page,/initialItems|fictional appointment added|mockBooking/);
   const runtime=source('lib/publicDemoAuth.ts');
   assert.match(runtime,/httpOnly:true/);

@@ -18,7 +18,8 @@ test('popup collects names and submits them to the signup OTP route', () => {
   assert.match(page, /id="clientSignupSurname".*autoComplete="family-name"/);
   assert.match(page, /firstName: clientSignupFirstName/);
   assert.match(page, /surname: clientSignupSurname/);
-  assert.match(page, /clientSignupFirstName\.trim\(\) && clientSignupSurname\.trim\(\)/);
+  assert.match(page, /!clientSignupFirstName\.trim\(\) \? 'Enter your first name\.'/);
+  assert.match(page, /!clientSignupSurname\.trim\(\) \? 'Enter your surname\.'/);
   assert.match(src('app/api/client-login/sign-up/request-code/route.ts'), /firstName: typeof body\?\.firstName/);
   assert.match(src('app/api/client-login/sign-up/request-code/route.ts'), /surname: typeof body\?\.surname/);
 });

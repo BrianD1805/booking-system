@@ -86,6 +86,6 @@ test('demo customer can use the genuine account signup/login and cannot access u
   assert.match(db,/provider:'demo-no-email'/);
   assert.match(db,/provider:'demo-no-push'/);
   const page=source('app/book/page.tsx');
-  assert.match(page,/demoAccount/);
-  assert.match(page,/setClientLoginStage\(requested==='signup'\?'signup':'login'\)/);
+  assert.doesNotMatch(page,/demoAccount/);
+  assert.match(page,/clientLoginOpen &&/);
 });
