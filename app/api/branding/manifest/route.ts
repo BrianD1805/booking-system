@@ -9,7 +9,7 @@ export async function GET(request:NextRequest) {
   return withTenantRequest(request, async () => {
     try {
       const tenant=currentTenant();
-      const version=await getLogoVersion();
+      const version=tenant.legacy ? null : await getLogoVersion();
       return NextResponse.json(businessManifest(tenant.legacy ? 'ZipBook' : tenant.name, tenant.legacy ? null : version),
         {headers:{'Content-Type':'application/manifest+json; charset=utf-8','Cache-Control':'private, no-store, max-age=0','Vary':'Host'}});
     } catch {

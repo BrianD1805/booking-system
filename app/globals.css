@@ -1649,7 +1649,7 @@ textarea { min-height: 110px; resize: vertical; }
   background:
     radial-gradient(circle at 50% 0%, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.72) 42%, rgba(234, 243, 255, 0.84) 100%),
     linear-gradient(145deg, rgba(255, 255, 255, 0.94), rgba(233, 242, 255, 0.9));
-  box-shadow: 0 26px 80px rgba(22, 52, 84, 0.12);
+  box-shadow: 0 26px 80px rgba(155, 113, 210, 0.16);
   overflow: hidden;
   position: relative;
 }
@@ -1667,7 +1667,7 @@ textarea { min-height: 110px; resize: vertical; }
   height: 240px;
   right: -110px;
   top: -110px;
-  background: rgba(51, 102, 153, 0.11);
+  background: rgba(137, 82, 205, 0.16);
 }
 
 .client-home-welcome::after {
@@ -1675,7 +1675,7 @@ textarea { min-height: 110px; resize: vertical; }
   height: 190px;
   left: -86px;
   bottom: -90px;
-  background: rgba(34, 197, 94, 0.13);
+  background: rgba(51, 102, 153, 0.16);
 }
 
 .client-home-welcome > * {
@@ -1690,7 +1690,7 @@ textarea { min-height: 110px; resize: vertical; }
   place-items: center;
   border-radius: 32px;
   background: #ffffff;
-  box-shadow: 0 24px 56px rgba(51, 102, 153, 0.18);
+  box-shadow: 0 24px 56px rgba(156, 116, 216, 0.24);
   margin-bottom: 2px;
 }
 
@@ -1720,7 +1720,17 @@ textarea { min-height: 110px; resize: vertical; }
   min-width: 220px;
   min-height: 52px;
   font-size: 1rem;
-  box-shadow: 0 18px 38px rgba(236, 127, 46, 0.22);
+  background: #336699;
+  border-color: #336699;
+  color: #ffffff;
+  box-shadow: 0 18px 38px rgba(156, 116, 216, 0.28);
+}
+
+.client-home-actions .large-cta:not(:disabled):hover {
+  box-shadow: 0 14px 30px rgba(156, 116, 216, 0.32);
+}
+.client-home-actions .large-cta:not(:disabled):active {
+  box-shadow: 0 6px 14px rgba(156, 116, 216, 0.26);
 }
 
 .client-signed-in-note {

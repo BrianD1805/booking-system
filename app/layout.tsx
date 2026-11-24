@@ -37,7 +37,7 @@ export const metadata: Metadata = {
         url: '/og-image.png',
         width: 1200,
         height: 1200,
-        alt: 'ZipBook wordmark app icon'
+        alt: 'ZipBook calendar and checkmark app icon'
       }
     ]
   },

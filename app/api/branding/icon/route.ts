@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import sharp from 'sharp';
 import { withTenantRequest } from '@/lib/tenantRequest';
+import { currentTenant } from '@/lib/tenantScope.mjs';
 import { getLogoData } from '@/lib/businessBranding';
 
 export const dynamic = 'force-dynamic';
@@ -10,7 +11,7 @@ export async function GET(request:NextRequest) {
     const size=Number(request.nextUrl.searchParams.get('size') || '192');
     if (![72,180,192,512].includes(size)) return NextResponse.json({error:'Invalid image size.'},{status:400});
     try {
-      const logo=await getLogoData();
+      const logo=currentTenant().legacy ? null : await getLogoData();
       if (!logo) return NextResponse.redirect(new URL(size===180?'/apple-touch-icon.png':`/icons/icon-${size}.png`, request.url),
         {headers:{'Cache-Control':'private, no-store, max-age=0'}});
       const output=size===512?logo:await sharp(logo).resize(size,size).png().toBuffer();

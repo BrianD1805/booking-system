@@ -993,7 +993,7 @@ export default function BookPage() {
           {businessInfo?.legacy === false ? (businessInfo.publicBookings === false ? "Online appointments are not open yet. Please contact the business directly." : "Book as a guest or sign in to manage your appointments.") : "Book your appointment quickly and clearly, with your details ready when you sign in."}
         </p>
         <div className="client-home-actions">
-          <button className="button green large-cta" type="button" disabled={loading || !!error || !procedures.length || businessInfo?.publicBookings === false} onClick={openBookingFlow}>
+          <button className="button primary large-cta" type="button" disabled={loading || !!error || !procedures.length || businessInfo?.publicBookings === false} onClick={openBookingFlow}>
             Make a booking
           </button>
         </div>

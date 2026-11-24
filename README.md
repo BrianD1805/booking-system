@@ -1,32 +1,21 @@
-# ZipBook Ver-0.063.11 — Full Programme
+# ZipBook Ver-0.063.12 — Demo branding and Home colours
 
-Released 24 November 2026 (UK). Multi-tenant ZipBook Customer Booking App and Practice Diary on GitHub, Netlify and Supabase. ZippyWeb retains separate commercial billing.
+Released 24 November 2026 (UK). Uses the supplied Demo Icon.png artwork unchanged except resizing for each icon size. Default shared ZipBook icons, favicon, Apple touch, PWA and browser-generated splash artwork refreshed. Legacy booking routes use the packaged identity; custom logos for non-legacy businesses remain supported. Shared fallback icons also appear on the Admin and marketing routes. Existing Home layout and booking controls are unchanged; corner accents are purple and blue, CTA #336699 and shadows light purple. No booking, authentication or database changes. No new Supabase SQL or Netlify variables. Browser-generated splash appearance depends on device; no existing custom splash component was found.
 
-## Ver-0.063.11 — Practice timezone consistency
-
-- Searchable practice time zone selector next to Currency in Admin Settings.
-- Platform Demo Reset Defaults now include the practice timezone and currency and restore both on reset; legacy saved defaults can be loaded and resaved.
-- Real Practice Diary, Customer Booking App (guest and signed-in), and Reception show exactly the same practice-local appointment dates/times. Diary clock uses practice time.
-- Removed timezone explanation text from diary, booking and reception. Existing appointment values are not modified. Changing a live practice timezone changes how its existing clock times are interpreted.
-
-**Supabase:** No new SQL. Existing timezone, currency and demo reset JSONB columns are reused.
-
-**Netlify:** No new variables.
-
-### Windows CMD — complete testing
+## Windows CMD tests
 
 ```cmd
-npm ci && npm run test:version && npm run test:heartbeat && npm run test:booking-time && npm run test:scheduling && npm run test:saas && npm run test:tenants && npm run test:onboarding && npm run test:integration && npm run test:branding && npm run test:readiness && npm run test:procedure-ux && npm run test:diary-slots && npm run test:public-booking && npm run test:customer-accounts && npm run test:account-ux && npm run test:client-login-typecheck && npm run test:country-ux && npm run test:account-ux-patch && npm run test:account-ux-patch3 && npm run test:demo-reset && npm run test:demo-ux && npm run test:real-demo && npm run test:demo-time && npm run test:demo-repeat && npm run test:demo-isolation && npm run test:account-ux-patch10 && npm run test:practice-time && npm audit --omit=dev && npm run typecheck && npm run build
+npm ci && npm run test:heartbeat && npm run test:booking-time && npm run test:scheduling && npm run test:saas && npm run test:tenants && npm run test:onboarding && npm run test:integration && npm run test:branding && npm run test:readiness && npm run test:procedure-ux && npm run test:diary-slots && npm run test:public-booking && npm run test:customer-accounts && npm run test:account-ux && npm run test:client-login-typecheck && npm run test:version && npm run test:demo-reset && npm run test:country-ux && npm run test:account-ux-patch && npm run test:account-ux-patch3 && npm run test:demo-ux && npm run test:real-demo && npm run test:demo-time && npm run test:demo-repeat && npm run test:demo-isolation && npm run test:account-ux-patch10 && npm run test:practice-time && npm run test:demo-branding && npm audit --omit=dev && npm run typecheck && npm run build
 ```
 
-### Separate GitHub/Netlify push
+## Separate Git deployment
 
 ```cmd
-git status && git add -A && git commit -m "ZipBook Ver-0.063.11 Practice Timezone Consistency" && git push origin main
+git status && git add -A && git commit -m "ZipBook Ver-0.063.12 Demo Branding and Home Colours" && git push origin main
 ```
+
+Previous release: `FULL_PROGRAM_RELEASE_VER_0_063_11.md`.
 
 ## Release conventions
 
-Issue the **full programme source ZIP** with accurate dot-numbered versions in the package, lockfile, Admin/public shared version, service-worker cache, release documentation, and automated version test. No `cd` line. Keep local tests separate from deployment. Never claim production or live tests have passed before they have run.
-
-Further notes: `FULL_PROGRAM_RELEASE_VER_0_063_10.md` and previous release documentation.
+Issue a full programme source ZIP, keep version references in sync and keep local tests separate from deployment. No cd lines. Never claim production or live checks passed before they have run.
