@@ -3,6 +3,7 @@
 :root {
   --zw-blue: #336699;
   --zw-blue-deep: #336699;
+  --zw-secondary: #0C59A0;
   --zw-blue-soft: #dbeafe;
   --zw-sky: #eff6ff;
   --ink: #102033;
@@ -1649,7 +1650,7 @@ textarea { min-height: 110px; resize: vertical; }
   background:
     radial-gradient(circle at 50% 0%, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.72) 42%, rgba(234, 243, 255, 0.84) 100%),
     linear-gradient(145deg, rgba(255, 255, 255, 0.94), rgba(233, 242, 255, 0.9));
-  box-shadow: 0 26px 80px rgba(155, 113, 210, 0.16);
+  box-shadow: 0 26px 80px rgba(51, 102, 153, 0.16);
   overflow: hidden;
   position: relative;
 }
@@ -1667,7 +1668,7 @@ textarea { min-height: 110px; resize: vertical; }
   height: 240px;
   right: -110px;
   top: -110px;
-  background: rgba(137, 82, 205, 0.23);
+  background: rgba(83, 212, 254, 0.23);
 }
 
 .client-home-welcome::after {
@@ -1675,7 +1676,7 @@ textarea { min-height: 110px; resize: vertical; }
   height: 190px;
   left: -86px;
   bottom: -90px;
-  background: rgba(51, 102, 153, 0.23);
+  background: rgba(12, 89, 160, 0.23);
 }
 
 .client-home-welcome > * {
@@ -1690,7 +1691,7 @@ textarea { min-height: 110px; resize: vertical; }
   place-items: center;
   border-radius: 32px;
   background: #ffffff;
-  box-shadow: 0 24px 56px rgba(156, 116, 216, 0.24);
+  box-shadow: 0 24px 56px rgba(51, 102, 153, 0.24);
   margin-bottom: 2px;
 }
 
@@ -1723,14 +1724,14 @@ textarea { min-height: 110px; resize: vertical; }
   background: #336699;
   border-color: #336699;
   color: #ffffff;
-  box-shadow: 0 18px 38px rgba(156, 116, 216, 0.28);
+  box-shadow: 0 18px 38px rgba(51, 102, 153, 0.28);
 }
 
 .client-home-actions .large-cta:not(:disabled):hover {
-  box-shadow: 0 14px 30px rgba(156, 116, 216, 0.32);
+  box-shadow: 0 14px 30px rgba(51, 102, 153, 0.32);
 }
 .client-home-actions .large-cta:not(:disabled):active {
-  box-shadow: 0 6px 14px rgba(156, 116, 216, 0.26);
+  box-shadow: 0 6px 14px rgba(51, 102, 153, 0.26);
 }
 
 .client-signed-in-note {
@@ -5856,7 +5857,7 @@ button.admin-password-eye .admin-password-eye-slash {
 .phone-combo-control .zip-select-button:hover,
 .phone-combo-control .zip-select-button:focus-visible {
   background: #fff;
-  border: 1px solid var(--line) !important;
+  border: 2px solid var(--line) !important;
   border-radius: 16px;
   box-shadow: none;
   font-weight: 750;
@@ -5869,7 +5870,7 @@ button.admin-password-eye .admin-password-eye-slash {
   min-height: 54px;
   padding: 12px 15px !important;
   background: #fff;
-  border: 1px solid var(--line) !important;
+  border: 2px solid var(--line) !important;
   border-radius: 16px !important;
 }
 .phone-combo-control input:focus-visible,
@@ -6770,13 +6771,13 @@ button.admin-password-eye .admin-password-eye-slash {
 .booking-workflow .booking-step-heading h2 { margin: 0; }
 .booking-workflow .workflow-card > .flow-step {
   scrollbar-width: thin;
-  scrollbar-color: #8223FA #ffffff;
+  scrollbar-color: #0761B3 #ffffff;
 }
 @supports selector(::-webkit-scrollbar) {
   .booking-workflow .workflow-card > .flow-step { scrollbar-width: auto; scrollbar-color: auto; }
   .booking-workflow .workflow-card > .flow-step::-webkit-scrollbar { display: block; width: 10px; }
   .booking-workflow .workflow-card > .flow-step::-webkit-scrollbar-track { background: #ffffff; margin-block: 16px; }
-  .booking-workflow .workflow-card > .flow-step::-webkit-scrollbar-thumb { background: #8223FA; border: 2px solid #ffffff; border-radius: 999px; }
+  .booking-workflow .workflow-card > .flow-step::-webkit-scrollbar-thumb { background: #0761B3; border: 2px solid #ffffff; border-radius: 999px; }
   .booking-workflow .workflow-card > .flow-step::-webkit-scrollbar-button,
   .booking-workflow .workflow-card > .flow-step::-webkit-scrollbar-button:single-button { display: none; width: 0; height: 0; }
 }
@@ -6841,3 +6842,20 @@ button.admin-password-eye .admin-password-eye-slash {
 @media (max-width: 760px) { .client-book-shell .client-home-icon-wrap { margin-top: 29px; } }
 
 body:has(.client-book-shell .booking-workflow.is-open) { background: #fff; }
+
+/* Ver-0.063.16 — blue brand palette; field borders only, retaining focus and layout. */
+input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=hidden]):not([type=image]):not([type=button]):not([type=submit]):not([type=reset]),
+textarea, select, .zip-select-button, .zip-date-manual-control {
+  border-width: 2px !important;
+}
+/* The date input lives inside its bordered composite; avoid a double border. */
+.zip-date-manual-control input { border-width: 0 !important; }
+.client-book-shell .phone-combo-control input,
+.client-book-shell .phone-combo-control .zip-select-button { border-width: 2px !important; }
+/* Secondary actions retain the established outlined treatment. Semantic actions stay distinct. */
+.button:not(.primary):not(.danger):not(.green), .button.ghost {
+  color: var(--zw-secondary);
+  border-color: var(--zw-secondary);
+}
+.zip-demo-brand { display: inline-flex; align-items: center; gap: 10px; }
+.zip-demo-brand img { border-radius: 10px; }

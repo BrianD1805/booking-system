@@ -9,7 +9,7 @@ test('booking heading and scoped white surfaces',()=>{
  assert.match(css,/\.booking-workflow \.diary-inline-actions \{\s*background: #ffffff/);
 });
 test('booking scrollbar colour, hidden buttons and track padding',()=>{
- assert.match(css,/scrollbar-color: #8223FA #ffffff/);
+ assert.match(css,/scrollbar-color: #0761B3 #ffffff/);
  assert.match(css,/flow-step::-webkit-scrollbar-track \{ background: #ffffff; margin-block: 16px/);
  assert.match(css,/flow-step::-webkit-scrollbar-button:single-button \{ display: none/);
 });
