@@ -7,7 +7,7 @@ import { assessBusinessReadiness } from './platformReadinessPolicy.mjs';
 const scopedTables = [
   'practices','customers','bookings','practitioners','procedures',
   'admin_staff_members','admin_staff_sessions','zipbook_embed_domains',
-  'zipbook_business_branding'
+  'zipbook_business_branding','zipbook_staff_reset_tokens','zipbook_staff_reset_limits'
 ] as const;
 
 type ReadinessRow = {

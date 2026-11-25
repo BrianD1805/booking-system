@@ -1,4 +1,5 @@
 export type EmailDeliveryResult = {
+  providerId?: string;
   attempted: boolean;
   delivered: boolean;
   provider: 'resend' | 'email-not-configured';
@@ -50,6 +51,7 @@ export async function sendZipBookEmail(input: {
   try {
     response = await fetch('https://api.resend.com/emails', {
       method: 'POST',
+      signal: AbortSignal.timeout(8000),
       headers: {
         Authorization: `Bearer ${apiKey}`,
         'Content-Type': 'application/json'
@@ -83,7 +85,9 @@ export async function sendZipBookEmail(input: {
     };
   }
 
+  const payload = await response.json().catch(() => null);
   return {
+    providerId: typeof payload?.id === 'string' ? payload.id : undefined,
     attempted: true,
     delivered: true,
     provider: 'resend',

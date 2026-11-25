@@ -1,6 +1,7 @@
 import { withTenantRequest } from '@/lib/tenantRequest';
 import { NextRequest, NextResponse } from 'next/server';
 import { deleteAdminStaffMember, updateAdminStaffMember } from '@/lib/db';
+import { notifyStaffPasswordChanged } from '@/lib/staffRecovery';
 import { requireBusinessOwner } from '@/lib/adminStaffAuth';
 
 export const dynamic = 'force-dynamic';
@@ -21,6 +22,7 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ i
       password: body.password ? String(body.password) : undefined,
       actor
     });
+    if(body.password && String(body.password).trim()) await notifyStaffPasswordChanged(staff.email).catch(()=>{});
     return NextResponse.json({ staff });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : 'Could not update staff member.' }, { status: 400 });

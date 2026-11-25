@@ -4,7 +4,7 @@ import { insideHours, crossesLunch, dayOfWeek } from '@/lib/schedulingPolicy.mjs
 import { createHash, randomBytes, randomInt } from 'crypto';
 import { hashClientPassword, matchesClientPassword } from './clientPassword.mjs';
 import { normaliseSignupName } from './clientSignupName.mjs';
-import { getZipBookDatabase } from './dbProvider';
+import { getZipBookDatabase,tenantTransaction } from './dbProvider';
 import { deliverClientOtp, isOtpTestModeEnabled } from './otpDelivery';
 import { buildClientBookingConfirmationEmailHtml, sendZipBookEmail } from './emailDelivery';
 import { isPhonePushUserAgent, isPushDeliveryConfigured, normalisePushSubscription, sendPushNotification, type BrowserPushSubscription, type StoredPushSubscription } from './pushDelivery';
@@ -2673,15 +2673,18 @@ export async function loginAdminStaff(input: { email?: string; password?: string
   }
   if (!row || !verifyStaffPassword(row.id, password, row.password_hash)) throw new Error('Staff login failed. Check the staff email and password.');
 
-  await database.sql`DELETE FROM zipbook_staff_login_limits WHERE practice_id=${currentTenant().practiceId} AND staff_id=${row.id}`;
-  if (!currentTenant().legacy && !row.password_hash.startsWith('scrypt$')) await database.sql`UPDATE admin_staff_members SET password_hash=${hashStaffPassword(password)} WHERE practice_id=${currentTenant().practiceId} AND id=${row.id} AND password_hash=${row.password_hash}`;
   const sessionToken = makeToken('admin-staff');
   const sessionId = `staff-sess-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-  await database.sql`
-    INSERT INTO admin_staff_sessions (id, practice_id, staff_id, session_token_hash, expires_at)
-    VALUES (${sessionId}, ${currentTenant().practiceId}, ${row.id}, ${hashSecret(sessionToken)}, NOW() + INTERVAL '12 hours')
-  `;
-  await database.sql`UPDATE admin_staff_members SET last_login_at = NOW(), updated_at = NOW() WHERE practice_id = ${currentTenant().practiceId} AND id = ${row.id}`;
+  // Serialize session issuance with password recovery: a login authenticated
+  // with an old hash must not create a session after a password reset.
+  await tenantTransaction(async c=>{
+    const locked=(await c.query<{password_hash:string}>(`SELECT password_hash FROM public.admin_staff_members WHERE practice_id=$1 AND id=$2 AND active FOR UPDATE`,[currentTenant().practiceId,row.id])).rows[0];
+    if(!locked||locked.password_hash!==row.password_hash)throw new Error('Staff credentials changed. Please sign in again.');
+    await c.query('DELETE FROM public.zipbook_staff_login_limits WHERE practice_id=$1 AND staff_id=$2',[currentTenant().practiceId,row.id]);
+    if(!currentTenant().legacy&&!row.password_hash.startsWith('scrypt$'))await c.query('UPDATE public.admin_staff_members SET password_hash=$3 WHERE practice_id=$1 AND id=$2',[currentTenant().practiceId,row.id,hashStaffPassword(password)]);
+    await c.query(`INSERT INTO public.admin_staff_sessions(id,practice_id,staff_id,session_token_hash,expires_at) VALUES($1,$2,$3,$4,now()+interval '12 hours')`,[sessionId,currentTenant().practiceId,row.id,hashSecret(sessionToken)]);
+    await c.query('UPDATE public.admin_staff_members SET last_login_at=now(),updated_at=now() WHERE practice_id=$1 AND id=$2',[currentTenant().practiceId,row.id]);
+  });
   const staff = mapAdminStaff({ ...row, last_login_at: new Date().toISOString() });
   await writeAdminAuditLog({ action: 'staff_login', entityType: 'staff', entityId: row.id, source: 'admin', details: { email }, actor: { ...input.actor, staffId: row.id, staffName: row.full_name } });
   return { sessionToken, staff };

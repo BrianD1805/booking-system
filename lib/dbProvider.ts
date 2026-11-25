@@ -124,3 +124,20 @@ export async function platformTransaction<T>(work: (connection: PoolClient) => P
     throw error;
   } finally { connection.release(discard); }
 }
+
+// Multi-statement tenant work uses exactly the same RLS role as ordinary queries.
+export async function tenantTransaction<T>(work: (connection: PoolClient) => Promise<T>): Promise<T> {
+  const c = await getSupabasePool().connect();
+  let discard = false;
+  try {
+    await c.query('BEGIN');
+    await c.query('SET LOCAL ROLE zipbook_tenant_runtime');
+    await c.query("SELECT set_config('zipbook.practice_id', $1, true), set_config('search_path', 'public, pg_catalog', true)", [currentTenant().practiceId]);
+    const result = await work(c);
+    await c.query('COMMIT');
+    return result;
+  } catch (error) {
+    try { await c.query('ROLLBACK'); } catch { discard = true; }
+    throw error;
+  } finally { c.release(discard); }
+}

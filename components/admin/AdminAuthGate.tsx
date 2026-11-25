@@ -179,6 +179,16 @@ export function AdminAuthGate({ children }: { children: React.ReactNode }) {
     setMessage('Enter the master admin key to continue.');
   }
 
+  async function forgotStaffPassword() {
+    setError('');setMessage('');
+    if(!staffEmail.trim()){setError('Enter your staff email address first.');return;}
+    setLoading(true);
+    try {
+      const response=await fetch('/api/admin-auth/staff/recovery',{method:'POST',headers:{'Content-Type':'application/json','x-zipbook-admin-key':masterKey.trim()},body:JSON.stringify({action:'request',email:staffEmail})});
+      const data=await response.json();if(!response.ok)throw new Error(data.error||'Recovery unavailable.');setMessage(data.message);
+    }catch(e){setError(e instanceof Error?e.message:'Recovery unavailable.');}finally{setLoading(false);}
+  }
+
   async function handleStaffLogin(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setLoading(true);
@@ -382,6 +392,7 @@ export function AdminAuthGate({ children }: { children: React.ReactNode }) {
                     </button>
                   </div>
                 </div>
+                <button type="button" className="button ghost" disabled={loading} onClick={()=>void forgotStaffPassword()}>Forgot password?</button>
                 <div className="admin-login-submit-row admin-staff-submit-row">
                   <button className="button primary" type="submit" disabled={loading || (business.legacy && !masterKey.trim())}>Sign in to admin</button>
                 </div>

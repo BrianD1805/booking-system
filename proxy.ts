@@ -71,6 +71,12 @@ export async function proxy(request: NextRequest) {
   const host = normaliseHost(request.headers.get('host'));
   const { pathname } = request.nextUrl;
 
+  if (pathname === '/staff-reset') {
+    const tenant=classifyTenantHost(host,{enabled:process.env.ZIPBOOK_ENABLE_BUSINESS_ACCOUNTS==='1',local:process.env.NODE_ENV!=='production'});
+    if(tenant.kind!=='business' && !ADMIN_HOSTS.has(host) && !(process.env.NODE_ENV!=='production'&&isLocalHost(host))) return new NextResponse('Not found.',{status:404});
+    const response=NextResponse.next();response.headers.set('Content-Security-Policy',"frame-ancestors 'none'");response.headers.set('Referrer-Policy','no-referrer');response.headers.set('Cache-Control','private, no-store');response.headers.set('X-Robots-Tag','noindex, nofollow');return response;
+  }
+
   if (pathname === '/platform' || pathname.startsWith('/platform/') || pathname === '/join' || pathname.startsWith('/join/')) {
     if (!(['zipbook.app','www.zipbook.app'].includes(host) || (process.env.NODE_ENV !== 'production' && ['localhost','127.0.0.1'].includes(host)))) return new NextResponse('Not found.', {status:404});
     const response = NextResponse.next();

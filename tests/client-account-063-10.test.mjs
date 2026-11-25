@@ -60,9 +60,9 @@ test('incomplete sign-up fields give explicit feedback instead of a nonresponsiv
 test('account UX patch 10 stays registered after subsequent releases', () => {
   const pkg = JSON.parse(source('package.json'));
   const lock = JSON.parse(source('package-lock.json'));
-  assert.match(pkg.version, /^0\.63\.\d+$/);
+  assert.match(pkg.version, /^0\.(?:63\.(?:1[0-9]|[2-9]\d|\d{3,})|(?:6[4-9]|[7-9]\d|\d{3,})\.\d+)$/);
   assert.equal(lock.version, pkg.version);
   assert.equal(lock.packages[''].version, pkg.version);
   assert.equal(pkg.scripts['test:account-ux-patch10'], 'node --test tests/client-account-063-10.test.mjs');
-  assert.match(source('lib/domains.ts'), /Ver-0\.063\.\d+/);
+  assert.match(source('lib/domains.ts'), /Ver-0\.(?:063\.\d+|0(?:6[4-9]|[7-9]\d)(?:\.\d+)?)/);
 });
