@@ -6,16 +6,16 @@ import {allowedEmbedParent,attachBookingEmbed} from '../lib/bookingEmbed.mjs';
 import {bookingHtmlSnippet,reactEmbedSnippet,businessEmbedUrls} from '../lib/embedPolicy.mjs';
 const read=f=>readFileSync(new URL('../'+f,import.meta.url),'utf8');
 const parent='https://sp-bio.netlify.app', origin='https://spbio.zipbook.app';
-function fixture(){
+function fixture(reducedMotion=true){
  const listeners=new Map(), frameListeners=new Map(), sent=[], scroll=[], revealed=[];
- let rect={top:50,height:850}; let count=0;
+ let rect={top:50,height:850}; let count=0; const frames=new Map();
  const contentWindow={postMessage:(data,target)=>sent.push({data,target})};
  const frame={src:origin+'/book?embed=1',contentWindow,style:{height:'850px'},parentElement:null,getBoundingClientRect:()=>rect,scrollIntoView:v=>revealed.push(v),addEventListener:(t,f)=>frameListeners.set(t,f),removeEventListener:t=>frameListeners.delete(t)};
- const window={innerHeight:600,addEventListener:(t,f)=>listeners.set(t,f),removeEventListener:t=>listeners.delete(t),setInterval:()=>1,clearInterval:()=>{},requestAnimationFrame:()=>++count,cancelAnimationFrame:()=>{},scrollBy:v=>scroll.push(v)};
+ const window={innerHeight:600,addEventListener:(t,f)=>listeners.set(t,f),removeEventListener:t=>listeners.delete(t),setInterval:()=>1,clearInterval:()=>{},requestAnimationFrame:f=>{frames.set(++count,f);return count;},cancelAnimationFrame:id=>frames.delete(id),clearTimeout:()=>{},matchMedia:()=>({matches:reducedMotion}),scrollBy:v=>scroll.push(v)};
  const attach=vm.runInNewContext('('+attachBookingEmbed.toString()+')',{window,URL,getComputedStyle:()=>({overflowY:'visible'})});
  const cleanup=attach(frame);
  const message=(data,eventOrigin=origin,source=contentWindow)=>listeners.get('message')({data,origin:eventOrigin,source});
- return {frame,message,sent,scroll,revealed,cleanup,listeners,frameListeners,setRect:r=>rect=r};
+ return {frame,message,sent,scroll,revealed,cleanup,listeners,frameListeners,setRect:r=>rect=r,flush:(now)=>{const batch=[...frames.values()];frames.clear();for(const fn of batch)fn(now);}};
 }
 test('only exact authorised public origins can negotiate embed mode',()=>{
  const policy=`frame-ancestors ${parent} https://www.spbio.co.za`;
@@ -58,5 +58,5 @@ test('HTML and React snippets include the handshake and fallback, direct URLs ar
 });
 test('embedded flow measures the content root, preserves inner scrolling and isolates styles',()=>{
  const hook=read('app/book/useBookingEmbed.ts'),css=read('app/book/booking-embed.css'),page=read('app/book/page.tsx');
- assert.match(hook,/new ResizeObserver/);assert.match(hook,/getBoundingClientRect\(\)\.bottom\+window\.scrollY/);assert.match(hook,/event\.composedPath\(\)/);assert.match(hook,/event\.ctrlKey/);assert.match(hook,/passive:false/);assert.match(css,/background: transparent !important/);assert.match(css,/\.zb-book-embedded\[data-embed-view="times"\]/);assert.match(page,/useBookingEmbed\(embedView\)/);assert.match(page,/!embedded && <ClientInstallPrompt/);assert.doesNotMatch(read('app/admin/layout.tsx'),/booking-embed|useBookingEmbed/);
+ assert.match(hook,/new ResizeObserver/);assert.match(hook,/getBoundingClientRect\(\)\.bottom\+window\.scrollY/);assert.match(hook,/event\.composedPath\(\)/);assert.match(hook,/event\.ctrlKey/);assert.match(hook,/passive:false/);assert.match(css,/background: transparent !important/);assert.match(css,/\.zb-book-embedded\[data-embed-view="times"\]/);assert.match(page,/useBookingEmbed\(embedView,/);assert.match(page,/!embedded && <ClientInstallPrompt/);assert.doesNotMatch(read('app/admin/layout.tsx'),/booking-embed|useBookingEmbed/);
 });

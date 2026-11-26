@@ -220,6 +220,7 @@ export default function BookPage() {
   const modalHistoryRef = useRef(false);
   const [businessInfo, setBusinessInfo] = useState<{name:string;legacy:boolean;publicBookings?:boolean} | null>(null);
   const [demoMode, setDemoMode] = useState(false);
+  const [tenantContextSettled, setTenantContextSettled] = useState(false);
   useEffect(()=>{void fetch('/api/demo/session',{cache:'no-store'}).then(r=>r.ok?r.json():null).then(v=>setDemoMode(Boolean(v?.active && v?.realDemo))).catch(()=>undefined);},[]);
   useEffect(() => {
     let cancelled = false;
@@ -227,7 +228,7 @@ export default function BookPage() {
       if (!response.ok) return;
       const payload = await response.json();
       if (!cancelled) setBusinessInfo(payload.tenant);
-    }).catch(()=>undefined);
+    }).catch(()=>undefined).finally(()=>{if(!cancelled)setTenantContextSettled(true);});
     return () => {cancelled=true;};
   }, []);
   // Request the tenant-scoped image as the very first logo. The image endpoint
@@ -1029,12 +1030,12 @@ export default function BookPage() {
   }
 
   const embedView = successBooking ? 'success' : clientPasswordResetOpen ? `reset-${clientLoginStage}` : clientLoginOpen ? `account-${clientLoginStage}` : bookingOpen ? (timePickerOpen ? 'times' : `step-${step}`) : 'home';
-  const { embedded, root } = useBookingEmbed(embedView);
+  const { embedded, root } = useBookingEmbed(embedView, !loading && tenantContextSettled);
 
   return (
     <main ref={root} className={`shell fresh-shell client-book-shell${embedded ? ' zb-book-embedded' : ''}`} data-embed-view={embedded ? embedView : undefined}>
-      <header className="client-home-topbar" aria-label="Client app header">
-        <a className="client-home-brand" href={embedded ? "/book?embed=1" : "/book"} aria-label="ZipBook client home">
+      {!embedded && <header className="client-home-topbar" aria-label="Client app header">
+        <a className="client-home-brand" href="/book" aria-label="ZipBook client home">
           <img src={headerLogo} alt="" width="44" height="44" />
           <span>ZipBook</span>
         </a>
@@ -1047,14 +1048,15 @@ export default function BookPage() {
           <span aria-hidden="true">{clientProfile ? '✓' : '👤'}</span>
           <strong>{clientProfile ? 'My account' : 'Login'}</strong>
         </button>
-      </header>
+      </header>}
 
       <section className="client-home-welcome" aria-labelledby="client-home-title">
-        <div className="client-home-icon-wrap" aria-hidden="true">
+        {!embedded && <><div className="client-home-icon-wrap" aria-hidden="true">
           <img src={bookingLogo} alt="" width="96" height="96" />
         </div>
         <p className="badge blue-badge">ZipBook · {APP_VERSION}</p>
-        <h1 id="client-home-title" className="hero-title clean-title">{businessInfo ? (businessInfo.legacy ? 'Welcome to ZipBook.' : `Welcome to ${clientBusinessDisplayName(businessInfo.name)}.`) : 'Welcome'}</h1>
+        </>}
+        <h1 id="client-home-title" className="hero-title clean-title">{embedded ? "Book an appointment" : businessInfo ? (businessInfo.legacy ? 'Welcome to ZipBook.' : `Welcome to ${clientBusinessDisplayName(businessInfo.name)}.`) : 'Welcome'}</h1>
         <p className="hero-copy tight-copy">
           {businessInfo?.legacy === false ? (businessInfo.publicBookings === false ? "Online appointments are not open yet. Please contact the business directly." : "Book as a guest or sign in to manage your appointments.") : "Book your appointment quickly and clearly, with your details ready when you sign in."}
         </p>
@@ -1062,6 +1064,7 @@ export default function BookPage() {
           <button className="button primary large-cta" type="button" disabled={loading || !!error || !procedures.length || businessInfo?.publicBookings === false} onClick={openBookingFlow}>
             Make a booking
           </button>
+          {embedded && <button className="client-login-icon-button embed-account-action" type="button" onClick={() => openClientLogin(clientProfile ? 'signed-in' : 'login')}>{clientProfile ? 'My account' : 'Login / Sign up'}</button>}
         </div>
         {demoMode && (
           <div className="client-signed-in-note" role="status"><strong>Public demo:</strong> Test the real customer booking app. You can book as a guest or choose Login / Sign up. <a href="/demo">Return to demo options</a>.</div>

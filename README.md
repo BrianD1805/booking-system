@@ -1,3 +1,7 @@
+## Ver-0.065.2 — Website Embed UX Refinements
+
+See FULL_PROGRAM_RELEASE_VER_0_065_2.md. Replace the generated public embed component on the host website.
+
 ## Ver-0.065.1 — Website Embed UX
 Replace old public booking iframe snippets with the full HTML or React component from Website integration. No new SQL or environment variables. Run `npm ci && npm run test:all && npm audit --omit=dev && npm run typecheck && npm run build`.
 

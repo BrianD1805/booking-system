@@ -3,11 +3,13 @@ import {useEffect, useRef, useState} from 'react';
 import {allowedEmbedParent} from '@/lib/bookingEmbed.mjs';
 import {safeRemoteFramePolicy} from '@/lib/embedPolicy.mjs';
 
-export function useBookingEmbed(view: string) {
+export function useBookingEmbed(view: string, contentReady: boolean) {
   const root = useRef<HTMLElement>(null);
   const [embedded, setEmbedded] = useState(false);
   const parentOrigin = useRef('');
   const previousView = useRef(view);
+  const readyRef = useRef(contentReady);
+  useEffect(()=>{readyRef.current=contentReady;},[contentReady]);
   const send = (type: string, payload: object = {}) => {
     if (parentOrigin.current) window.parent.postMessage({type,...payload}, parentOrigin.current);
   };
@@ -27,7 +29,7 @@ export function useBookingEmbed(view: string) {
         setEmbedded(true);
         send('zipbook:embed:ready');
         // A load event or a remounted host listener may repeat the handshake.
-        requestAnimationFrame(()=>{const element=root.current;if(alive && element?.classList.contains('zb-book-embedded'))send('zipbook:embed:height',{height:Math.ceil(element.getBoundingClientRect().bottom+window.scrollY)});});
+        requestAnimationFrame(()=>{const element=root.current;if(alive && element?.classList.contains('zb-book-embedded'))send('zipbook:embed:height',{height:Math.ceil(element.getBoundingClientRect().bottom+window.scrollY),contentReady:readyRef.current});});
       } else if (event.origin === parentOrigin.current && event.data.type === 'zipbook:embed:viewport') {
         const {top,height} = event.data;
         if (!Number.isFinite(top) || !Number.isFinite(height)) return;
@@ -35,11 +37,12 @@ export function useBookingEmbed(view: string) {
         const h = Math.max(0,Math.min(window.innerHeight-t,height));
         // Ignore fully offscreen reports: keep the last usable popup area.
         if (h > 40) {
-          document.documentElement.style.setProperty('--zb-embed-view-top',`${t}px`);
-          document.documentElement.style.setProperty('--zb-embed-view-height',`${h}px`);
-          document.documentElement.style.setProperty('--zb-embed-view-bottom',`${Math.max(0,window.innerHeight-t-h)}px`);
+          const style=document.documentElement.style;
+          const values=[['--zb-embed-view-top',`${Math.round(t)}px`],['--zb-embed-view-height',`${Math.round(h)}px`],['--zb-embed-view-bottom',`${Math.max(0,Math.round(window.innerHeight-t-h))}px`]];
+          let changed=false;
+          for(const [key,value] of values) if(style.getPropertyValue(key)!==value){style.setProperty(key,value);changed=true;}
           document.documentElement.toggleAttribute('data-zb-embed-roomy',h>=440);
-          window.dispatchEvent(new Event('zipbook:embed:viewportchange'));
+          if(changed) window.dispatchEvent(new Event('zipbook:embed:viewportchange'));
         }
       }
     }
@@ -63,7 +66,7 @@ export function useBookingEmbed(view: string) {
       // Measure the content root, never documentElement.scrollHeight (it is
       // at least the iframe viewport height and therefore cannot shrink).
       const height=Math.ceil(element.getBoundingClientRect().bottom+window.scrollY);
-      if (height>0 && height!==last) {last=height;send('zipbook:embed:height',{height});}
+      if (height>0 && height!==last) {last=height;send('zipbook:embed:height',{height,contentReady});}
     };
     const queue=()=>{if (!frame) frame=requestAnimationFrame(measure);};
     const observer=new ResizeObserver(queue);observer.observe(root.current);
@@ -83,11 +86,11 @@ export function useBookingEmbed(view: string) {
       const scroller=document.scrollingElement;
       if (scroller && (event.deltaY>0?scroller.scrollTop+window.innerHeight<scroller.scrollHeight-1:scroller.scrollTop>1)) return;
       event.preventDefault();
-      send('zipbook:embed:wheel',{delta:event.deltaY*(event.deltaMode===1?16:event.deltaMode===2?window.innerHeight:1)});
+      send('zipbook:embed:wheel',{delta:event.deltaY*(event.deltaMode===1?(parseFloat(getComputedStyle(document.body).lineHeight)||16):event.deltaMode===2?window.innerHeight:1)});
     }
     window.addEventListener('wheel',wheel,{passive:false});
     return()=>{observer.disconnect();mutation.disconnect();window.removeEventListener('resize',queue);document.fonts?.removeEventListener('loadingdone',queue);window.removeEventListener('wheel',wheel);if(frame)cancelAnimationFrame(frame);};
-  },[embedded]);
+  },[embedded,contentReady]);
   useEffect(()=>{
     if (embedded && previousView.current!==view) send('zipbook:embed:reveal');
     previousView.current=view;
