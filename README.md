@@ -1,3 +1,6 @@
+## Ver-0.065 — Customer App Branding
+Apply `supabase/zipbook_customer_theme_ver_0_065.sql` before deploy. Business owners can customise booking colours and fonts in Admin Settings.
+
 # ZipBook Ver-0.064 — Business Onboarding & Staff Account Recovery
 
 Apply `supabase/zipbook_staff_recovery_ver_0_064.sql` before deployment. See `FULL_PROGRAM_RELEASE_VER_0_064.md` for configuration and release notes.

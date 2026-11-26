@@ -11,6 +11,7 @@ import { APP_VERSION } from '@/lib/mockData';
 import { makeAdminAuthHeaders } from '@/components/admin/AdminAuthGate';
 import { showAdminToast } from '@/components/admin/AdminToast';
 import { BusinessBrandingCard } from '@/components/admin/BusinessBrandingCard';
+import { CustomerThemeCard } from '@/components/admin/CustomerThemeCard';
 
 type PracticeSettingsForm = {
   practiceName: string; publicDisplayName: string; address: string; phone: string; email: string; logoUrl: string;
@@ -219,6 +220,7 @@ export default function AdminSettingsPage() {
       </div>
 
       <BusinessBrandingCard />
+      {data.settings.clientAppUrl && /^https:\/\/[^.]+\.zipbook\.app\/book$/.test(data.settings.clientAppUrl) && <CustomerThemeCard businessName={data.settings.publicDisplayName || data.settings.practiceName} />}
 
       {data.settings.tenantSlug && <section className="card clean-panel settings-054-section">
         <div className="settings-054-section-heading"><div><span className="settings-054-eyebrow">Your website</span><h2>Website integration</h2><p>Copy your business booking link or add the secure diary to approved websites with HTML or React code.</p></div><Link className="button primary" href="/admin/integrations">Manage integration</Link></div>

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'zipbook-v0.064';
+const CACHE_NAME = 'zipbook-v0.065';
 const CORE_ASSETS = [
   '/',
   '/book',
@@ -16,7 +16,7 @@ const CORE_ASSETS = [
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME)
-      .then((cache) => cache.addAll(self.location.hostname.startsWith('admin.') ? CORE_ASSETS.filter((path) => !['/', '/book', '/widget'].includes(path)) : CORE_ASSETS))
+      .then((cache) => cache.addAll((self.location.hostname.startsWith('admin.') || !['zipbook.app','www.zipbook.app','localhost','127.0.0.1','bookings-system.netlify.app'].includes(self.location.hostname)) ? CORE_ASSETS.filter((path) => !['/', '/book', '/widget'].includes(path)) : CORE_ASSETS))
       .catch(() => undefined)
   );
   self.skipWaiting();
@@ -46,7 +46,7 @@ self.addEventListener('fetch', (event) => {
   }
 
   if (isNavigationRequest(event.request)) {
-    const publicShell = !url.hostname.startsWith('admin.') && !url.search && ['/', '/book', '/widget', '/offline.html'].includes(url.pathname);
+    const publicShell = ['zipbook.app','www.zipbook.app','localhost','127.0.0.1','bookings-system.netlify.app'].includes(url.hostname) && !url.search && ['/', '/book', '/widget', '/offline.html'].includes(url.pathname);
     event.respondWith(fetch(event.request).then((response) => {
       if (publicShell && response.ok && !response.redirected) {
         const copy = response.clone();
