@@ -94,8 +94,8 @@ export default function WebsiteIntegrationsPage() {
       </section>
       <section className="card clean-panel settings-054-section">
         <div className="settings-054-section-heading"><div><span className="settings-054-eyebrow">Step 3</span><h2>Embed public bookings</h2><p>Paste the snippet into a custom HTML block in a website builder or an HTML file. Enable public-booking permission for that website first.</p></div></div>
-        <CopyPanel name="HTML booking iframe" description="A responsive-width booking page embedded in your website." content={bookingHtmlSnippet(slug)} disabled={!allowedPublic}/>
-        <CopyPanel name="React / Next.js booking component" description="Paste the JSX into a client or server component in a code-built website." content={reactEmbedSnippet(slug,'public')} disabled={!allowedPublic}/>
+        <CopyPanel name="HTML booking iframe" description="Responsive booking iframe with automatic height and host-page scrolling. Paste the complete HTML including the script." content={bookingHtmlSnippet(slug)} disabled={!allowedPublic}/>
+        <CopyPanel name="React / Next.js booking component" description="Save the complete snippet as ZipBookBooking.jsx and render it in your page. It includes automatic height and host-page scrolling." content={reactEmbedSnippet(slug,'public')} disabled={!allowedPublic}/>
       </section>
       <section className="card clean-panel settings-054-section">
         <div className="settings-054-section-heading"><div><span className="settings-054-eyebrow">Step 4</span><h2>Secure staff diary</h2><p>For authorised staff only. Website visitors see the staff sign-in screen, never client records. Give diary embedding permission only to websites you trust and control.</p></div></div>

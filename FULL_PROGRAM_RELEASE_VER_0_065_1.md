@@ -1,0 +1,7 @@
+# ZipBook Ver-0.065.1 — Website Embed UX
+
+26 November 2026. Builds on Ver-0.065. No SQL or new Netlify variables; existing website integration and theme migrations remain required.
+
+Public booking snippets now use `/book?embed=1` and a verified parent/iframe handshake. The child checks the tenant's existing approved public frame origins. The parent checks both source window and exact iframe origin. Only layout messages (height, visible area, wheel and reveal) are exchanged. The standalone `/book`, PWA and staff diary stay on their existing layout. Host scripts must be permitted for adaptive mode; otherwise the fixed-height iframe and direct link remain available. Main embedded steps expand in document flow. Headers and footers follow the visible host viewport when it is at least 440px high; shorter visible regions use normal flow to avoid hiding controls. Country lists and nested feedback retain bounded scrolling. Actual cross-browser mouse/touch scrolling, visual appearance, iframe account login and booking need live tests. Third-party storage restrictions may prevent persistent login; use the direct link if required.
+
+For React/Next.js, save the entire generated snippet as `ZipBookBooking.jsx`, import it into the booking route, remove prior fixed/min-height wrappers, and render it. For HTML, paste the full snippet including the inline script. No additional iframe sandbox restrictions or overflow clipping. Do not use the public snippet for Admin. Verify authorized origins remain correct.

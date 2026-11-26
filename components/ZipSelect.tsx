@@ -56,18 +56,20 @@ export function ZipSelect({ id, value, options, onChange, ariaLabel, placeholder
     const rect = button.getBoundingClientRect();
     const viewport = window.visualViewport;
     const left = viewport?.offsetLeft ?? 0;
-    const top = viewport?.offsetTop ?? 0;
+    const embedStyle = document.querySelector('.zb-book-embedded') ? getComputedStyle(document.documentElement) : null;
+    const top = embedStyle ? Number.parseFloat(embedStyle.getPropertyValue('--zb-embed-view-top')) || 0 : viewport?.offsetTop ?? 0;
     const width = viewport?.width ?? window.innerWidth;
-    const height = viewport?.height ?? window.innerHeight;
+    const height = embedStyle ? Number.parseFloat(embedStyle.getPropertyValue('--zb-embed-view-height')) || window.innerHeight : viewport?.height ?? window.innerHeight;
     const below = Math.max(0, top + height - rect.bottom - MENU_GAP - VIEWPORT_GUTTER);
     const above = Math.max(0, rect.top - top - MENU_GAP - VIEWPORT_GUTTER);
     const putAbove = below < 150 && above > below;
     const maxHeight = Math.min(320, Math.max(120, putAbove ? above : below));
     const menuWidth = Math.min(Math.max(rect.width, 180), width - VIEWPORT_GUTTER * 2);
     const menuLeft = Math.min(Math.max(rect.left, left + VIEWPORT_GUTTER), left + width - menuWidth - VIEWPORT_GUTTER);
-    const menuTop = putAbove ? rect.top - maxHeight - MENU_GAP : rect.bottom + MENU_GAP;
+    const proposedTop = putAbove ? rect.top - maxHeight - MENU_GAP : rect.bottom + MENU_GAP;
+    const menuTop = embedStyle ? Math.max(top + VIEWPORT_GUTTER, Math.min(proposedTop, top + height - maxHeight - VIEWPORT_GUTTER)) : proposedTop;
     setOpensAbove(putAbove);
-    setMenuStyle({ position: 'fixed', left: Math.round(menuLeft), top: Math.round(menuTop), width: Math.round(menuWidth), maxHeight: Math.round(maxHeight) });
+    setMenuStyle({ position: 'fixed', left: Math.round(menuLeft), top: Math.round(menuTop), width: Math.round(menuWidth), maxHeight: Math.round(maxHeight), ...(embedStyle ? {'--zb-embed-menu-top':`${Math.round(menuTop)}px`} : {}) } as CSSProperties);
   }, [isCountrySelector]);
 
 
@@ -81,12 +83,14 @@ export function ZipSelect({ id, value, options, onChange, ariaLabel, placeholder
     update();
     const frame = window.requestAnimationFrame(update);
     window.addEventListener('resize', update);
+    window.addEventListener('zipbook:embed:viewportchange', update);
     window.addEventListener('scroll', update, true);
     window.visualViewport?.addEventListener('resize', update);
     window.visualViewport?.addEventListener('scroll', update);
     return () => {
       window.cancelAnimationFrame(frame);
       window.removeEventListener('resize', update);
+      window.removeEventListener('zipbook:embed:viewportchange', update);
       window.removeEventListener('scroll', update, true);
       window.visualViewport?.removeEventListener('resize', update);
       window.visualViewport?.removeEventListener('scroll', update);

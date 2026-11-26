@@ -178,7 +178,9 @@ export function DatePickerField({
 
     const triggerRect = wrapperRef.current.getBoundingClientRect();
     const viewportWidth = window.innerWidth;
-    const viewportHeight = window.innerHeight;
+    const embedStyle = document.querySelector('.zb-book-embedded') ? getComputedStyle(document.documentElement) : null;
+    const viewportTop = Number.parseFloat(embedStyle?.getPropertyValue('--zb-embed-view-top') || '0') || 0;
+    const viewportHeight = Number.parseFloat(embedStyle?.getPropertyValue('--zb-embed-view-height') || '') || window.innerHeight;
     const isMobile = viewportWidth <= 640;
     const gap = 16;
     const width = Math.min(isDob ? 374 : 342, viewportWidth - gap * 2);
@@ -186,13 +188,13 @@ export function DatePickerField({
 
     if (popupBehavior === 'dropdown') {
       const viewportLeft = window.visualViewport?.offsetLeft ?? 0;
-      const viewportTop = window.visualViewport?.offsetTop ?? 0;
+      const visibleTop = embedStyle ? viewportTop : window.visualViewport?.offsetTop ?? 0;
       const safeViewportWidth = window.visualViewport?.width ?? viewportWidth;
-      const safeViewportHeight = window.visualViewport?.height ?? viewportHeight;
+      const safeViewportHeight = embedStyle ? viewportHeight : window.visualViewport?.height ?? viewportHeight;
       const gutter = 12;
       const menuGap = 8;
-      const availableBelow = Math.max(0, viewportTop + safeViewportHeight - triggerRect.bottom - menuGap - gutter);
-      const availableAbove = Math.max(0, triggerRect.top - viewportTop - menuGap - gutter);
+      const availableBelow = Math.max(0, visibleTop + safeViewportHeight - triggerRect.bottom - menuGap - gutter);
+      const availableAbove = Math.max(0, triggerRect.top - visibleTop - menuGap - gutter);
       const shouldOpenAbove = availableBelow < 250 && availableAbove > availableBelow;
       const safeWidth = Math.min(Math.max(triggerRect.width, 280), safeViewportWidth - gutter * 2);
       const left = Math.min(
@@ -201,14 +203,14 @@ export function DatePickerField({
       );
       const belowTop = Math.min(
         triggerRect.bottom + menuGap,
-        viewportTop + safeViewportHeight - measuredHeight - gutter
+        visibleTop + safeViewportHeight - measuredHeight - gutter
       );
-      const aboveTop = Math.max(gutter, triggerRect.top - measuredHeight - menuGap);
+      const aboveTop = Math.max(visibleTop + gutter, triggerRect.top - measuredHeight - menuGap);
 
       setPopoverPosition({
         width: safeWidth,
         left,
-        top: Math.max(gutter, shouldOpenAbove ? aboveTop : belowTop)
+        top: Math.max(visibleTop + gutter, shouldOpenAbove ? aboveTop : belowTop)
       });
       return;
     }
@@ -217,7 +219,7 @@ export function DatePickerField({
       setPopoverPosition({
         width,
         left: Math.max(gap, (viewportWidth - width) / 2),
-        top: Math.max(gap, (viewportHeight - measuredHeight) / 2)
+        top: viewportTop + Math.max(gap, (viewportHeight - measuredHeight) / 2)
       });
       return;
     }
@@ -225,8 +227,8 @@ export function DatePickerField({
     const rawLeft = triggerRect.right - width;
     const left = Math.min(Math.max(gap, rawLeft), viewportWidth - width - gap);
     const rawTop = triggerRect.top - 8;
-    const maxTop = Math.max(gap, viewportHeight - measuredHeight - gap);
-    const top = Math.max(gap, Math.min(rawTop, maxTop));
+    const maxTop = viewportTop + Math.max(gap, viewportHeight - measuredHeight - gap);
+    const top = Math.max(viewportTop + gap, Math.min(rawTop, maxTop));
 
     setPopoverPosition({ width, left, top });
   }, [isDob, popupBehavior]);
@@ -269,12 +271,14 @@ export function DatePickerField({
     document.addEventListener('touchstart', handlePointerDown);
     document.addEventListener('keydown', handleKeyDown);
     window.addEventListener('resize', handleViewportChange);
+    window.addEventListener('zipbook:embed:viewportchange', handleViewportChange);
     window.addEventListener('scroll', handleViewportChange, true);
     return () => {
       document.removeEventListener('mousedown', handlePointerDown);
       document.removeEventListener('touchstart', handlePointerDown);
       document.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('resize', handleViewportChange);
+      window.removeEventListener('zipbook:embed:viewportchange', handleViewportChange);
       window.removeEventListener('scroll', handleViewportChange, true);
     };
   }, [open, updatePopoverPosition]);

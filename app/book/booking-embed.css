@@ -1,0 +1,109 @@
+/* Ver-0.065.1 — authenticated presentation handshake only. The class is
+   absent in the standalone app, PWA, legacy demo and staff diary. */
+html:has(.zb-book-embedded), body:has(.zb-book-embedded) {
+  background: transparent !important;
+  min-height: 0 !important;
+  height: auto !important;
+  overflow-x: clip;
+  overscroll-behavior-y: auto;
+  scroll-behavior: auto;
+}
+.zb-book-embedded.client-book-shell {
+  width: min(100%,1180px);
+  margin: 0 auto;
+  padding: 12px 12px 24px;
+  min-height: 0;
+  display: flow-root;
+}
+.zb-book-embedded .client-home-welcome {
+  min-height: 0 !important;
+  padding-block: clamp(24px,5vw,48px) !important;
+  align-content: center;
+}
+.zb-book-embedded .client-home-icon-wrap { margin-top: 0 !important; }
+.zb-book-embedded:not([data-embed-view="home"]) > :is(.client-home-topbar,.client-home-welcome) { display: none !important; }
+.zb-book-embedded > :is(.booking-workflow.is-open,.client-auth-popup,.booking-success-page),
+.zb-book-embedded .time-picker-popup {
+  position: relative !important;
+  inset: auto !important;
+  width: 100% !important;
+  min-width: 0;
+  max-width: 100%;
+  height: auto !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  padding: 0 !important;
+  background: transparent !important;
+  backdrop-filter: none;
+  overflow: visible !important;
+  overscroll-behavior: auto;
+  place-items: start center;
+}
+/* Retain panel styling, but size to contents instead of the iframe viewport. */
+.zb-book-embedded :is(.booking-workflow.is-open > .workflow-card,.time-picker-card,.booking-success-card,.client-auth-popup .client-auth-card) {
+  height: auto !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  max-width: 100% !important;
+  overflow: visible !important;
+  overscroll-behavior: auto;
+  position: relative;
+  margin: 0 auto;
+}
+.zb-book-embedded .booking-workflow.is-open > .workflow-card { display: block; }
+.zb-book-embedded .client-auth-popup .client-auth-card:not(.client-reset-card) { height: auto !important; max-height: none !important; }
+.zb-book-embedded :is(.time-picker-card,.booking-success-card) { display: block; }
+.zb-book-embedded :is(.flow-step,.time-picker-slots,.booking-success-body,.client-auth-card > .grid,.client-auth-card > .client-otp-box,.client-auth-card > .client-profile-panel,.client-auth-card > .reset-popup-body) {
+  height: auto !important;
+  max-height: none !important;
+  min-height: 0;
+  overflow: visible !important;
+  overscroll-behavior: auto;
+}
+/* No independent document-height scrollbar. On very short visible regions
+   headings and actions stay in the normal flow to avoid covering controls. */
+.zb-book-embedded :is(.workflow-head,.client-auth-head,.booking-success-head,.workflow-actions,.time-picker-actions,.client-auth-bottom,.success-actions) { position: relative; inset: auto; }
+.zb-book-embedded :is(.workflow-head,.client-auth-head,.booking-success-head) { border-top-left-radius: inherit; border-top-right-radius: inherit; }
+.zb-book-embedded :is(.workflow-actions,.time-picker-actions,.client-auth-bottom,.success-actions) { border-bottom-left-radius: inherit; border-bottom-right-radius: inherit; }
+/* The time selection is its own view, not a second viewport-sized overlay. */
+.zb-book-embedded[data-embed-view="times"] .workflow-card > :not(.time-picker-popup) { display: none !important; }
+.zb-book-embedded[data-embed-view="times"] .booking-workflow > .workflow-card { border: 0; background: transparent !important; box-shadow: none; }
+.zb-book-embedded[data-embed-view="times"] .time-picker-card { width: 100%; }
+/* Overlay subdialogs (country list, feedback) follow the visible part of the
+   host viewport. Their own lists still scroll, even on short mobile screens. */
+body:has(.zb-book-embedded) :is(.zip-select-country-overlay,.client-signup-feedback-backdrop) {
+  top: var(--zb-embed-view-top,0px) !important;
+  bottom: auto !important;
+  height: var(--zb-embed-view-height,100dvh) !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  padding: 10px !important;
+}
+body:has(.zb-book-embedded) .zip-select-country-dialog {
+  height: min(535px,calc(var(--zb-embed-view-height,100dvh) - 20px)) !important;
+  max-height: calc(var(--zb-embed-view-height,100dvh) - 20px) !important;
+}
+body:has(.zb-book-embedded) .client-signup-feedback-panel { max-height: calc(var(--zb-embed-view-height,100dvh) - 20px); }
+body:has(.zb-book-embedded) .zip-calendar-popover.is-floating { max-height: calc(var(--zb-embed-view-height,100dvh) - 24px); overflow-y: auto; }
+@media(max-width:760px) { .zb-book-embedded.client-book-shell { padding: 8px 6px 16px; } }
+/* Override the prior booking-only white/theme canvas, not the panel colours. */
+body:has(#zb-customer-theme) .zb-book-embedded.client-book-shell .booking-workflow.is-open,
+body:has(.zb-book-embedded) .zb-book-embedded.client-book-shell .booking-workflow.is-open,
+body:has(#zb-customer-theme) .zb-book-embedded[data-embed-view="times"] .booking-workflow.is-open > .workflow-card {
+  background: transparent !important;
+}
+
+/* Sticky controls follow the parent's visible viewport when there is room.
+   On short viewports keep them in flow, so no content is hidden by the bars. */
+html[data-zb-embed-roomy] .zb-book-embedded :is(.workflow-head,.client-auth-head,.booking-success-head) {
+  position: sticky;
+  top: var(--zb-embed-view-top,0px);
+}
+html[data-zb-embed-roomy] .zb-book-embedded :is(.workflow-actions,.time-picker-actions,.client-auth-bottom,.success-actions) {
+  position: sticky;
+  bottom: var(--zb-embed-view-bottom,0px);
+}
+body:has(.zb-book-embedded) .zip-select-floating-menu {
+  top: var(--zb-embed-menu-top) !important;
+  bottom: auto !important;
+}

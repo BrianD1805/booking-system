@@ -1,3 +1,6 @@
+## Ver-0.065.1 — Website Embed UX
+Replace old public booking iframe snippets with the full HTML or React component from Website integration. No new SQL or environment variables. Run `npm ci && npm run test:all && npm audit --omit=dev && npm run typecheck && npm run build`.
+
 ## Ver-0.065 — Customer App Branding
 Apply `supabase/zipbook_customer_theme_ver_0_065.sql` before deploy. Business owners can customise booking colours and fonts in Admin Settings.
 

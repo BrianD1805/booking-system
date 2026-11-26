@@ -35,6 +35,7 @@ export function ClientInstallPrompt({ businessName }: { businessName?: string })
   const supportsNativePrompt = useMemo(() => Boolean(installEvent), [installEvent]);
 
   useEffect(() => {
+    if (window.parent !== window) return;
     const dismissed = window.localStorage.getItem(DISMISS_KEY) === 'true';
     const installed = window.localStorage.getItem(INSTALLED_KEY) === 'true' || isStandaloneDisplay();
     setIsInstalled(installed);

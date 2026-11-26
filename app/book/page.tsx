@@ -9,6 +9,8 @@ import { FIRST_AVAILABLE, getAvailabilityForDate, getDateOffset, getDayLabel, pr
 import { assertClientBookingRules, bookingStartIsPast, getPracticeToday } from '@/lib/bookingTime.mjs';
 import { useBookingDatabase } from '@/lib/useBookingDatabase';
 import { ClientInstallPrompt } from './ClientInstallPrompt';
+import { useBookingEmbed } from './useBookingEmbed';
+import './booking-embed.css';
 
 const steps = ['Details', 'Treatment', 'Diary', 'Review'];
 
@@ -189,6 +191,13 @@ async function readJsonResponse<T>(response: Response): Promise<T> {
   return payload as T;
 }
 
+function readClientSessionStorage() {
+  try { return window.localStorage.getItem('zipbook-client-session') ?? ''; } catch { return ''; }
+}
+function writeClientSessionStorage(token?: string) {
+  try { if (token) window.localStorage.setItem('zipbook-client-session', token); else window.localStorage.removeItem('zipbook-client-session'); } catch { /* Embedded browsers may block storage. */ }
+}
+
 function todayInputValue() {
   return getPracticeToday();
 }
@@ -336,7 +345,7 @@ export default function BookPage() {
   }, [eligiblePractitioners, practitionerChoice]);
 
   useEffect(() => {
-    const storedToken = window.localStorage.getItem('zipbook-client-session') ?? '';
+    const storedToken = readClientSessionStorage();
     if (!storedToken) return;
 
     setClientLoginLoading(true);
@@ -350,7 +359,7 @@ export default function BookPage() {
         applyClientProfile(payload.profile);
       })
       .catch(() => {
-        window.localStorage.removeItem('zipbook-client-session');
+        writeClientSessionStorage();
       })
       .finally(() => setClientLoginLoading(false));
   }, []);
@@ -746,7 +755,7 @@ export default function BookPage() {
         body: JSON.stringify({ otpId: clientOtp.otpId, code: clientOtpCode, password: clientResetPassword })
       });
       const payload = await readJsonResponse<ClientVerifyResponse>(response);
-      window.localStorage.setItem('zipbook-client-session', payload.sessionToken);
+      writeClientSessionStorage(payload.sessionToken);
       setClientSessionToken(payload.sessionToken);
       setClientPassword('');
       setClientResetPassword('');
@@ -772,7 +781,7 @@ export default function BookPage() {
         body: JSON.stringify({ otpId: clientOtp.otpId, code: clientOtpCode })
       });
       const payload = await readJsonResponse<ClientVerifyResponse>(response);
-      window.localStorage.setItem('zipbook-client-session', payload.sessionToken);
+      writeClientSessionStorage(payload.sessionToken);
       setClientSessionToken(payload.sessionToken);
       applyClientProfile(payload.profile);
       setClientLoginNotice('Signed up and signed in. You can now book more quickly next time.');
@@ -812,7 +821,7 @@ export default function BookPage() {
         })
       });
       const payload = await readJsonResponse<ClientVerifyResponse>(response);
-      window.localStorage.setItem('zipbook-client-session', payload.sessionToken);
+      writeClientSessionStorage(payload.sessionToken);
       setClientSessionToken(payload.sessionToken);
       applyClientProfile(payload.profile);
       setClientSignupFeedback(null);
@@ -831,7 +840,7 @@ export default function BookPage() {
     if (token) {
       void fetch('/api/client-login/logout', { method: 'POST', headers: { Authorization: `Bearer ${token}` } }).catch(() => undefined);
     }
-    window.localStorage.removeItem('zipbook-client-session');
+    writeClientSessionStorage();
     setClientSessionToken('');
     setClientProfile(null);
     setClientOtp(null);
@@ -1019,10 +1028,13 @@ export default function BookPage() {
     }
   }
 
+  const embedView = successBooking ? 'success' : clientPasswordResetOpen ? `reset-${clientLoginStage}` : clientLoginOpen ? `account-${clientLoginStage}` : bookingOpen ? (timePickerOpen ? 'times' : `step-${step}`) : 'home';
+  const { embedded, root } = useBookingEmbed(embedView);
+
   return (
-    <main className="shell fresh-shell client-book-shell">
+    <main ref={root} className={`shell fresh-shell client-book-shell${embedded ? ' zb-book-embedded' : ''}`} data-embed-view={embedded ? embedView : undefined}>
       <header className="client-home-topbar" aria-label="Client app header">
-        <a className="client-home-brand" href="/book" aria-label="ZipBook client home">
+        <a className="client-home-brand" href={embedded ? "/book?embed=1" : "/book"} aria-label="ZipBook client home">
           <img src={headerLogo} alt="" width="44" height="44" />
           <span>ZipBook</span>
         </a>
@@ -1633,7 +1645,7 @@ export default function BookPage() {
         </section>
       )}
 
-      <ClientInstallPrompt businessName={businessInfo?.legacy === false ? businessInfo.name : undefined} />
+      {!embedded && <ClientInstallPrompt businessName={businessInfo?.legacy === false ? businessInfo.name : undefined} />}
 
     </main>
   );
