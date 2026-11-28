@@ -1,3 +1,7 @@
+## Ver-0.066 — Public Landing Page Redesign
+
+The public `/` marketing page now has an Inter-based responsive design, a clearly labelled illustrative diary, features, onboarding steps and demo/integration links. No changes to customer, staff or Platform layouts. No SQL or environment changes. See FULL_PROGRAM_RELEASE_VER_0_066.md.
+
 ## Ver-0.065.4 — Platform Business Information UX
 
 Business onboarding details start collapsed, show chronological stages and use underlined business URLs. Existing actions and email status semantics retained. No new SQL or environment variables. See FULL_PROGRAM_RELEASE_VER_0_065_4.md.
