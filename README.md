@@ -1,3 +1,7 @@
+## Ver-0.065.4 — Platform Business Information UX
+
+Business onboarding details start collapsed, show chronological stages and use underlined business URLs. Existing actions and email status semantics retained. No new SQL or environment variables. See FULL_PROGRAM_RELEASE_VER_0_065_4.md.
+
 ## Ver-0.065.3 — Customer Branding Restrictions & Protected UI
 
 Only primary/secondary buttons, Home background/corners and font are editable; existing logo upload remains. Legacy theme fields are ignored on read and removed on next save. No new SQL or environment variables. See FULL_PROGRAM_RELEASE_VER_0_065_3.md.

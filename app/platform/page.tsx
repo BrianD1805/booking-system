@@ -12,6 +12,10 @@ type Action='activate'|'publish'|'suspend'|'resend'|'delete-data';
 const empty:Draft={name:'',slug:'',ownerName:'',ownerEmail:'',timezone:'Europe/London',currency:'GBP',country:'GB'};
 const initial:Overview={businesses:[],accountsEnabled:false,emailConfigured:false};
 const status=(b:Business)=>b.onboarding_completed?'Bookings open':b.pilot_enabled?'Diary setup':b.platform_suspended?'Suspended':b.verified_at?'Awaiting activation':'Invitation pending';
+function EmailStatus({business,kind,label}:{business:Business;kind:'invitation'|'diary'|'live';label:string}) {
+  const email=business.emails?.[kind];
+  return <p>{label}: {email?.status?.replaceAll('_',' ').replace(/^./,c=>c.toUpperCase())||'No recorded delivery'}{email?.createdAt&&` · ${new Date(email.createdAt).toLocaleString('en-GB')}`}</p>;
+}
 function Modal({title,children,footer,onClose,busy}:{title:string;children:ReactNode;footer:ReactNode;onClose:()=>void;busy:boolean}) {
   const ref=useRef<HTMLDialogElement>(null);
   useEffect(()=>{const dialog=ref.current;const overflow=document.body.style.overflow;dialog?.showModal();document.body.style.overflow='hidden';return()=>{dialog?.close();document.body.style.overflow=overflow;};},[]);
@@ -51,7 +55,41 @@ export default function PlatformPage(){
       <section className="platform-metrics">{[['Registered',overview.businesses.length],['Awaiting verification',overview.businesses.filter(b=>!b.verified_at).length],['Diary access',overview.businesses.filter(b=>b.pilot_enabled).length],['Bookings open',overview.businesses.filter(b=>b.onboarding_completed).length]].map(([label,n])=><div className="card" key={label}><small>{label}</small><strong>{n}</strong></div>)}</section>
       {!overview.emailConfigured&&<p className="platform-error" role="alert">Email delivery is not configured. Business registration requires Resend.</p>}{!overview.accountsEnabled&&<p className="platform-note">Business diary access is disabled in platform configuration. Invitations can still be prepared.</p>}
       {notice&&<p className="platform-note" role="status">{notice}</p>}{error&&!create&&!pending&&<p className="platform-error" role="alert">{error}</p>}
-      <section className="card"><label className="settings-054-field">Search businesses<input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Business name, address or owner email"/></label><div className="platform-list">{rows.length===0?<p className="settings-054-empty">{search?'No matching businesses.':'No businesses registered yet.'}</p>:rows.map(b=><article key={b.id} className="platform-business"><div className="platform-business-main"><div><h2>{b.name}</h2><p>{b.tenant_slug}.zipbook.app</p><p>{b.owner_name} · {b.owner_email}</p><small>{b.country_code} · {b.currency_code} · {b.timezone}</small></div><span className="pill">{status(b)}</span></div><div className="platform-note">Owner email: {b.verified_at?'Verified':'Not verified'} · {b.active_practitioners} active practitioners · {b.active_services} active services · {b.configured_practitioners} practitioners with assigned services and hours</div><details open className="platform-note"><summary>Business links and onboarding progress</summary><p>Owner login: {b.owner_email}</p><p>Diary: <a href={`https://${b.tenant_slug}.zipbook.app/admin`} target="_blank" rel="noreferrer">https://{b.tenant_slug}.zipbook.app/admin</a></p><p>Booking: <a href={`https://${b.tenant_slug}.zipbook.app/book`} target="_blank" rel="noreferrer">https://{b.tenant_slug}.zipbook.app/book</a></p><p>Owner verification: {b.verified_at?`Verified ${new Date(b.verified_at).toLocaleString('en-GB')}`:new Date(b.expires_at||0).getTime()<Date.now()?'Invitation expired':'Invitation pending'}</p><p>Diary: {b.pilot_enabled?'Enabled':'Disabled'} · Setup: {b.configured_practitioners?'Practitioner schedule configured; manual checks required':'Configuration required'} · Public bookings: {b.onboarding_completed?'Open':'Closed'}</p>{(['invitation','diary','live'] as const).map(kind=><p key={kind}>{kind==='invitation'?'Invitation email':kind==='diary'?'Diary welcome email':'Business live email'}: {b.emails?.[kind]?.status?.replaceAll('_',' ').replace(/^./,c=>c.toUpperCase())||'No recorded delivery'} {b.emails?.[kind]?.createdAt&&` · ${new Date(b.emails[kind].createdAt).toLocaleString('en-GB')}`}</p>)}<p><small>Accepted means Resend accepted the request, not confirmed delivery. Older emails may have no tracking record.</small></p><div className="nav-pills"><button className="button" disabled={busy} onClick={()=>void save({action:'refresh-email',id:b.id})}>Refresh email delivery status</button>{b.pilot_enabled&&<button className="button" disabled={busy||!overview.emailConfigured} onClick={()=>void save({action:'resend-diary',id:b.id})}>Resend diary welcome email</button>}{b.onboarding_completed&&<button className="button" disabled={busy||!overview.emailConfigured} onClick={()=>void save({action:'resend-live',id:b.id})}>Resend business live email</button>}</div></details><div className="nav-pills">
+      <section className="card"><label className="settings-054-field">Search businesses<input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Business name, address or owner email"/></label><div className="platform-list">{rows.length===0?<p className="settings-054-empty">{search?'No matching businesses.':'No businesses registered yet.'}</p>:rows.map(b=><article key={b.id} className="platform-business"><div className="platform-business-main"><div><h2>{b.name}</h2><p>{b.tenant_slug}.zipbook.app</p><p>{b.owner_name} · {b.owner_email}</p><small>{b.country_code} · {b.currency_code} · {b.timezone}</small></div><span className="pill">{status(b)}</span></div><details className="platform-note platform-onboarding">
+        <summary>Business links and onboarding progress</summary>
+        <div className="platform-onboarding-stages">
+          <section className="platform-onboarding-stage">
+            <h3>1. Invitation and owner verification</h3>
+            <p>Owner login: {b.owner_email}</p>
+            <EmailStatus business={b} kind="invitation" label="Invitation email"/>
+            <p>Owner verification: {b.verified_at?`Verified ${new Date(b.verified_at).toLocaleString('en-GB')}`:new Date(b.expires_at||0).getTime()<Date.now()?'Invitation expired':'Invitation pending'}</p>
+          </section>
+          <section className="platform-onboarding-stage">
+            <h3>2. Practice Diary activation</h3>
+            <p>Diary access: {b.pilot_enabled?'Enabled':b.platform_suspended?'Suspended':b.verified_at?'Awaiting activation':'Not enabled'}</p>
+            <p>Diary: <a className="platform-business-url" href={`https://${b.tenant_slug}.zipbook.app/admin`} target="_blank" rel="noopener noreferrer">https://{b.tenant_slug}.zipbook.app/admin</a></p>
+            <EmailStatus business={b} kind="diary" label="Diary welcome email"/>
+            {b.pilot_enabled&&<button className="button" disabled={busy||!overview.emailConfigured} onClick={()=>void save({action:'resend-diary',id:b.id})}>Resend diary welcome email</button>}
+          </section>
+          <section className="platform-onboarding-stage">
+            <h3>3. Business setup and readiness</h3>
+            <p>{b.active_practitioners} active {b.active_practitioners===1?'practitioner':'practitioners'} · {b.active_services} active {b.active_services===1?'service':'services'}</p>
+            <p>{b.configured_practitioners} {b.configured_practitioners===1?'practitioner':'practitioners'} with assigned services and hours</p>
+            <p>Setup: {b.configured_practitioners?'Practitioner schedule configured; manual checks required':'Configuration required'}</p>
+          </section>
+          <section className="platform-onboarding-stage">
+            <h3>4. Public booking activation</h3>
+            <p>Public bookings: {b.onboarding_completed?'Open':'Closed'}</p>
+            <p>Booking: <a className="platform-business-url" href={`https://${b.tenant_slug}.zipbook.app/book`} target="_blank" rel="noopener noreferrer">https://{b.tenant_slug}.zipbook.app/book</a></p>
+            <EmailStatus business={b} kind="live" label="Business live email"/>
+            {b.onboarding_completed&&<button className="button" disabled={busy||!overview.emailConfigured} onClick={()=>void save({action:'resend-live',id:b.id})}>Resend business live email</button>}
+          </section>
+          <div className="platform-onboarding-email-help">
+            <p><small>Accepted means Resend accepted the request, not confirmed delivery. Older emails may have no tracking record.</small></p>
+            <button className="button" disabled={busy} onClick={()=>void save({action:'refresh-email',id:b.id})}>Refresh email delivery status</button>
+          </div>
+        </div>
+      </details><div className="nav-pills">
         <button className="button" disabled={busy} onClick={()=>void inspectReadiness(b)}>Readiness check</button>
         {!b.verified_at&&<button className="button" disabled={busy||!overview.emailConfigured} onClick={()=>setPending({business:b,action:'resend'})}>Resend invitation</button>}
         {b.verified_at&&!b.pilot_enabled&&<button className="button primary" disabled={busy||!overview.accountsEnabled} onClick={()=>setPending({business:b,action:'activate'})}>Enable diary</button>}
