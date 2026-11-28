@@ -6,8 +6,8 @@ import {publicIPv4,checkedWebsiteUrl,extractStyleSuggestions} from '../lib/websi
 const read=f=>readFileSync(new URL('../'+f,import.meta.url),'utf8');
 test('theme accepts only validated colors and known font families, not executable CSS',()=>{
  assert.deepEqual(validateTheme(DEFAULT_THEME),DEFAULT_THEME);
- for(const theme of [{...DEFAULT_THEME,primary:'#123;}'},{...DEFAULT_THEME,font:'Arial; background:url(https://example.com)'},{...DEFAULT_THEME,text:'#FFFFFF'},{...DEFAULT_THEME,primary:'#EEEEEE'},{...DEFAULT_THEME,font:'__proto__'}])assert.throws(()=>validateTheme(theme));
- const v=themeVariables({...DEFAULT_THEME,primary:'#24594A',font:'Poppins'});assert.equal(v['--zw-blue'],'#24594A');assert.match(v['--zb-theme-font'],/^Poppins/);assert.match(themeFontUrl('Poppins'),/^https:\/\/fonts\.googleapis\.com\/css2\?/);assert.equal(themeFontUrl('https://evil.example'),null);assert.ok(contrast(DEFAULT_THEME.primary,'#FFFFFF')>=4.5);
+ for(const theme of [{...DEFAULT_THEME,primary:'#123;}'},{...DEFAULT_THEME,font:'Arial; background:url(https://example.com)'},{...DEFAULT_THEME,primary:'#EEEEEE'},{...DEFAULT_THEME,font:'__proto__'}])assert.throws(()=>validateTheme(theme));
+ const v=themeVariables({...DEFAULT_THEME,primary:'#24594A',font:'Poppins'});assert.equal(v['--zb-theme-primary'],'#24594A');assert.match(v['--zb-theme-font'],/^Poppins/);assert.match(themeFontUrl('Poppins'),/^https:\/\/fonts\.googleapis\.com\/css2\?/);assert.equal(themeFontUrl('https://evil.example'),null);assert.ok(contrast(DEFAULT_THEME.primary,'#FFFFFF')>=4.5);
 });
 test('static analysis extracts palette and supported fonts with contrast-safe suggestions',()=>{
  const s=extractStyleSuggestions('/* color: #badbad */ :root{--brand:#246B54} button{background:#246B54;color:#fff} p{color:rgb(34, 51, 68);font-family:Poppins,Arial}');
@@ -26,7 +26,7 @@ test('owner-only theme changes and database isolation are enforced by code and r
 });
 test('customer-only theme loads server-side and is not shared with Admin or the demo',()=>{
  const layout=read('app/book/layout.tsx'),request=read('lib/customerThemeRequest.ts'),css=read('app/book/customer-theme.css');
- assert.match(layout,/await customerThemeForPage\(\)/);assert.match(layout,/if\(!theme\)return children/);assert.match(request,/host\.kind!==\x27business\x27/);assert.match(request,/runInTenant/);assert.match(css,/body:has\(#zb-customer-theme\)/);assert.match(css,/var\(--zb-theme-top\)/);assert.match(css,/var\(--zb-theme-scroll\)/);assert.doesNotMatch(read('app/admin/layout.tsx'),/customerThemeForPage|customer-theme.css/);assert.match(read('app/api/branding/manifest/route.ts'),/manifest\.theme_color=theme\.primary/);assert.match(read('public/sw.js'),/zipbook-v0\.065/);
+ assert.match(layout,/await customerThemeForPage\(\)/);assert.match(layout,/if\(!theme\)return children/);assert.match(request,/host\.kind!==\x27business\x27/);assert.match(request,/runInTenant/);assert.match(css,/body:has\(#zb-customer-theme\)/);assert.match(css,/var\(--zb-theme-top\)/);assert.doesNotMatch(css,/var\(--zb-theme-scroll\)/);assert.doesNotMatch(read('app/admin/layout.tsx'),/customerThemeForPage|customer-theme.css/);assert.match(read('app/api/branding/manifest/route.ts'),/manifest\.theme_color=theme\.primary/);assert.match(read('public/sw.js'),/zipbook-v0\.065/);
 });
 test('theme editor does not save analysis until explicit save and retains reset and preview',()=>{
  const card=read('components/admin/CustomerThemeCard.tsx');assert.match(card,/action\('scan'\)/);assert.match(card,/action\('save'\)/);assert.match(card,/action\('reset'\)/);assert.match(card,/Live branding preview/);assert.match(card,/setTheme\(d\.theme\);if\(kind==='scan'\)/);assert.match(read('app/admin/settings/page.tsx'),/CustomerThemeCard/);

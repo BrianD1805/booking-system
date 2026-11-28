@@ -1,10 +1,10 @@
 import {getZipBookDatabase} from '@/lib/dbProvider';
 import {currentTenant} from '@/lib/tenantScope.mjs';
-import {validateTheme,type CustomerTheme} from '@/lib/customerTheme.mjs';
+import {validateTheme,normalizeStoredTheme,type CustomerTheme} from '@/lib/customerTheme.mjs';
 export async function getCustomerTheme():Promise<CustomerTheme|null>{
  const t=currentTenant(); if(t.legacy)return null;
  const rows=await getZipBookDatabase().sql<{theme:unknown}>`SELECT theme FROM zipbook_customer_themes WHERE practice_id=${t.practiceId}`;
- return rows[0]?.theme ? validateTheme(rows[0].theme):null;
+ return rows[0]?.theme ? normalizeStoredTheme(rows[0].theme):null;
 }
 export async function saveCustomerTheme(theme:CustomerTheme|null){
  const t=currentTenant(); if(t.legacy||t.demoVisitor)throw new Error('Standard ZipBook branding is protected.');

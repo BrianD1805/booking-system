@@ -1,3 +1,7 @@
+## Ver-0.065.3 — Customer Branding Restrictions & Protected UI
+
+Only primary/secondary buttons, Home background/corners and font are editable; existing logo upload remains. Legacy theme fields are ignored on read and removed on next save. No new SQL or environment variables. See FULL_PROGRAM_RELEASE_VER_0_065_3.md.
+
 ## Ver-0.065.2 — Website Embed UX Refinements
 
 See FULL_PROGRAM_RELEASE_VER_0_065_2.md. Replace the generated public embed component on the host website.

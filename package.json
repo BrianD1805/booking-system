@@ -1,6 +1,6 @@
 {
   "name": "zippyweb-booking-system",
-  "version": "0.65.2",
+  "version": "0.65.3",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -40,7 +40,7 @@
     "test:platform-session-reset": "node --test tests/platform-session-reset-063-15.test.mjs",
     "test:blue-branding": "node --test tests/blue-branding-063-16.test.mjs",
     "test:staff-recovery": "node --test tests/staff-recovery-064.test.mjs",
-    "test:customer-theme": "node --test tests/customer-theme-065.test.mjs",
+    "test:customer-theme": "node --test tests/customer-theme-065.test.mjs tests/customer-theme-restrictions-065-3.test.mjs",
     "test:embed-ux": "node --test tests/booking-embed-065-1.test.mjs",
     "test:embed-polish": "node --test tests/booking-embed-065-2.test.mjs",
     "test:all": "node --test"
