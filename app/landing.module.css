@@ -53,3 +53,28 @@
 @media(max-width:820px) { .container { width:calc(100% - 40px); }.headerInner { flex-wrap:wrap; padding-block:16px; min-height:0; }.nav { order:3; flex:1 0 100%; justify-content:center; flex-wrap:wrap; gap:12px 24px; padding-top:11px; border-top:1px solid #e6edf4; }.hero { padding-block:52px; }.heroGrid { grid-template-columns:1fr; gap:34px; }.hero h1 { font-size:clamp(40px,7vw,60px); }.preview { width:100%; max-width:620px; justify-self:center; }.stripInner { grid-template-columns:repeat(2,minmax(0,1fr)); }.stripInner span { justify-content:flex-start; }.section { padding-block:58px; }.featureGrid { grid-template-columns:repeat(2,minmax(0,1fr)); }.integration { grid-template-columns:1fr; gap:28px; }.integrationGraphic { order:2; }.ctaInner { grid-template-columns:1fr; gap:24px; }.ctaActions { align-items:flex-start; }.footerGrid { grid-template-columns:1fr 1fr; }.footerGrid>div:first-child { grid-column:1/-1; } }
 @media(max-width:480px) { .container { width:calc(100% - 32px); }.headerInner { gap:12px 8px; }.brand { font-size:23px; gap:8px; }.brand img { width:36px; height:36px; }.headerActions { gap:9px; }.signIn { font-size:11px; }.navButton { font-size:11px; padding:8px 10px; min-height:37px; }.nav { gap:8px 17px; }.nav a { font-size:11px; }.hero { padding-block:38px; }.hero h1 { font-size:clamp(32px,8.8vw,42px); }.eyebrow { font-size:10px; letter-spacing:.05em; }.lead { font-size:16px; }.actions { flex-direction:column; }.actions .btn { width:100%; }.previewBody { padding:12px; }.previewTop { padding:12px; }.metrics { gap:5px; }.metrics div { padding:7px; }.metrics span { font-size:9px; }.scheduleHead,.scheduleRow { grid-template-columns:32px repeat(2,minmax(0,1fr)); gap:4px; padding:4px; }.scheduleHead { font-size:9px; }.scheduleRow>span { font-size:9px; }.appointment,.available,.breakSlot { padding:5px; }.stripInner span { font-size:11px; gap:7px; }.stripInner svg { width:17px;height:17px; }.featureGrid,.steps { grid-template-columns:1fr; }.feature { padding:21px; }.steps { gap:12px; }.steps li { padding:18px 7px; }.integrationGraphic { padding:18px; }.footerGrid { grid-template-columns:1fr; gap:22px; }.footerGrid>div:first-child { grid-column:auto; }.footerBottom { flex-wrap:wrap; }.ctaActions .btn { width:100%; } }
 @media(prefers-reduced-motion:reduce) { .btn { transition:none; } }
+
+/* Ver-0.066.1: shared public presentation, never applied to the diary or customer app. */
+.diaryImageLink { display:block; }
+.diaryScreenshot { display:block; width:100%; height:auto; }
+.preview figcaption a { color:var(--land-blue); text-decoration:underline; text-underline-offset:3px; }
+.demoPage { display:flex; flex-direction:column; }
+.demoMain { flex:1; }
+.demoHero { padding-block:60px; }
+.demoContent { padding-block:38px 58px; }
+.demoPage :global(.zip-demo-panel) { padding:clamp(20px,4vw,32px); border:1px solid var(--land-line); border-radius:15px; box-shadow:0 10px 32px #33669912; margin:0 auto; max-width:1000px; }
+.demoPage :global(.zip-demo-gate) { max-width:720px; gap:16px; }
+.demoPage :global(.zip-demo-panel h2) { font-size:clamp(22px,3vw,28px); font-weight:700; margin-bottom:6px; }
+.demoPage :global(.zip-demo-panel p) { color:var(--land-muted); line-height:1.65; }
+.demoPage :global(.zip-demo-app-card) { border-radius:15px; padding:24px; }
+.demoPage :global(.zip-demo-app-card h3) { font-size:20px; }
+.demoPage :global(.zip-demo-app-card .zip-demo-app-icon) { margin-bottom:2px; }
+.demoPage :global(.zip-demo-challenge) { width:100%; min-width:0; max-width:100%; }
+.demoPage :global(.zip-demo-message[role="alert"]) { color:#b83232!important; }
+.demoPage :global(.zip-demo-contact-grid) { width:100%; margin:0; }
+.demoPage :global(.zip-demo-contact-grid input),.demoPage :global(.zip-demo-otp-label input) { border-width:2px; border-radius:10px; }
+.demoPage :global(.zip-demo-consent) { margin:0; }
+.demoPage :global(.zip-demo-otp-label) { margin:0; }
+.demoPage button:focus-visible { outline:3px solid var(--land-blue); outline-offset:4px; }
+.demoPage button:disabled { opacity:.55; cursor:not-allowed; }
+@media(max-width:480px) { .demoHero { padding-block:38px; }.demoContent { padding-block:26px 38px; }.demoPage :global(.zip-demo-panel) { padding:18px; }.demoPage :global(.zip-demo-challenge) { overflow-wrap:anywhere; }.demoPage :global(.zip-demo-gate) .btn { width:100%; }.headerActions .navButton { font-size:12px; }.demoPage :global(.zip-demo-app-card) { padding:18px; } }

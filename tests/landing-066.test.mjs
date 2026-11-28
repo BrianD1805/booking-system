@@ -9,9 +9,9 @@ test('public landing offers product features, onboarding and integration',()=>{
  assert.match(page,/fictional appointments/);
  assert.match(page,/Example workspace/);
 });
-test('demo CTA follows protected entry and existing application links are retained',()=>{
- for(const route of ['/demo','/book','/admin','/widget']) assert.ok(page.includes(`href="${route}"`));
- assert.doesNotMatch(page,/href="\/platform|href="\/book\?demo/);
+test('marketing landing links to protected demo and integration, not login or operational apps',()=>{
+ for(const route of ['/demo','/widget']) assert.ok(page.includes(`href="${route}"`));
+ assert.doesNotMatch(page,/href="\/(?:platform|book|admin|login|staff-reset)(?:[\/?"])/);
  assert.match(page,/APP_VERSION/);
 });
 test('Inter and new palette are isolated to landing CSS module',()=>{

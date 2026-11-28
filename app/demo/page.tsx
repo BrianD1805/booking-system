@@ -2,6 +2,8 @@
 
 import {useCallback,useEffect,useRef,useState} from 'react';
 import {APP_VERSION} from '@/lib/mockData';
+import styles from '../landing.module.css';
+import Link from 'next/link';
 
 type TurnstileApi={render:(element:HTMLElement,opts:{sitekey:string;action:string;callback:(token:string)=>void;'expired-callback':()=>void;'error-callback':()=>void})=>string;reset:(id:string)=>void;remove:(id:string)=>void};
 type DemoWindow=Window & {turnstile?:TurnstileApi};
@@ -97,28 +99,39 @@ export default function DemoLanding(){
     window.localStorage.removeItem('zipbook-client-session');
     setActive(false);setExpiresAt('');setStage('start');setChallenge('');setCode('');setError('');setMessage('Your demo has ended. Additional sessions require email verification.');
   }
-  return <main className="zip-demo-page">
-    <header className="zip-demo-top"><a href="/" className="zip-demo-brand"><img src="/icons/icon-72.png" width="36" height="36" alt="" />ZipBook</a><span>{APP_VERSION}</span></header>
-    <div className="zip-demo-container">
-      <div className="zip-demo-intro"><p className="badge blue-badge">Full connected demonstration</p><h1>Try the real ZipBook</h1><p>One test practice, two connected applications. Register as a customer and make an appointment, then open the genuine Practice Diary to see and change it.</p></div>
+  return <div className={`${styles.landing} ${styles.demoPage}`}>
+    <a className={styles.skip} href="#main-content">Skip to content</a>
+    <header className={styles.header}><div className={`${styles.container} ${styles.headerInner}`}>
+      <Link href="/" className={styles.brand} aria-label="ZipBook home"><img src="/icons/icon-72.png" width="44" height="44" alt=""/><span>ZipBook<span className={styles.brandSub}>Appointment management</span></span></Link>
+      <nav className={styles.nav} aria-label="Main navigation"><Link href="/">Home</Link><Link href="/#features">Features</Link><Link href="/widget">Website integration</Link></nav>
+      <div className={styles.headerActions}><Link href="/demo" aria-current="page" className={`${styles.btn} ${styles.primary} ${styles.navButton}`}>Try the demo</Link></div>
+    </div></header>
+    <main id="main-content" className={styles.demoMain}>
+      <section className={`${styles.hero} ${styles.demoHero}`}><div className={`${styles.container} ${styles.heroGrid}`}>
+        <div className={styles.heroCopy}><p className={styles.eyebrow}><span/> Full connected demonstration</p><h1>Try the real <em>ZipBook.</em></h1><p className={styles.lead}>One test practice, two connected applications. Make an appointment as a customer, then open the genuine Practice Diary to see and manage it.</p><p className={styles.heroNote}>30-minute access · Real booking tools · Test data only</p></div>
+        <figure className={styles.preview}><a className={styles.diaryImageLink} href="/images/practice-diary-preview.webp" target="_blank" rel="noopener noreferrer"><img className={styles.diaryScreenshot} src="/images/practice-diary-preview.webp" alt="Actual Practice Diary interface with fictional bookings" width="1440" height="1000"/></a><figcaption>Actual Practice Diary interface · Fictional appointments</figcaption></figure>
+      </div></section>
+      <div className={`${styles.container} ${styles.demoContent}`}>
       {checking ? <section className="zip-demo-panel"><p>Checking demo access…</p></section> : !enabled ?
-        <section className="zip-demo-panel"><h2>Full demo not enabled yet</h2><p>The platform owner must first confirm this business contains test data only, then enable restricted demo access in Netlify.</p></section> : !active ?
+        <section className="zip-demo-panel"><h2>{error ? "Demo temporarily unavailable" : "Demo currently unavailable"}</h2><p>{error || "Please try again later."}</p></section> : !active ?
         <section className="zip-demo-panel zip-demo-gate">
-          {stage==='start' ? <><h2>Start your 30-minute demo</h2><p>Complete the security check. Your first demo is free to explore without creating an account. We use a one-way hash of your network address to limit abuse. A repeat demo from the same network requires contact details and an email verification code; shared networks may therefore count as a repeat visit.</p><div className="zip-demo-challenge" ref={widget} aria-label="Human verification"/><button type="button" className="button primary" disabled={!challenge||busy} onClick={()=>void startDemo()}>{busy?'Verifying…':'Start the full demo'}</button></> :
+          {stage==='start' ? <><h2>Start your 30-minute demo</h2><p>Complete the security check. Your first demo is free to explore without creating an account. We use a one-way hash of your network address to limit abuse. A repeat demo from the same network requires contact details and an email verification code; shared networks may therefore count as a repeat visit.</p><div className="zip-demo-challenge" ref={widget} aria-label="Human verification"/><button type="button" className={`${styles.btn} ${styles.primary}`} disabled={!challenge||busy} onClick={()=>void startDemo()}>{busy?'Verifying…':'Start the full demo'}</button></> :
           stage==='contact' ? <><h2>Request another 30 minutes</h2><p>Enter your contact details. We'll send a verification code to your email before granting further access.</p><div className="zip-demo-contact-grid">
             <label>First name<input required autoComplete="given-name" value={firstName} onChange={e=>setFirstName(e.target.value)} maxLength={80}/></label>
             <label>Surname<input required autoComplete="family-name" value={surname} onChange={e=>setSurname(e.target.value)} maxLength={80}/></label>
             <label>Mobile number with country code<input required type="tel" autoComplete="tel" placeholder="+447123456789" value={phone} onChange={e=>setPhone(e.target.value)} maxLength={24}/></label>
             <label>Email address<input required type="email" autoComplete="email" value={email} onChange={e=>setEmail(e.target.value)} maxLength={254}/></label>
-          </div><label className="zip-demo-consent"><input type="checkbox" checked={consent} onChange={e=>setConsent(e.target.checked)}/> I understand my details are used to verify repeat demo access. Demo customer records are test data and may be cleared during resets; please don't enter confidential information.</label><button type="button" className="button primary" disabled={busy||!consent||!firstName.trim()||!surname.trim()||!phone.trim()||!email.trim()} onClick={()=>void requestCode()}>{busy?'Sending…':'Email me a verification code'}</button></> :
-          <><h2>Verify your email</h2><p>{message}</p><label className="zip-demo-otp-label">Six-digit code<input type="text" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" maxLength={6} value={code} onChange={e=>setCode(e.target.value.replace(/\D/g,'').slice(0,6))}/></label><button className="button primary" type="button" disabled={busy||code.length!==6} onClick={()=>void verifyCode()}>{busy?'Verifying…':'Verify and start 30-minute demo'}</button><button type="button" className="pill" onClick={()=>{setCode('');setStage('contact');setError('');}}>Change details / resend code</button></>}
-          {stage!=='start'&&<button type="button" className="pill" onClick={()=>{setStage('start');setError('');setMessage('');setChallenge('');setCode('');}}>Restart security check</button>}
+          </div><label className="zip-demo-consent"><input type="checkbox" checked={consent} onChange={e=>setConsent(e.target.checked)}/> I understand my details are used to verify repeat demo access. Demo customer records are test data and may be cleared during resets; please don't enter confidential information.</label><button type="button" className={`${styles.btn} ${styles.primary}`} disabled={busy||!consent||!firstName.trim()||!surname.trim()||!phone.trim()||!email.trim()} onClick={()=>void requestCode()}>{busy?'Sending…':'Email me a verification code'}</button></> :
+          <><h2>Verify your email</h2><p>{message}</p><label className="zip-demo-otp-label">Six-digit code<input type="text" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" maxLength={6} value={code} onChange={e=>setCode(e.target.value.replace(/\D/g,'').slice(0,6))}/></label><button className={`${styles.btn} ${styles.primary}`} type="button" disabled={busy||code.length!==6} onClick={()=>void verifyCode()}>{busy?'Verifying…':'Verify and start 30-minute demo'}</button><button type="button" className={`${styles.btn} ${styles.secondary}`} onClick={()=>{setCode('');setStage('contact');setError('');}}>Change details / resend code</button></>}
+          {stage!=='start'&&<button type="button" className={`${styles.btn} ${styles.secondary}`} onClick={()=>{setStage('start');setError('');setMessage('');setChallenge('');setCode('');}}>Restart security check</button>}
           {error&&<p role="alert" className="zip-demo-message">{error}</p>}
           {stage==='start'&&message&&<p role="status" className="zip-demo-message">{message}</p>}
         </section> : <section className="zip-demo-panel"><h2>Your connected 30-minute demo is ready</h2><p>Access until {expiresAt?new Date(expiresAt).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}):'session expiry'}. Both applications use the same genuine booking system and demo tenant.</p><div className="zip-demo-app-grid">
-          <div className="zip-demo-app-card"><div className="zip-demo-app-icon" aria-hidden="true"><img src="/icons/icon-72.png" alt="" width="48" height="48" style={{borderRadius:12}} /></div><h3>1. Customer booking application</h3><p>Explore the real customer Home page first. Make a guest booking, or choose Login / Sign up to test a customer account, email verification and appointment management.</p><a className="button primary" href="/book" target="_blank" rel="noopener noreferrer">Open Customer App</a></div>
-          <div className="zip-demo-app-card"><div className="zip-demo-app-icon" aria-hidden="true"><img src="/icons/icon-72.png" alt="" width="48" height="48" style={{borderRadius:12}} /></div><h3>2. Actual Practice Diary</h3><p>Open the working diary and reception tools. View and manage the same appointments without access to protected owner settings.</p><a className="button primary" href={diaryHref} target="_blank" rel="noopener noreferrer">Open Practice Diary</a></div>
-        </div><p className="zip-demo-disclaimer">All bookings are test bookings and may be reset. Use fictional appointment notes only. Registration and repeat-demo verification emails are sent, but appointment notification emails and push alerts are disabled in the demo.</p><button type="button" className="pill" onClick={()=>void endDemo()}>End demo session</button></section>}
-    </div>
-  </main>;
+          <div className="zip-demo-app-card"><div className="zip-demo-app-icon" aria-hidden="true"><img src="/icons/icon-72.png" alt="" width="48" height="48" style={{borderRadius:12}} /></div><h3>1. Customer booking application</h3><p>Explore the real customer Home page first. Make a guest booking, or choose Login / Sign up to test a customer account, email verification and appointment management.</p><a className={`${styles.btn} ${styles.primary}`} href="/book" target="_blank" rel="noopener noreferrer">Open Customer App</a></div>
+          <div className="zip-demo-app-card"><div className="zip-demo-app-icon" aria-hidden="true"><img src="/icons/icon-72.png" alt="" width="48" height="48" style={{borderRadius:12}} /></div><h3>2. Actual Practice Diary</h3><p>Open the working diary and reception tools. View and manage the same appointments without access to protected owner settings.</p><a className={`${styles.btn} ${styles.primary}`} href={diaryHref} target="_blank" rel="noopener noreferrer">Open Practice Diary</a></div>
+        </div><p className="zip-demo-disclaimer">All bookings are test bookings and may be reset. Use fictional appointment notes only. Registration and repeat-demo verification emails are sent, but appointment notification emails and push alerts are disabled in the demo.</p><button type="button" className={`${styles.btn} ${styles.secondary}`} onClick={()=>void endDemo()}>End demo session</button></section>}
+      </div>
+    </main>
+    <footer className={styles.footer}><div className={`${styles.container} ${styles.footerBottom}`}><span>Built by <a href="https://zippyweb.uk/">ZippyWeb</a>.</span><span>{APP_VERSION}</span></div></footer>
+  </div>;
 }

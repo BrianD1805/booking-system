@@ -30,20 +30,9 @@ function FeatureIcon({ name }: { name: IconName }) {
 }
 
 function DiaryPreview() {
-  return <figure className={styles.preview} aria-label="Illustrative Practice Diary with sample appointments, not live data">
-    <div className={styles.previewTop}><div className={styles.previewIdentity}><img src="/icons/icon-72.png" alt="" width="34" height="34"/><div><strong>Practice Diary</strong><span>Example workspace</span></div></div><span className={styles.previewTag}>Sample view</span></div>
-    <div className={styles.previewBody}>
-      <div className={styles.previewDate}><div><span>Daily overview</span><strong>Wednesday</strong></div><span className={styles.previewDay}>Day view</span></div>
-      <div className={styles.metrics}><div><span>Practitioners</span><strong>2</strong></div><div><span>Appointments</span><strong>3</strong></div><div><span>Open slots</span><strong>2</strong></div></div>
-      <div className={styles.schedule}>
-        <div className={styles.scheduleHead}><span>Time</span><strong>Practitioner 1</strong><strong>Practitioner 2</strong></div>
-        <div className={styles.scheduleRow}><span>09:00</span><div className={styles.appointment}><strong>Consultation</strong><small>09:00 – 09:30</small></div><div className={styles.available}>Available</div></div>
-        <div className={styles.scheduleRow}><span>09:30</span><div className={styles.available}>Available</div><div className={`${styles.appointment} ${styles.altAppointment}`}><strong>Assessment</strong><small>09:30 – 10:00</small></div></div>
-        <div className={styles.scheduleRow}><span>10:00</span><div className={styles.appointment}><strong>Follow-up</strong><small>10:00 – 10:30</small></div><div className={styles.breakSlot}>Break</div></div>
-      </div>
-      <div className={styles.previewFoot}><span className={styles.dot}/><span>Online bookings and staff appointments in one diary.</span></div>
-    </div>
-    <figcaption>Illustrative diary preview · fictional appointments</figcaption>
+  return <figure className={styles.preview} aria-label="Practice Diary screenshot with fictional appointments">
+    <a className={styles.diaryImageLink} href="/images/practice-diary-preview.webp" target="_blank" rel="noopener noreferrer" aria-label="View the Practice Diary screenshot at full size"><img className={styles.diaryScreenshot} src="/images/practice-diary-preview.webp" alt="Actual ZipBook Practice Diary interface showing date and practitioner controls, booking counts, coloured appointment slots and fictional appointments" width="1440" height="1000" fetchPriority="high" /></a>
+    <figcaption>Actual Practice Diary interface · Example workspace with fictional appointments · <a href="/images/practice-diary-preview.webp" target="_blank" rel="noopener noreferrer">View full size ↗</a></figcaption>
   </figure>;
 }
 
@@ -55,7 +44,7 @@ export default function HomePage() {
         <div className={`${styles.container} ${styles.headerInner}`}>
           <Link href="/" className={styles.brand} aria-label="ZipBook home"><img src="/icons/icon-72.png" alt="" width="44" height="44"/><span>ZipBook<span className={styles.brandSub}>Appointment management</span></span></Link>
           <nav className={styles.nav} aria-label="Main navigation"><a href="#features">Features</a><a href="#how-it-works">How it works</a><Link href="/widget">Website integration</Link></nav>
-          <div className={styles.headerActions}><Link href="/admin" className={styles.signIn}>Staff sign in</Link><Link href="/demo" className={`${styles.btn} ${styles.primary} ${styles.navButton}`}>Try the demo</Link></div>
+          <div className={styles.headerActions}><Link href="/demo" className={`${styles.btn} ${styles.primary} ${styles.navButton}`}>Try the demo</Link></div>
         </div>
       </header>
       <main id="main-content">
@@ -80,7 +69,7 @@ export default function HomePage() {
         <section className={`${styles.container} ${styles.section} ${styles.integration}`} aria-labelledby="integration-title"><div className={styles.integrationGraphic} aria-hidden="true"><div className={styles.siteMock}><div className={styles.siteBar}><i/><i/><i/><span>your website</span></div><div className={styles.siteContent}><FeatureIcon name="globe"/><strong>Your business website</strong><div className={styles.mockLine}/><div className={styles.mockButton}>Book an appointment →</div></div></div><div className={styles.connection}>↓</div><div className={styles.connected}><img src="/icons/icon-72.png" alt="" width="40" height="40"/><div><strong>ZipBook</strong><span>Your own booking page</span></div></div></div><div><p className={styles.kicker}>Website integration</p><h2 id="integration-title">Your website stays yours.</h2><p className={styles.integrationCopy}>Connect ZipBook to the website you already have. Use a booking button or supported embed options, with your business branding carried through to the customer booking experience.</p><Link className={styles.textLink} href="/widget">Discover integration options <span aria-hidden="true">→</span></Link></div></section>
         <section className={styles.cta} aria-labelledby="cta-title"><div className={`${styles.container} ${styles.ctaInner}`}><div><p className={styles.kicker}>See ZipBook in action</p><h2 id="cta-title">A better way to manage your working day.</h2><p>Try the booking journey and explore the Practice Diary before setting up your own business.</p></div><div className={styles.ctaActions}><Link className={`${styles.btn} ${styles.lightButton}`} href="/demo">Try the demo <span aria-hidden="true">→</span></Link><a className={styles.ctaLink} href="https://zippyweb.uk/">Enquire via ZippyWeb <span aria-hidden="true">↗</span></a></div></div></section>
       </main>
-      <footer className={styles.footer}><div className={`${styles.container} ${styles.footerGrid}`}><div><Link href="/" className={styles.brand}><img src="/icons/icon-72.png" alt="" width="40" height="40"/><span>ZipBook</span></Link><p>Online appointments and practice management.</p></div><div><h2>Explore</h2><Link href="/demo">Live demo</Link><Link href="/widget">Website integration</Link></div><div><h2>Already using ZipBook?</h2><Link href="/book">Open customer app</Link><Link href="/admin">Staff sign in</Link><p>Use your business-specific link if you have one.</p></div></div><div className={`${styles.container} ${styles.footerBottom}`}><span>Built by <a href="https://zippyweb.uk/">ZippyWeb</a>.</span><span>{APP_VERSION}</span></div></footer>
+      <footer className={styles.footer}><div className={`${styles.container} ${styles.footerGrid}`}><div><Link href="/" className={styles.brand}><img src="/icons/icon-72.png" alt="" width="40" height="40"/><span>ZipBook</span></Link><p>Online appointments and practice management.</p></div><div><h2>Explore</h2><Link href="/demo">Live demo</Link><Link href="/widget">Website integration</Link></div><div><h2>Business enquiries</h2><a href="https://zippyweb.uk/">Contact ZippyWeb</a><p>Discover how ZipBook can work for your business.</p></div></div><div className={`${styles.container} ${styles.footerBottom}`}><span>Built by <a href="https://zippyweb.uk/">ZippyWeb</a>.</span><span>{APP_VERSION}</span></div></footer>
     </div>
   );
 }

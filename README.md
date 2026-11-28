@@ -1,3 +1,7 @@
+## Ver-0.066.1 — Public Demo Styling and Diary Preview
+
+Shared public marketing styling, no landing-page login links, and an actual diary-component screenshot with fictional data. See FULL_PROGRAM_RELEASE_VER_0_066_1.md. No SQL or environment changes.
+
 ## Ver-0.066 — Public Landing Page Redesign
 
 The public `/` marketing page now has an Inter-based responsive design, a clearly labelled illustrative diary, features, onboarding steps and demo/integration links. No changes to customer, staff or Platform layouts. No SQL or environment changes. See FULL_PROGRAM_RELEASE_VER_0_066.md.
