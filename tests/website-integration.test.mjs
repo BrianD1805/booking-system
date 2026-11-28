@@ -116,5 +116,5 @@ test('the admin menu exposes only owner access and unauthorised legacy practice 
   assert.match(gate,/Website integration/);
   assert.match(gate,/item\.href !== '\/admin\/integrations' \|\| !business\.legacy/);
   assert.match(gate,/canUseAdminSessionStorage\(\)/);
-  const marketing=read('app/widget/page.tsx');assert.match(marketing,/website builder/i);
+  const marketing=read('app/installation/page.tsx');assert.match(marketing,/website builder/i);
 });

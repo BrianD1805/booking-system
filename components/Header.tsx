@@ -23,7 +23,7 @@ export function Header({ area }: { area: 'client' | 'admin' | 'landing' }) {
         <nav className="nav-pills" aria-label="Main navigation">
           <Link className="pill" href="/book">Client app</Link>
           <Link className="pill" href="/admin">Admin app</Link>
-          <Link className="pill" href="/widget">Website embed</Link>
+          <Link className="pill" href="/installation">Website installation</Link>
           <span className="pill">{contextLabel}</span>
         </nav>
       )}

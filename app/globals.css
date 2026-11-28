@@ -4141,7 +4141,7 @@ a.pill:active {
 }
 
 .admin-shell .topbar .nav-pills a[href="/book"],
-.admin-shell .topbar .nav-pills a[href="/widget"] {
+.admin-shell .topbar .nav-pills a[href="/installation"] {
   display: none;
 }
 

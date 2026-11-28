@@ -10,7 +10,7 @@ test('public landing offers product features, onboarding and integration',()=>{
  assert.match(page,/Example workspace/);
 });
 test('marketing landing links to protected demo and integration, not login or operational apps',()=>{
- for(const route of ['/demo','/widget']) assert.ok(page.includes(`href="${route}"`));
+ for(const route of ['/demo','/installation']) assert.ok(page.includes(`href="${route}"`));
  assert.doesNotMatch(page,/href="\/(?:platform|book|admin|login|staff-reset)(?:[\/?"])/);
  assert.match(page,/APP_VERSION/);
 });

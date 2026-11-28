@@ -1,3 +1,7 @@
+## Ver-0.066.2 — Website Installation, FAQs and Social Sharing
+
+New `/installation` guide, copyable current integration examples, FAQs, permanent redirect from retired `/widget`, and original square social image. No SQL or environment changes. See FULL_PROGRAM_RELEASE_VER_0_066_2.md.
+
 ## Ver-0.066.1 — Public Demo Styling and Diary Preview
 
 Shared public marketing styling, no landing-page login links, and an actual diary-component screenshot with fictional data. See FULL_PROGRAM_RELEASE_VER_0_066_1.md. No SQL or environment changes.

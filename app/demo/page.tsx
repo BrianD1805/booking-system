@@ -103,7 +103,7 @@ export default function DemoLanding(){
     <a className={styles.skip} href="#main-content">Skip to content</a>
     <header className={styles.header}><div className={`${styles.container} ${styles.headerInner}`}>
       <Link href="/" className={styles.brand} aria-label="ZipBook home"><img src="/icons/icon-72.png" width="44" height="44" alt=""/><span>ZipBook<span className={styles.brandSub}>Appointment management</span></span></Link>
-      <nav className={styles.nav} aria-label="Main navigation"><Link href="/">Home</Link><Link href="/#features">Features</Link><Link href="/widget">Website integration</Link></nav>
+      <nav className={styles.nav} aria-label="Main navigation"><Link href="/">Home</Link><Link href="/#features">Features</Link><Link href="/installation">Website installation</Link><Link href="/installation#faqs">FAQs</Link></nav>
       <div className={styles.headerActions}><Link href="/demo" aria-current="page" className={`${styles.btn} ${styles.primary} ${styles.navButton}`}>Try the demo</Link></div>
     </div></header>
     <main id="main-content" className={styles.demoMain}>

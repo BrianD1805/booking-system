@@ -34,9 +34,10 @@ export const metadata: Metadata = {
     siteName: 'ZipBook',
     images: [
       {
-        url: '/og-image.png',
-        width: 1200,
-        height: 1200,
+        url: '/og-image.png?v=0.066.2',
+        type: 'image/png',
+        width: 1254,
+        height: 1254,
         alt: 'ZipBook calendar and checkmark app icon'
       }
     ]
@@ -45,7 +46,7 @@ export const metadata: Metadata = {
     card: 'summary',
     title: 'ZipBook',
     description: 'Book appointments online and manage live diary availability.',
-    images: ['/og-image.png']
+    images: ['/og-image.png?v=0.066.2']
   },
   appleWebApp: {
     capable: true,
